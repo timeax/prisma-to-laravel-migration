@@ -84,6 +84,8 @@ export function sortMigrations(migrations: Migration[]): Migration[] {
       );
    }
 
-   console.log(sorted.map(item => item.tableName))
+   console.log('\n📦 Sorted Migration Tables:\n' + sorted.map((item, i) =>
+      ` ${i + 1}. ${item.tableName}`
+   ).join('\n') + '\n');
    return sorted;
 }
