@@ -1,0 +1,10 @@
+<?php
+
+namespace App\\Enums;
+
+enum ${enumDef.name}: string
+{
+        // <prisma-laravel:start>
+${enumDef.values.map(v => `    case ${v} = '${v}';`).join('\n')}
+    // <prisma-laravel:end>
+}

@@ -1,0 +1,52 @@
+{
+  "name": "prisma-laravel-migrate",
+  "version": "0.0.4",
+  "description": "Generate laravel migrations and/or models using prisma files",
+  "bin": {
+    "prisma-laravel-migrations": "./dist/cli/index.js",
+    "prisma-laravel-models": "./dist/cli/models.index.js",
+    "prisma-laravel-cli": "./dist/index.js"
+  },
+  "keywords": [
+    "prisma",
+    "laravel",
+    "migrations",
+    "models",
+    "prisma-laravel",
+    "prisma-migrations"
+  ],
+  "homepage": "https://github.com/timeax/prisma-to-laravel-migration#readme",
+  "bugs": {
+    "url": "https://github.com/timeax/prisma-to-laravel-migration/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/timeax/prisma-to-laravel-migration.git"
+  },
+  "license": "MIT",
+  "author": "David Okpako",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "cjs": "node scripts/toCommons.cjs",
+    "gen:laravel": "node scripts/gen-laravel.js"
+  },
+  "dependencies": {
+    "@prisma/generator-helper": "^6.10.0",
+    "@prisma/internals": "^6.10.0",
+    "@prisma/sdk": "^3.15.2",
+    "ejs": "^3.1.10"
+  },
+  "devDependencies": {
+    "@types/ejs": "^3.1.5",
+    "@types/node": "^24.0.3",
+    "change-case": "^5.4.4",
+    "dayjs": "^1.11.13",
+    "jest": "^30.0.2",
+    "pluralize": "^8.0.0",
+    "prettier": "^3.5.3",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.20.3"
+  }
+}

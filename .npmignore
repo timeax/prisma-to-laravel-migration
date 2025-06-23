@@ -1,0 +1,29 @@
+# Ignore source TypeScript files
+src/
+*.ts
+*.tsx
+
+# Ignore source maps
+*.js.map
+
+# Ignore config files
+tsconfig.json
+tsconfig.*.json
+jest.config.js
+.eslintrc.js
+.prettierrc*
+
+# Ignore tests and coverage
+__tests__/
+test/
+tests/
+coverage/
+
+# Ignore build scripts, docs, and misc
+scripts/
+docs/
+.github/
+.vscode/
+.DS_Store
+app/
+database/
