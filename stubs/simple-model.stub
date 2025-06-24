@@ -2,6 +2,7 @@
 
 namespace App\\Models;
 
+${model.imports}
 use Illuminate\\Database\\Eloquent\\Model;
 
 class ${model.className} extends Model

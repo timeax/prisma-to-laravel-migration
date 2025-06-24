@@ -60,7 +60,7 @@ export async function generateLaravelModels(options: GeneratorOptions) {
       ? path.resolve(process.cwd(), cfg.outputEnumDir)
       : path.resolve(process.cwd(), 'app/Enums');
 
-      console.log(enumsDir, cfg, process.cwd())
+   console.log(enumsDir, cfg, process.cwd())
 
    if (!existsSync(enumsDir)) {
       mkdirSync(enumsDir, { recursive: true });
@@ -109,6 +109,7 @@ export async function generateLaravelModels(options: GeneratorOptions) {
 
    // 5) Write model files
    for (const model of models) {
+      model.imports = model.properties.filter(item => item.enumRef).map(item => 'use App\\Enums\\' + item);
       const content = buildModelContent(model);
       const modelPhp = printer.printModel(model, enums, content);
       const modelFile = path.join(modelsDir, `${model.className}.php`);

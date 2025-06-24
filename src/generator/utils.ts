@@ -155,7 +155,7 @@ export function buildModelContent(model: ModelDefinition): string {
       lines.push(
          `protected $casts = [\n${model.properties
             .filter(p => p.cast || p.enumRef)
-            .map(p => `        '${p.name}' => ${p.enumRef ? `\\App\\Enums\\${p.enumRef}::class` : `'${p.cast}'`}`)
+            .map(p => `        '${p.name}' => ${p.enumRef ? `${p.enumRef}::class` : `'${p.cast}'`}`)
             .join(",\n")
          }\n    ];`
       );

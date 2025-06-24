@@ -46,5 +46,6 @@ export interface ModelDefinition {
    interfaces: Record<string, { import?: string; type: string }>;
    /** NEW: list of fields to put in $guarded, if any */
    guarded?: string[];
-   with?: string[]
+   with?: string[];
+   imports?: string[]
 }
