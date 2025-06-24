@@ -23,122 +23,147 @@ export class PrismaToLaravelModelGenerator {
       }));
 
       // 2) Build each ModelDefinition
-      const models: ModelDefinition[] = this.dmmf.datamodel.models.map(
-         (model) => {
-            const tableName = model.dbName ?? model.name;
-            const className = model.name;
+      // 2) Build each ModelDefinition
+      const models: ModelDefinition[] = this.dmmf.datamodel.models.map(model => {
+         /* ── 2.1  Model-level directives ──────────────────────────────── */
+         const modelDoc = model.documentation ?? "";
 
-            const modelDoc = model.documentation ?? "";
-            const guardedMatch = modelDoc.match(/@guarded\{([^}]+)\}/);
-            const guarded = guardedMatch
-               ? guardedMatch[1]
-                  .split(",")
-                  .map((s) => s.trim())
-                  .filter(Boolean)
-               : undefined;
-            const withList: string[] = [];
-            // 2a) Properties (scalars + enums + @fillable/@hidden/@ignore/@cast/@type)
-            const properties: PropertyDefinition[] = model.fields.map(
-               (field) => {
-                  const doc = field.documentation ?? "";
-                  const fillable = /@fillable\b/.test(doc);
-                  const hidden = /@hidden\b/.test(doc);
-                  const ignore = /@ignore\b/.test(doc);
-                  // parse a single @cast{...}
-                  const castMatch = doc.match(/@cast\{([^}]+)\}/);
-                  let cast = castMatch ? castMatch[1].trim() : undefined;
+         // helper → get list from @tag{a,b,c}
+         const listFrom = (doc: string, tag: string): string[] => {
+            const m = doc.match(new RegExp(`@${tag}\\{([^}]+)\\}`));
+            return m ? m[1].split(",").map(s => s.trim()).filter(Boolean) : [];
+         };
 
-                  const typeMatch = doc.match(
-                     /@type\s*(?:import\s*=\s*"([^"]+)")?\s*,?\s*type\s*=\s*"([^"]+)"/
-                  );
-                  const typeAnnotation = typeMatch
-                     ? { import: typeMatch[1], type: typeMatch[2]! }
-                     : undefined;
+         const modelFillable = listFrom(modelDoc, "fillable");
+         const modelHidden = listFrom(modelDoc, "hidden");
+         const modelGuarded = listFrom(modelDoc, "guarded");
 
-                  const enumMeta = enums.find((e) => e.name === field.type);
-                  const phpType = enumMeta
-                     ? `${field.type}`
-                     : this.mapPrismaToPhpType(field.type);
+         // model-level eager-loads  @with(rel1,rel2)
+         const modelWith = (() => {
+            const m = modelDoc.match(/@with([^)]+)/);
+            return m ? m[1].split(",").map(s => s.trim()).filter(Boolean) : [];
+         })();
 
-                  // with checking
-                  if (doc.includes("@with")) withList.push(field.name);
+         /* ── 2.2  Field processing ────────────────────────────────────── */
+         const withList: string[] = [...modelWith];         // eager-load bucket
+         const guardedSet = new Set(modelGuarded);
+         const fillableSet = new Set(modelFillable);
+         const hiddenSet = new Set(modelHidden);
 
-                  return {
-                     name: field.name,
-                     phpType,
-                     fillable,
-                     hidden,
-                     ignore,
-                     cast,
-                     enumRef: enumMeta?.name,
-                     typeAnnotation,
-                  };
-               }
-            );
-            // 2b) Relations: skip any field marked @ignore
-            const relations: RelationDefinition[] = model.fields
-               .filter(
-                  (f) =>
-                     f.kind === "object" &&
-                     f.relationName &&
-                     !/@ignore\b/.test(f.documentation ?? "")
-               )
-               .map((f) => {
-                  const relatedModel = this.dmmf.datamodel.models.find(
-                     (m) => m.name === f.type
-                  )!;
-                  const relatedTable = relatedModel.dbName ?? f.type;
-                  const thisTable = tableName;
+         const properties: PropertyDefinition[] = model.fields.map(field => {
+            const doc = field.documentation ?? "";
 
-                  const isImplicitM2M =
-                     f.isList && (f.relationFromFields?.length ?? 0) === 0;
-                  const relType = isImplicitM2M
-                     ? "belongsToMany"
-                     : f.isList
-                        ? "hasMany"
-                        : "belongsTo";
+            // quick helper for boolean flags
+            const flag = (tag: string) => new RegExp(`@${tag}\\b`).test(doc);
 
-                  let pivotTable: string | undefined;
-                  if (relType === "belongsToMany") {
-                     pivotTable = [thisTable, relatedTable]
-                        .map((t) => t.toLowerCase())
-                        .sort()
-                        .join("_");
-                  }
+            const fillable = flag("fillable") || fillableSet.has(field.name);
+            const hidden = flag("hidden") || hiddenSet.has(field.name);
+            const guarded = flag("guarded") || guardedSet.has(field.name);
+            const ignore = flag("ignore");
 
-                  return {
-                     name: f.name.replace(/Id$/, ""),
-                     type: relType as any,
-                     modelClass: `${f.type}::class`,
-                     foreignKey: f.relationFromFields?.[0],
-                     localKey: f.relationToFields?.[0],
-                     pivotTable,
-                  };
-               });
-
-            // 2c) Interfaces from @type annotations
-            const interfaces: Record<
-               string,
-               { import?: string; type: string }
-            > = {};
-            for (const prop of properties) {
-               if (prop.typeAnnotation) {
-                  interfaces[prop.name] = { ...prop.typeAnnotation };
-               }
+            // eager-load relation field
+            if (flag("with") && !withList.includes(field.name)) {
+               withList.push(field.name);
             }
 
+            // custom cast
+            const castMatch = doc.match(/@cast\{([^}]+)\}/);
+            const cast = castMatch ? castMatch[1].trim() : undefined;
+
+            // @type{ import:'x', type:'Y' }
+            const typeMatch = doc.match(/@type\{\s*(?:import\s*:\s*'([^']+)')?\s*,?\s*type\s*:\s*'([^']+)'\s*\}/);
+            const typeAnnotation = typeMatch
+               ? { import: typeMatch[1], type: typeMatch[2] }
+               : undefined;
+
+            const enumMeta = enums.find(e => e.name === field.type);
+            const phpType = enumMeta
+               ? enumMeta.name
+               : this.mapPrismaToPhpType(field.type);
+
             return {
+               name: field.name,
+               phpType,
+               fillable,
+               hidden,
+               ignore,
                guarded,
-               className,
-               tableName,
-               properties,
-               relations,
-               enums,
-               interfaces,
-               with: withList.length ? withList : undefined
+               cast,
+               enumRef: enumMeta?.name,
+               typeAnnotation,
             };
+         });
+
+         /* ── 2.3  Laravel $guarded array (union model + field) ─────────── */
+         const guarded =
+            guardedSet.size || properties.some(p => p.guarded)
+               ? [
+                  ...guardedSet,
+                  ...properties.filter(p => p.guarded).map(p => p.name),
+               ]
+               : undefined;
+
+         /* ── 2.4  Relations (unchanged except @ignore honoured) ────────── */
+         const relations: RelationDefinition[] = model.fields
+            .filter(
+               f =>
+                  f.kind === "object" &&
+                  f.relationName &&
+                  !/@ignore\b/.test(f.documentation ?? "")
+            )
+            .map(f => {
+               const relatedModel = this.dmmf.datamodel.models.find(
+                  m => m.name === f.type
+               )!;
+               const relatedTable = relatedModel.dbName ?? f.type;
+               const thisTable = model.dbName ?? model.name;
+
+               const isImplicitM2M =
+                  f.isList && (f.relationFromFields?.length ?? 0) === 0;
+               const relType = isImplicitM2M
+                  ? "belongsToMany"
+                  : f.isList
+                     ? "hasMany"
+                     : "belongsTo";
+
+               let pivotTable: string | undefined;
+               if (relType === "belongsToMany") {
+                  pivotTable = [thisTable, relatedTable]
+                     .map(t => t.toLowerCase())
+                     .sort()
+                     .join("_");
+               }
+
+               return {
+                  name: f.name.replace(/Id$/, ""),
+                  type: relType as any,
+                  modelClass: `${f.type}::class`,
+                  foreignKey: f.relationFromFields?.[0],
+                  localKey: f.relationToFields?.[0],
+                  pivotTable,
+               };
+            });
+
+         /* ── 2.5  Interfaces from @type annotations ────────────────────── */
+         const interfaces: Record<string, { import?: string; type: string }> = {};
+         for (const prop of properties) {
+            if (prop.typeAnnotation) {
+               interfaces[prop.name] = { ...prop.typeAnnotation };
+            }
          }
-      );
+
+         /* ── 2.6  Final ModelDefinition ────────────────────────────────── */
+         return {
+            className: model.name,
+            tableName: model.dbName ?? model.name,
+            guarded,
+            properties,
+            relations,
+            enums,
+            interfaces,
+            with: withList.length ? withList : undefined,
+         };
+      });
 
       return { models, enums };
    }

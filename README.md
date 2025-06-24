@@ -329,7 +329,7 @@ protected $casts = [
 ---
 
 
-## 🧩 Additional — Custom Migration Rules
+## 🧩 Custom Migration Rules
 
 Point the generator’s `rules` field to a JS file exporting an **array** of
 objects that implement the `Rule` interface:
@@ -410,6 +410,83 @@ def.isId
 📝 **Prisma DMMF docs:**  
 https://github.com/prisma/prisma/blob/main/packages/prisma-schema-wasm/src/__tests__/snapshot/dmmf.md
 
+
+---
+
+### 📝 Comment-Directives in `schema.prisma`
+
+Attach these `@` directives either to a **field** (inline or `///` above) **or**
+to the **model** (curly‑brace syntax) to control what the generator writes into
+your Eloquent model.
+
+| Directive | Where you can put it | Effect in generated PHP |
+| --- | --- | --- |
+| `@fillable` | Field **or** `@fillable{...}` on model | Adds column(s) to `$fillable` |
+| `@hidden` | Field **or** `@hidden{...}` on model | Adds column(s) to `$hidden` |
+| `@guarded` | Field **or** `@guarded{...}` on model | Adds column(s) to `$guarded` |
+| `@cast{...}` | Field only | Adds custom entry to `$casts` |
+| `@type{ import:'…', type:'…' }` | Field only | Adds entry to `$interfaces` metadata |
+| `@ignore` | Relation field | Skips generating the relationship method |
+| `@with` (no args) | Relation field | Adds that single relation to `$with` |
+| `@with(rel1,rel2,…)` | Model only | Adds listed relations to `$with` |
+
+> **Syntax options**  
+> • Inline:  
+>  `balance Decimal /// @fillable @cast{decimal:2}`  
+> • Block above field:  
+>  `/// @hidden`  
+> • Model list:  
+>  `/// @fillable{name,balance}`  
+> • Model eager‑load:  
+>  `/// @with(posts,roles)`
+
+---
+
+#### Example
+
+```prisma
+/// @fillable{name,balance}
+/// @hidden{secretToken}
+model Account {
+  id        Int      @id @default(autoincrement())
+
+  balance   Decimal  @default(0.0) /// @cast{decimal:2}
+
+  nickname  String   /// @fillable @hidden
+
+  profile   Json?    /// @type{ import:'@types/forms', type:'ProfileDTO' }
+
+  company   Company? @relation(fields:[companyId], references:[id]) /// @ignore
+  companyId Int?
+
+  posts     Post[]   /// @with
+}
+
+/// @with(posts,comments)
+model User {
+  id       Int      @id @default(autoincrement())
+  email    String
+  posts    Post[]
+  comments Comment[]
+}
+```
+
+**Generated output**
+
+```php
+protected $fillable = ['name','balance','nickname'];
+protected $hidden   = ['secretToken','nickname'];
+protected $casts    = ['balance' => 'decimal:2'];
+
+public array $interfaces = [
+    'profile' => { import: '@types/forms', type: 'ProfileDTO' },
+];
+
+protected $with = ['posts','comments'];
+```
+
+`@ignore` prevents the `company()` relation method.  
+Combine multiple inline directives; they’re processed left‑to‑right.
 
 ---
 

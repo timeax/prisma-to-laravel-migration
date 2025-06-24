@@ -30,6 +30,7 @@ export interface PropertyDefinition {
    ignore: boolean;
    cast?: string;
    enumRef?: string;
+   guarded?: boolean;
    relation?: RelationDefinition;
    typeAnnotation?: {
       import?: string;

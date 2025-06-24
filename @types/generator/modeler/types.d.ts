@@ -20,6 +20,7 @@ export interface PropertyDefinition {
     ignore: boolean;
     cast?: string;
     enumRef?: string;
+    guarded?: boolean;
     relation?: RelationDefinition;
     typeAnnotation?: {
         import?: string;
@@ -39,4 +40,5 @@ export interface ModelDefinition {
     /** NEW: list of fields to put in $guarded, if any */
     guarded?: string[];
     with?: string[];
+    imports?: string[];
 }
