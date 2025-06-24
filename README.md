@@ -1,9 +1,3 @@
-Below is the complete README.md content in one block.
-(You can copy-paste it directly into a file; no escaping needed.)
-
-
----
-
 # Prisma Laravel Migrate
 
 A generator toolkit that translates your **Prisma schema** into Laravel-compatible  
@@ -57,7 +51,7 @@ output / outputDir	Destination folder; outputDir overrides output.
 outputEnumDir	(modeler) folder for PHP enum classes.
 stubDir	Root stubs folder (migration/, model/, enum/).
 startMarker / endMarker	Region markers the generator will update.
-groups	Path to JS module that exports stub-group mappings.
+groups	Path to JS module exporting stub-group mappings.
 noEmit	If true, generator parses but writes no files.
 
 
@@ -95,7 +89,7 @@ stubs/<type>/<name>.stub (e.g. stubs/model/users.stub).
 
 Command	Purpose
 
-init	Inject generator blocks & scaffold stub folders.
+init	Injects generator blocks & scaffold stub folders.
 customize	Create per-table stub overrides.
 gen	Run prisma generate and then Laravel generators.
 
@@ -167,17 +161,17 @@ Resolution order
 
 ✨ Stub Customization Notes
 
-Stubs are JavaScript template literals. Escape
+Stubs are JavaScript template literals. Escape \` and \${ } if you need them literally.
 
-backticks \` and
+Keep the ${content} placeholder inside the marker block if you want the generator to keep injecting its dynamic chunk.
 
-template braces \${ … }
+> Full Custom Model Stubs
+If you plan to hand-craft a model stub completely—removing both the ${content} placeholder and the // <prisma-laravel:start> / // <prisma-laravel:end> markers—set
+noEmit = true for the modeler generator (or exclude that table via custom rules).
+Otherwise, the generator has nowhere to inject its code and will skip the file.
+Leaving the markers + ${content} lets you customise everything around the generated region while the tool continues to maintain fillable lists, casts, and relations automatically.
 
 
-if you want them to appear literally.
-
-Keep ${content} inside marker lines if you want the generator to keep injecting its dynamic block.
-Remove both markers & placeholder if you fully hand-write the file and set noEmit=true.
 
 
 ---
@@ -330,3 +324,6 @@ Use noEmit: true for dry-runs or CI validation.
 MIT — Happy scaffolding! 🎉
 
 ---
+
+Copy that entire block into **README.md** and you’ll have the corrected, full documentation—including the note about fully custom model stubs.
+

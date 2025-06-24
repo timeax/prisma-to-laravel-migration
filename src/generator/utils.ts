@@ -161,6 +161,18 @@ export function buildModelContent(model: ModelDefinition): string {
       );
    }
 
+   // — Interfaces metadata slot —
+   if (model.interfaces && Object.keys(model.interfaces).length) {
+      lines.push(`    public array $interfaces = [`);
+      for (const [key, info] of Object.entries(model.interfaces)) {
+         const parts: string[] = [];
+         if (info.import) parts.push(`import: '${info.import}'`);
+         parts.push(`type: '${info.type}'`);
+         lines.push(`        '${key}' => { ${parts.join(', ')} },`);
+      }
+      lines.push(`    ];`);
+   }
+
    // 4) Relations (unchanged)
    for (const rel of model.relations) {
       const args = [

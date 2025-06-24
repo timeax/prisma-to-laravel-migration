@@ -1,85 +1,15 @@
 <?php
 
 namespace App\\Models;
+
 ${model.imports}
 use Illuminate\\Database\\Eloquent\\Model;
 
 class ${model.className} extends Model
 {
-    // <prisma-laravel:start>
-    // Table override (if needed)
     protected $table = '${model.tableName}';
 
-${model.with && model.with.length ? `    // Eager‐loaded relations
-    protected $with = [
-${model.with.map(r => `        '${r}'`).join("\n")}
-    ];` : ''}
-
-${model.guarded
-  ? `    // Guarded attributes
-    protected $guarded = [
-${model.guarded.map(f => `        '${f}'`).join("\n")}
-    ];`
-  : `    // Mass‐assignable
-    protected $fillable = [
-${model.properties
-  .filter(p => p.fillable)
-  .map(p => `        '${p.name}'`)
-  .join(",\n")}
-    ];`}
-
-${(() => {
-  const h = model.properties.filter(p => p.hidden);
-  return h.length
-    ? `    // Hidden attributes
-    protected $hidden = [
-${h.map(p => `        '${p.name}'`).join("\n")}
-    ];`
-    : '';
-})()}
-
-${(() => {
-  const c = model.properties.filter(p => p.cast);
-  return c.length
-    ? `    // Casts
-    protected $casts = [
-${c.map(p => `        '${p.name}' => '${p.cast}'`).join("\n")}
-    ];`
-    : '';
-})()}
-
-${model.properties.filter(p => p.enumRef).map(p => 
-  `    // Enum casting
-    protected const CAST_${p.name.toUpperCase()} = ${p.enumRef}::class;`
-).join("\n")}
-
-${Object.entries(model.interfaces).length
-  ? `    // Interfaces metadata
-    public array $interfaces = [
-${Object.entries(model.interfaces)
-  .map(([key, info]) =>
-    `        '${key}' => {${info.import ? ` import: '${info.import}',` : ''} type: '${info.type}' }`
-  )
-  .join("\n")}
-    ];`
-  : ''}
-
-${model.relations.length
-  ? `    // Relations
-${model.relations
-    .map(r => {
-      const args = [
-        r.modelClass,
-        r.foreignKey   ? ` '${r.foreignKey}'`  : '',
-        r.localKey     ? ` '${r.localKey}'`    : '',
-        r.pivotTable   ? ` '${r.pivotTable}'`  : ''
-      ]
-      .filter(Boolean)
-      .join(',');
-      return `    public function ${r.name}()\n    {\n        return $this->${r.type}(${args});\n    }`;
-    })
-    .join("\n\n")}`
-  : ''}
-
+    // <prisma-laravel:start>
+    ${content}
     // <prisma-laravel:end>
 }

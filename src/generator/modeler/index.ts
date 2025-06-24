@@ -76,7 +76,7 @@ export async function generateLaravelModels(options: GeneratorOptions) {
    // 2) Load stubs (allow overrides)
    const modelStub = cfg.modelStubPath
       ? path.resolve(process.cwd(), cfg.modelStubPath)
-      : path.resolve(__dirname, "../../../stubs/simple-model.stub");
+      : path.resolve(__dirname, "../../../stubs/model.stub");
 
    const enumStub = cfg.enumStubPath
       ? path.resolve(process.cwd(), cfg.enumStubPath)
@@ -109,7 +109,8 @@ export async function generateLaravelModels(options: GeneratorOptions) {
 
    // 5) Write model files
    for (const model of models) {
-      model.imports = model.properties.filter(item => item.enumRef).map(item => 'use App\\Enums\\' + item);
+      model.imports = model.properties.filter(item => item.enumRef).map(item => `use App\\Enums\\${item.enumRef};`);
+      //----
       const content = buildModelContent(model);
       const modelPhp = printer.printModel(model, enums, content);
       const modelFile = path.join(modelsDir, `${model.className}.php`);
