@@ -21,7 +21,7 @@ Add both generator blocks to **`schema.prisma`**:
 
 ```prisma
 generator migrate {
-  provider    = "prisma-laravel-migrate"
+  provider    = "prisma-laravel-migrations"
   stubDir     = "./prisma/stubs"
   output      = "database/migrations"     // fallback
   outputDir   = "database/migrations"     // takes precedence
@@ -63,7 +63,7 @@ to a shared stub template:
 
 ```prisma
 generator migrate {
-  provider = "prisma-laravel-migrate"
+  provider = "prisma-laravel-models"
   stubDir  = "./prisma/stubs"
   groups   = "./prisma/group-stubs.js"
 }
@@ -325,6 +325,91 @@ protected $casts = [
     'status' => StatusEnum::class,
 ];
 ```
+
+---
+
+
+## 🧩 Additional — Custom Migration Rules
+
+Point the generator’s `rules` field to a JS file exporting an **array** of
+objects that implement the `Rule` interface:
+
+```prisma
+generator migrate {
+  provider = "prisma-laravel-migration"
+  stubDir  = "./prisma/stubs"
+  rules    = "./prisma/custom-rules.js"
+}
+```
+
+`prisma/custom-rules.js`
+
+```js
+/** @type {import('prisma-laravel-migrate').Rule[]} */
+module.exports = [
+  {
+    // Always add an `archived` boolean column defaulting to false
+    test(def) {
+      return def.name === "archived" && def.migrationType === "boolean";
+    },
+    render() {
+      return {
+        column: "archived",
+        snippet: ["$table->boolean('archived')->default(false);"],
+      };
+    },
+  },
+  // add more Rule objects...
+];
+```
+
+**Rule execution order**
+
+1. Built‑in rules  
+2. Custom rules (executed in array order)
+
+---
+
+### ColumnDefinition quick reference
+
+`ColumnDefinition` extends Prisma’s `DMMF.Field`, so all raw Prisma
+properties remain accessible.
+
+```ts
+import { DMMF } from "@prisma/generator-helper";
+
+export interface ColumnDefinition extends DMMF.Field {
+  migrationType: MigrationType; // e.g. "unsignedBigInteger"
+  args?: string[];
+  nullable?: boolean;
+  unsigned?: boolean;
+
+  hasDefaultValue: boolean;
+  default?: string | number | boolean | null;
+
+  relationship?: {
+    on: string;
+    references?: string;
+    onDelete?: string;
+    onUpdate?: string;
+  };
+
+  ignore?: boolean;
+}
+```
+
+Common checks inside a rule:
+
+```ts
+def.kind          // "scalar" | "enum" | "object"
+def.type          // original Prisma scalar
+def.migrationType // mapped Laravel builder name
+def.isId
+```
+
+📝 **Prisma DMMF docs:**  
+https://github.com/prisma/prisma/blob/main/packages/prisma-schema-wasm/src/__tests__/snapshot/dmmf.md
+
 
 ---
 
