@@ -57,6 +57,50 @@ generator modeler {
 
 ---
 
+
+### 🔀 `groups` – Stub Grouping
+
+Use **`groups`** in the generator block to map multiple tables (or enums)
+to a shared stub template:
+
+```prisma
+generator migrate {
+  provider = "prisma-laravel-migrate"
+  stubDir  = "./prisma/stubs"
+  groups   = "./prisma/group-stubs.js"
+}
+```
+
+`prisma/group-stubs.js`
+
+```js
+/**
+ * Each object links one stub file (relative to stubDir/<type>/)
+ * to an array of tables (or enums) that should use it.
+ */
+module.exports = [
+  {
+    // Auth domain
+    stubFile: "auth.stub",          // stubs/migration/auth.stub
+    tables: ["users", "accounts", "password_resets"]
+  },
+  {
+    // Billing domain
+    stubFile: "billing.stub",       // stubs/migration/billing.stub
+    tables: ["invoices", "transactions"]
+  }
+];
+```
+
+**Resolution order**
+
+1. `stubs/<type>/<table>.stub` (table‑specific)
+2. Matching group stub (`stubFile`)
+3. `stubs/<type>/index.stub` (default)
+
+
+---
+
 ## 📁 Stub Folder Layout
 
 ```
