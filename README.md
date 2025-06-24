@@ -55,8 +55,6 @@ generator modeler {
 | `groups` | JS module exporting stub‑group mappings. |
 | `noEmit` | If `true`, generator parses but **writes no** files. |
 
----
-
 
 ### 🔀 `groups` – Stub Grouping
 
