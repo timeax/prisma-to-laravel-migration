@@ -21,7 +21,7 @@ Add both generator blocks to **`schema.prisma`**:
 
 ```prisma
 generator migrate {
-  provider  = "prisma-laravel-migrate"
+  provider  = "prisma-laravel-migrations"
   stubDir   = "./prisma/stubs"
 
   output    = "database/migrations"   // fallback
@@ -60,7 +60,7 @@ generator modeler {
 
 ```prisma
 generator migrate {
-  provider = "prisma-laravel-migrate"
+  provider = "prisma-laravel-migrations"
   stubDir  = "./prisma/stubs"
   groups   = "./prisma/group-stubs.js"
 }
@@ -315,7 +315,7 @@ objects that implement the `Rule` interface:
 
 ```prisma
 generator migrate {
-  provider = "prisma-laravel-migration"
+  provider = "prisma-laravel-migrations"
   stubDir  = "./prisma/stubs"
   rules    = "./prisma/custom-rules.js"
 }
