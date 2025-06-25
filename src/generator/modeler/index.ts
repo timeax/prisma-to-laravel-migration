@@ -1,11 +1,12 @@
 import { GeneratorConfig, GeneratorOptions } from "@prisma/generator-helper";
 import { existsSync, mkdirSync } from "fs";
 import path from "path";
-import { buildModelContent, StubConfig, StubGroupConfig, writeWithMarkers } from "../utils.js";
+import { buildModelContent, StubConfig, StubGroupConfig } from "../utils.js";
 import { StubModelPrinter } from "../../printer/models.js";
 import { PrismaToLaravelModelGenerator } from "./generator.js";
 import { ModelDefinition, EnumDefinition } from "./types";
 import { fileURLToPath } from "url";
+import { writeWithMerge } from "diff-writer/writer.js";
 
 interface ModelConfig extends StubConfig {
    modelStubPath?: string;
@@ -97,12 +98,9 @@ export async function generateLaravelModels(options: GeneratorOptions) {
       const enumPhp = printer.printEnum(enumDef);
       const enumFile = path.join(enumsDir, `${enumDef.name}.php`);
 
-      writeWithMarkers(
+      writeWithMerge(
          enumFile,
          enumPhp,
-         enumDef.values.map(v => `    case ${v} = '${v}';`).join('\n'),
-         cfg.startMarker!,
-         cfg.endMarker!,
          cfg.overwriteExisting ?? false
       );
    }
@@ -115,12 +113,9 @@ export async function generateLaravelModels(options: GeneratorOptions) {
       const modelPhp = printer.printModel(model, enums, content);
       const modelFile = path.join(modelsDir, `${model.className}.php`);
 
-      writeWithMarkers(
+      writeWithMerge(
          modelFile,
          modelPhp,
-         content,
-         cfg.startMarker!,
-         cfg.endMarker!,
          cfg.overwriteExisting ?? false
       );
    }

@@ -3,7 +3,7 @@ import { NativeToMigrationTypeMap } from "./migrator/column-maps.js";
 import { MigrationType } from "./migrator/column-definition-types.js";
 import { MigrationTypes } from "./migrator/migrationTypes.js";
 import { ModelDefinition } from "./modeler/types.js";
-import { existsSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync } from 'fs';
 import path from "path";
 
 /**
@@ -109,7 +109,6 @@ export function getType(field: DMMF.Field): MigrationType {
    return NativeToMigrationTypeMap[key] ?? MigrationTypes.string;
 }
 
-
 export function buildModelContent(model: ModelDefinition): string {
    const lines: string[] = [];
 
@@ -191,6 +190,7 @@ export function buildModelContent(model: ModelDefinition): string {
 
    return lines.map(l => "    " + l).join("\n\n");
 }
+
 /**
  * Escape a stub’s contents so it can be safely wrapped in a JS template literal.
  * This will:
@@ -198,58 +198,7 @@ export function buildModelContent(model: ModelDefinition): string {
  *  - Escape all backticks
  */
 export function formatStub(stub: string): string {
-   return stub
-   // escape backslashes first
-   // .replace(/\\/g, '\\\\')
-   // then escape any backticks
-   // .replace(/`/g, '\\`');
-}
-
-
-/**
- * Safely write or update a file by replacing the region between
- * startMarker and endMarker if both exist, otherwise overwrite the whole file.
- *
- * @param filePath      Path to the target file
- * @param fullContent   The full text to write if markers are missing
- * @param generated     The text to inject between the markers
- * @param startMarker   Literal string marking the region start
- * @param endMarker     Literal string marking the region end
- * @param overwrite     If false and file exists, do nothing
- */
-export function writeWithMarkers(
-   filePath: string,
-   fullContent: string,
-   generated: string,
-   startMarker: string,
-   endMarker: string,
-   overwrite: boolean
-) {
-   // If the file exists but we're *not* overwriting, skip entirely
-   if (existsSync(filePath) && !overwrite) return;
-
-   if (existsSync(filePath)) {
-      const existing = readFileSync(filePath, 'utf-8');
-
-      // If both markers are present, do an in‐place replace
-      if (existing.includes(startMarker) && existing.includes(endMarker)) {
-         const escaped = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-         const re = new RegExp(
-            `${escaped(startMarker)}[\\s\\S]*?${escaped(endMarker)}`,
-            'm'
-         );
-
-         const updated = existing.replace(
-            re,
-            `${startMarker}\n${generated}\n${endMarker}`
-         );
-
-         return writeFileSync(filePath, updated, 'utf-8');
-      }
-   }
-
-   // Otherwise write the full content (which itself can include the markers)
-   writeFileSync(filePath, fullContent, 'utf-8');
+   return stub;
 }
 
 export interface StubGroupConfig {

@@ -2,7 +2,7 @@
 
 A generator plugin that translates your **Prisma schema** into Laravel‑ready  
 **Database Migrations**, **Eloquent Models**, and **Enum classes**.  
-Built in strict TypeScript with fully‑customisable stubs, grouping, and marker‑based updates.
+Built in strict TypeScript with fully‑customisable stubs, grouping, and smart merge updates.
 
 ---
 
@@ -21,24 +21,24 @@ Add both generator blocks to **`schema.prisma`**:
 
 ```prisma
 generator migrate {
-  provider    = "prisma-laravel-migrations"
-  stubDir     = "./prisma/stubs"
-  output      = "database/migrations"     // fallback
-  outputDir   = "database/migrations"     // takes precedence
-  startMarker = "// <prisma-laravel:start>"
-  endMarker   = "// <prisma-laravel:end>"
-  noEmit      = false
-  groups      = "./prisma/group-stubs.js"
+  provider  = "prisma-laravel-migrate"
+  stubDir   = "./prisma/stubs"
+
+  output    = "database/migrations"   // fallback
+  outputDir = "database/migrations"   // takes precedence
+
+  noEmit    = false                   // skip writing if true
+  groups    = "./prisma/group-stubs.js"
 }
 
 generator modeler {
   provider      = "prisma-laravel-models"
   stubDir       = "./prisma/stubs"
+
   output        = "app/Models"
-  outputDir     = "app/Models"            // overrides output
+  outputDir     = "app/Models"        // overrides output
   outputEnumDir = "app/Enums"
-  startMarker   = "// <prisma-laravel:start>"
-  endMarker     = "// <prisma-laravel:end>"
+
   noEmit        = false
   groups        = "./prisma/group-stubs.js"
 }
@@ -48,22 +48,19 @@ generator modeler {
 
 | Key | Notes |
 | --- | --- |
-| `outputDir / output` | Destination folder (`outputDir` takes precedence). |
-| `outputEnumDir` | (modeler) directory for PHP enum classes. |
-| `stubDir` | Root stubs folder (`migration/`, `model/`, `enum/`). |
-| `startMarker/endMarker` | Region markers the generator will update. |
-| `groups` | JS module exporting stub‑group mappings. |
-| `noEmit` | If `true`, generator parses but **writes no** files. |
+| `outputDir / output` | Destination folder (`outputDir` overrides `output`). |
+| `outputEnumDir` | (modeler) directory for generated enum classes. |
+| `stubDir` | Root stub folder (`migration/`, `model/`, `enum/`). |
+| `groups` | JS module that maps stub files to table groups. |
+| `noEmit` | If `true`, generator parses but **writes no** files (dry‑run). |
 
+---
 
-### 🔀 `groups` – Stub Grouping
-
-Use **`groups`** in the generator block to map multiple tables (or enums)
-to a shared stub template:
+## 🔀 `groups` – Stub Grouping
 
 ```prisma
 generator migrate {
-  provider = "prisma-laravel-models"
+  provider = "prisma-laravel-migrate"
   stubDir  = "./prisma/stubs"
   groups   = "./prisma/group-stubs.js"
 }
@@ -72,20 +69,14 @@ generator migrate {
 `prisma/group-stubs.js`
 
 ```js
-/**
- * Each object links one stub file (relative to stubDir/<type>/)
- * to an array of tables (or enums) that should use it.
- */
 module.exports = [
   {
-    // Auth domain
-    stubFile: "auth.stub",          // stubs/migration/auth.stub
-    tables: ["users", "accounts", "password_resets"]
+    stubFile: "auth.stub",                // stubs/migration/auth.stub
+    tables:   ["users","accounts","password_resets"]
   },
   {
-    // Billing domain
-    stubFile: "billing.stub",       // stubs/migration/billing.stub
-    tables: ["invoices", "transactions"]
+    stubFile: "billing.stub",             // stubs/migration/billing.stub
+    tables:   ["invoices","transactions"]
   }
 ];
 ```
@@ -96,12 +87,11 @@ module.exports = [
 2. Matching group stub (`stubFile`)
 3. `stubs/<type>/index.stub` (default)
 
-
 ---
 
 ## 📁 Stub Folder Layout
 
-```
+```text
 prisma/stubs/
 ├── migration/index.stub
 ├── model/index.stub
@@ -109,17 +99,17 @@ prisma/stubs/
 └── enum/index.stub
 ```
 
-Create a table‑specific override with  
+Add table‑specific overrides at  
 `stubs/<type>/<table>.stub` (e.g. `stubs/model/users.stub`).
 
 ---
 
 ## 🔧 CLI Commands
 
-| Command | What it does |
+| Command | Purpose |
 | --- | --- |
 | `init` | Inject generator blocks & scaffold stub folders |
-| `customize` | Create per‑table stub overrides |
+| `customize` | Create per-table stub overrides |
 | `gen` | Run `prisma generate` then Laravel generators |
 
 ### init
@@ -130,80 +120,69 @@ npx prisma-laravel-cli init --schema=prisma/schema.prisma
 
 ### customize
 
-Generate override stubs.
-
 ```bash
-npx prisma-laravel-cli customize \
-  -t <types> \
-  -n <names> \
-  [--force] \
-  [--config <path>]
+npx prisma-laravel-cli customize   -t migration,model   -n users,accounts   --force
 ```
 
 | Flag | Description |
 | --- | --- |
-| `-t, --type` | **Required.** Comma‑separated list of stub types.<br>Valid values: `migration`, `model`, `enum`. You may combine `migration,model`; `enum` must be used alone. |
-| `-n, --names` | **Required.** Comma‑separated table or enum names (e.g. `users,accounts`). |
+| `-t, --type` | **Required.** Stub types (`migration`, `model`, `enum`). `enum` may not mix. |
+| `-n, --names` | **Required.** Table or enum names (`users,accounts`). |
 | `--force` | Overwrite existing stub files. |
-| `--config` | Path to an alternate CLI config file (custom stubDir/groups). |
-
-**Behaviour**
-
-1. Checks `<stubDir>/<type>/<name>.stub`.
-2. If missing, copies from `index.stub` → that path and logs:  
-  `➡️ Created stubs/<type>/<name>.stub from index.stub`
-3. If present and `--force` **not** set:  
-  `⏭️ Skipped existing stubs/<type>/<name>.stub`
-4. With `--force`, overwrites and logs creation.
-
-**Example**
-
-```bash
-# migration + model overrides for two tables
-npx prisma-laravel-cli customize -t migration,model -n users,accounts
-```
+| `--config` | Alternate CLI config path. |
 
 ### gen
 
 ```bash
-# run prisma generate then Laravel generators
 npx prisma-laravel-cli gen --config=prisma/laravel.config.js
-
 # skip prisma generate step
 npx prisma-laravel-cli gen --config=prisma/laravel.config.js --skipGenerate
 ```
 
-`prisma/laravel.config.js` example:
+`prisma/laravel.config.js`
 
 ```js
 module.exports = {
   migrator: {
     outputDir: "database/migrations",
-    stubDir: "prisma/stubs",
-    groups: "./prisma/group-stubs.js",
+    stubDir:   "prisma/stubs",
+    groups:    "./prisma/group-stubs.js"
   },
   modeler: {
-    outputDir: "app/Models",
+    outputDir:     "app/Models",
     outputEnumDir: "app/Enums",
-    stubDir: "prisma/stubs",
-    groups: "./prisma/group-stubs.js",
-  },
+    stubDir:       "prisma/stubs",
+    groups:        "./prisma/group-stubs.js"
+  }
 };
 ```
 
 ---
 
-## ✨ Stub Customization Notes
+## 🔄 How updates are applied
 
-Stubs are **JS template literals**. Escape \\` and \\${ } if you want them literally.
+1. Generator builds a **full new file** from your schema & stubs.
+2. Performs a **git‑style 3‑way merge** (using `node-diff3`):
+  - **base** = last generator output (`.prisma-laravel/backups/...`)
+  - **ours** = file on disk (user edits)
+  - **theirs** = freshly generated file
+3. Non‑conflicting changes merge automatically; conflicts are wrapped with  
+  `<<<<<<<`, `=======`, `>>>>>>>`.
+4. New `use …;` imports are merged, duplicates skipped.
+5. Baseline copy is updated in the backups folder.
 
-> **Full custom model stubs**  
-> If you plan to hand-craft **all** the internal sections yourself
-> (fillable, hidden, casts, etc.), remove the `${content}` placeholder
-> but **keep** the `// <prisma-laravel:start>` and
-> `// <prisma-laravel:end>` markers so the generator still knows where
-> to inject future updates.  
-> Remove the markers only if you never want the file touched again
+Delete the marker block **and** set `noEmit = true` to stop updates for a file.
+
+---
+
+## ✨ Stub Customisation Notes
+
+Stubs are **JavaScript template literals**. Escape \` and \${ } if you want them literally.
+
+> **Fully custom model stubs**  
+> If you remove the `${content}` placeholder **and** the marker block, the
+> generator leaves the file untouched.  
+> Keep the markers if you want automated updates but customised surroundings.
 
 ---
 

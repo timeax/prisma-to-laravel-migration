@@ -3,9 +3,10 @@ import { existsSync, mkdirSync, readdirSync, writeFileSync } from "fs";
 import path from "path";
 import { PrismaToLaravelMigrationGenerator, Migration } from "./PrismaToLaravelMigrationGenerator.js";
 import { StubMigrationPrinter } from "../../printer/migrations.js";
-import { resolveStub, StubConfig, StubGroupConfig, writeWithMarkers } from "../../generator/utils.js";
+import { StubConfig, StubGroupConfig } from "../../generator/utils.js";
 import { fileURLToPath } from "url";
 import { sortMigrations } from "./sort.js";
+import { writeWithMerge } from "diff-writer/writer.js";
 
 interface MigratorConfig extends StubConfig {
    stubPath?: string;
@@ -111,16 +112,13 @@ export async function generateLaravelSchema(options: GeneratorOptions): Promise<
       const filePath = path.join(baseOut, fileName);
 
       // 3) Extract full & generated parts from your printer
-      const { fullContent: content, columns: generated } = printer.printMigration(mig);
+      const { fullContent: content } = printer.printMigration(mig);
 
 
       // 4) Write with markers as before
-      writeWithMarkers(
+      writeWithMerge(
          filePath,
          content,
-         generated,
-         cfg.startMarker!,
-         cfg.endMarker!,
          cfg.overwriteExisting ?? false
       );
    });

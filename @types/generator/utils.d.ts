@@ -18,18 +18,6 @@ export declare function buildModelContent(model: ModelDefinition): string;
  *  - Escape all backticks
  */
 export declare function formatStub(stub: string): string;
-/**
- * Safely write or update a file by replacing the region between
- * startMarker and endMarker if both exist, otherwise overwrite the whole file.
- *
- * @param filePath      Path to the target file
- * @param fullContent   The full text to write if markers are missing
- * @param generated     The text to inject between the markers
- * @param startMarker   Literal string marking the region start
- * @param endMarker     Literal string marking the region end
- * @param overwrite     If false and file exists, do nothing
- */
-export declare function writeWithMarkers(filePath: string, fullContent: string, generated: string, startMarker: string, endMarker: string, overwrite: boolean): void;
 export interface StubGroupConfig {
     /** path relative to stubDir/<type>/, e.g. "fancy-orders.stub" */
     stubFile: string;
