@@ -37,7 +37,8 @@ import { sortMigrations } from '../dist/generator/migrator/sort.js';
   // 6) Print models to stdout
   const { StubModelPrinter } = await import('../dist/printer/models.js');
   const modelPrinter = new StubModelPrinter(
-    path.resolve(process.cwd(), 'stubs/simple-model.stub'),
+    {},
+    path.resolve(process.cwd(), 'stubs/model.stub'),
     path.resolve(process.cwd(), 'stubs/enums.stub')
   );
 

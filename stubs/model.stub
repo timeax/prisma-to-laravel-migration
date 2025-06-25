@@ -9,7 +9,5 @@ class ${model.className} extends Model
 {
     protected $table = '${model.tableName}';
 
-    // <prisma-laravel:start>
     ${content}
-    // <prisma-laravel:end>
 }

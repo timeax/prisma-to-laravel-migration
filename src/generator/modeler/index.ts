@@ -61,8 +61,6 @@ export async function generateLaravelModels(options: GeneratorOptions) {
       ? path.resolve(process.cwd(), cfg.outputEnumDir)
       : path.resolve(process.cwd(), 'app/Enums');
 
-   console.log(enumsDir, cfg, process.cwd())
-
    if (!existsSync(enumsDir)) {
       mkdirSync(enumsDir, { recursive: true });
    }
