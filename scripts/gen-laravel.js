@@ -6,7 +6,6 @@ import * as dmf from '@prisma/sdk';
 import * as gg from '../dist/generator/migrator/index.js';
 import * as modeler from '../dist/generator/modeler/index.js';
 import { buildModelContent } from '../dist/generator/utils.js';
-import { sortMigrations } from '../dist/generator/migrator/sort.js';
 
 (async () => {
   // 1) Load your Prisma schema
