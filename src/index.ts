@@ -4,8 +4,6 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import * as dmf from '@prisma/sdk';
-
-
 import { generateLaravelSchema } from './generator/migrator/index.js';
 import { generateLaravelModels } from './generator/modeler/index.js';
 import { existsSync, readFileSync } from 'fs';
@@ -26,6 +24,29 @@ cli
    .description('Initialize and customize Prisma→Laravel generators & stubs')
    .version('0.1.0');
 
+/**
+* Build a generator block string.
+*
+* @param name      generator name ("migrate" / "modeler")
+* @param provider  provider package name
+* @param stubDir   directory path to inject (relative to schema)
+* @param extras    additional lines inside the block (array, raw Prisma)
+*/
+function generatorBlock(
+   name: string,
+   provider: string,
+   stubDir: string,
+   extras: string[] = []
+): string {
+   const extraLines = extras.length ? "\n  " + extras.join("\n  ") : "";
+   return `
+generator ${name} {
+  provider = "prisma-laravel-${provider}s"
+  overwriteExisting = true
+  stubDir  = "${stubDir}"${extraLines}
+}
+`;
+}
 //
 // init
 //
@@ -37,33 +58,11 @@ cli
       const schemaPath = path.resolve(process.cwd(), opts.schema);
       let schema = await fs.readFile(schemaPath, 'utf-8');
 
-      // ① inject migrations generator
-      if (!/generator\s+migrations\s*\{/.test(schema)) {
-         schema += `
-generator migrations {
-  provider = "prisma-laravel-migrations"
-  output   = "database/migrations"
-  stubDir  = "./stubs"
-}
-`;
-         console.log('➡️  Added migrations generator');
-      }
-
-      // ② inject models generator
-      if (!/generator\s+models\s*\{/.test(schema)) {
-         schema += `
-generator models {
-  provider = "prisma-laravel-models"
-  output   = "app/Models"
-  outputEnumDir   = "app/Enums"
-  stubDir  = "./stubs"
-}
-`;
-         console.log('➡️  Added models generator');
-      }
-
       await fs.writeFile(schemaPath, schema, 'utf-8');
       console.log(`✅ Updated ${schemaPath}`);
+
+      const hasGen = (base: "migration" | "model") =>
+         new RegExp(`generator\\s+${base}s\\s*\\{`).test(schema);
 
       // ③ copy your package’s built-in stubs into prisma/stubs/
       const schemaDir = path.dirname(schemaPath);
@@ -78,26 +77,22 @@ generator models {
          // copy <type>.stub → <type>/index.stub
          const src = path.join(pkgStubs, `${type}.stub`);
          const dst = path.join(target, 'index.stub');
+
+         // ① inject migrations generator
+         if (type !== 'enum' && !hasGen(type)) {
+            schema += generatorBlock(type, type, userStubs, type == 'model' ? ['outputEnumDir = "app/Enums', 'output = "../app/Models"'] : ['outputDir = "../database/migrations"'])
+            console.log(`➡️  Added ${type}s generator`);
+         }
          try {
             await fs.access(dst);
          } catch {
             await fs.copyFile(src, dst);
             console.log(`➡️  Copied ${type}.stub → stubs/${type}/index.stub`);
          }
-         // copy simple-model.stub too
-         if (type === 'model') {
-            // const src2 = path.join(pkgStubs, 'simple-model.stub');
-            // const dst2 = path.join(target, 'simple-model.stub');
-            // try { await fs.access(dst2) } catch {
-            //    await fs.copyFile(src2, dst2);
-            //    console.log(`➡️  Copied simple-model.stub → stubs/model/simple-model.stub`);
-            // }
-         }
       }
 
       console.log('🎉 Initialization complete!');
    });
-
 //
 // customize
 //
@@ -244,6 +239,5 @@ cli
       }
    });
 
-cli.parse(process.argv);
 
 cli.parse(process.argv);
