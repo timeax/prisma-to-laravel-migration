@@ -6,7 +6,7 @@ import { StubModelPrinter } from "../../printer/models.js";
 import { PrismaToLaravelModelGenerator } from "./generator.js";
 import { ModelDefinition, EnumDefinition } from "./types";
 import { fileURLToPath } from "url";
-import { writeWithMerge } from "diff-writer/writer.js";
+import { writeWithMerge } from "../../diff-writer/writer.js";
 
 interface ModelConfig extends StubConfig {
    modelStubPath?: string;

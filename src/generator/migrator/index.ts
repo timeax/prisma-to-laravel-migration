@@ -6,7 +6,7 @@ import { StubMigrationPrinter } from "../../printer/migrations.js";
 import { StubConfig, StubGroupConfig } from "../../generator/utils.js";
 import { fileURLToPath } from "url";
 import { sortMigrations } from "./sort.js";
-import { writeWithMerge } from "diff-writer/writer.js";
+import { writeWithMerge } from "../../diff-writer/writer.js";
 
 interface MigratorConfig extends StubConfig {
    stubPath?: string;
