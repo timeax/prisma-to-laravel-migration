@@ -86,12 +86,12 @@ generator models {
          }
          // copy simple-model.stub too
          if (type === 'model') {
-            const src2 = path.join(pkgStubs, 'simple-model.stub');
-            const dst2 = path.join(target, 'simple-model.stub');
-            try { await fs.access(dst2) } catch {
-               await fs.copyFile(src2, dst2);
-               console.log(`➡️  Copied simple-model.stub → stubs/model/simple-model.stub`);
-            }
+            // const src2 = path.join(pkgStubs, 'simple-model.stub');
+            // const dst2 = path.join(target, 'simple-model.stub');
+            // try { await fs.access(dst2) } catch {
+            //    await fs.copyFile(src2, dst2);
+            //    console.log(`➡️  Copied simple-model.stub → stubs/model/simple-model.stub`);
+            // }
          }
       }
 
