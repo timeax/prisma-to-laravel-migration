@@ -1,7 +1,7 @@
 import { DMMF } from "@prisma/generator-helper";
 import { ColumnDefinition } from "./column-definition-types";
 import { MigrationTypes } from "./migrationTypes.js";
-import { formatDefault } from "../utils.js";
+import { formatDefault } from "../../utils/utils.js";
 
 export interface Rule {
    test(

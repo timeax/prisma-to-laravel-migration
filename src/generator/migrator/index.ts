@@ -1,21 +1,16 @@
 import { GeneratorConfig, GeneratorOptions } from "@prisma/generator-helper";
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readdirSync } from "fs";
 import path from "path";
 import { PrismaToLaravelMigrationGenerator, Migration } from "./PrismaToLaravelMigrationGenerator.js";
 import { StubMigrationPrinter } from "../../printer/migrations.js";
-import { StubConfig, StubGroupConfig } from "../../generator/utils.js";
+import { StubConfig } from "../../utils/utils.js";
 import { fileURLToPath } from "url";
 import { sortMigrations } from "./sort.js";
 import { writeWithMerge } from "../../diff-writer/writer.js";
+import { loadSharedConfig } from "../../utils/loadSharedCfg.js";
+import { MigratorConfigOverride, StubGroupConfig } from "laravel-config.js";
 
-interface MigratorConfig extends StubConfig {
-   stubPath?: string;
-   overwriteExisting?: boolean;
-   rules?: string;
-   outputDir?: string;
-   /** custom markers around the generated section */
-   startMarker?: string;
-   endMarker?: string;
+interface MigratorConfig extends StubConfig, Omit<MigratorConfigOverride, 'groups' | 'stubDir'> {
 }
 
 export async function generateLaravelSchema(options: GeneratorOptions): Promise<Migration[]> {
@@ -25,29 +20,47 @@ export async function generateLaravelSchema(options: GeneratorOptions): Promise<
    // Inside generateLaravelSchema()
    const raw = (generator.config ?? {}) as Record<string, string | undefined>;
 
+   const schemaDir = path.dirname(options.schemaPath);             // << from GeneratorOptions
+   const shared = await loadSharedConfig(schemaDir);
+
    // 0.a) Load groups from a JS file if provided
    let groups: StubGroupConfig[] = [];
-   if (raw["groups"]) {
-      const groupsModulePath = path.resolve(process.cwd(), raw["groups"]);
-      const imported = await import(groupsModulePath);
-      const exported = imported.default ?? imported;
-      if (!Array.isArray(exported)) {
+   const loadGroups = async (p: string) => {
+      const abs = path.resolve(process.cwd(), p);
+      const mod = (await import(abs)).default ?? (await import(abs));
+      if (!Array.isArray(mod)) {
          throw new Error(
-            `Custom groups module must export an array, but got ${typeof exported}`
+            `Custom groups module must export an array, got ${typeof mod}`
          );
       }
-      groups = exported;
-   }
+      return mod as StubGroupConfig[];
+   };
 
+   if (raw["groups"]) groups = await loadGroups(raw["groups"]);
+
+   const pick = <K extends keyof MigratorConfigOverride>(
+      key: K,
+      fallback?: any
+   ): any | undefined =>
+      (shared.migrate as any)?.[key] ??
+      (shared as any)[key] ??
+      raw[key as string] ??
+      fallback;
+
+   /* -----------------------------------------------------------
+    * 0.c)  Final merged config object
+    * --------------------------------------------------------- */
    const cfg: MigratorConfig = {
-      stubPath: raw["stubPath"],
-      overwriteExisting: raw["overwriteExisting"] === "true",
-      rules: raw["rules"],
-      outputDir: raw["outputDir"],
-      startMarker: raw["startMarker"] ?? "// <prisma-laravel:start>",
-      endMarker: raw["endMarker"] ?? "// <prisma-laravel:end>",
-      stubDir: raw["stubDir"]!,
+      stubPath: pick("stubPath"),
+      overwriteExisting: pick("overwriteExisting", true),
+      rules: pick("rules"),
+      outputDir: pick("outputDir"),
+      stubDir: pick("stubDir")!,          // shared stubDir > block
       groups,
+      /* NEW global table decoration */
+      tablePrefix: (shared as any).tablePrefix ?? "",
+      tableSuffix: (shared as any).tableSuffix ?? "",
+      noEmit: pick('noEmit', false)
    };
 
    // 1) Determine and ensure output directory exists
@@ -62,8 +75,12 @@ export async function generateLaravelSchema(options: GeneratorOptions): Promise<
    let schemaGen: PrismaToLaravelMigrationGenerator;
    // Validate custom rules
    if (cfg.rules) {
-      const rulesModule = await import(path.resolve(process.cwd(), cfg.rules));
-      const customRules = rulesModule.default ?? rulesModule;
+      let customRules = cfg.rules;
+
+      if (typeof cfg.rules == 'string') {
+         const rulesModule = await import(path.resolve(process.cwd(), cfg.rules));
+         customRules = rulesModule.default ?? rulesModule;
+      }
 
       if (
          !Array.isArray(customRules) ||
@@ -116,11 +133,12 @@ export async function generateLaravelSchema(options: GeneratorOptions): Promise<
 
 
       // 4) Write with markers as before
-      writeWithMerge(
-         filePath,
-         content,
-         cfg.overwriteExisting ?? false
-      );
+      !!cfg.noEmit &&
+         writeWithMerge(
+            filePath,
+            content,
+            cfg.overwriteExisting ?? false
+         );
    });
 
    return migrations;

@@ -1,5 +1,5 @@
 import { ModelDefinition, EnumDefinition } from 'generator/modeler/types';
-import { StubConfig } from '../generator/utils.js';
+import { StubConfig } from '../utils/utils.js';
 /**
  * Loads JS‐based stubs for both models and enums, and evaluates
  * their `${…}` placeholders at runtime.

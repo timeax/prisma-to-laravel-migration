@@ -1,15 +1,20 @@
-import { Migration } from '../generator/migrator/PrismaToLaravelMigrationGenerator.js';
-import { StubConfig } from '../generator/utils.js';
+import { Migration } from "../generator/migrator/PrismaToLaravelMigrationGenerator.js";
+import { StubConfig } from "../utils/utils.js";
+export interface PrinterNameOpts {
+    tablePrefix?: string;
+    tableSuffix?: string;
+}
 export declare class StubMigrationPrinter {
     #private;
-    /** base config for per‐table stub resolution */
+    /** base config for per-table stub resolution */
     private cfg;
     /** optional global override: if set, always use this stub */
     private globalStubPath?;
     private tmplFn;
+    private static textCache;
     constructor(
-    /** base config for per‐table stub resolution */
-    cfg: StubConfig, 
+    /** base config for per-table stub resolution */
+    cfg: StubConfig & PrinterNameOpts, 
     /** optional global override: if set, always use this stub */
     globalStubPath?: string | undefined);
     /** Switch to the correct stub for this table (or reuse the last one) */
@@ -22,6 +27,6 @@ export declare class StubMigrationPrinter {
         fullContent: string;
         columns: string;
     };
-    /** Helper to render all, sorted and joined with separators */
+    /** Render all migrations, sorted */
     printAll(migs: Migration[]): string;
 }

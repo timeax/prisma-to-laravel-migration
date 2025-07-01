@@ -1,9 +1,9 @@
 import { DMMF } from "@prisma/generator-helper";
-import { NativeToMigrationTypeMap } from "./migrator/column-maps.js";
-import { MigrationType } from "./migrator/column-definition-types.js";
-import { MigrationTypes } from "./migrator/migrationTypes.js";
-import { ModelDefinition } from "./modeler/types.js";
 import { existsSync } from 'fs';
+import { MigrationType } from "../generator/migrator/column-definition-types";
+import { MigrationTypes } from "../generator/migrator/migrationTypes.js";
+import { ModelDefinition } from "../generator/modeler/types";
+import { LaravelGeneratorConfig, StubGroupConfig } from "laravel-config";
 import path from "path";
 
 /**
@@ -201,15 +201,11 @@ export function formatStub(stub: string): string {
    return stub;
 }
 
-export interface StubGroupConfig {
-   /** path relative to stubDir/<type>/, e.g. "fancy-orders.stub" */
-   stubFile: string;
-   tables: string[];         // e.g. ["orders","order_items"]
-}
-
 export interface StubConfig {
    stubDir: string;          // root folder for all stubs
    groups?: StubGroupConfig[];
+   tablePrefix?: string;
+   tableSuffix?: string
 }
 
 export function resolveStub(
@@ -243,4 +239,17 @@ export function resolveStub(
    const defaultPath = path.join(dir, "index.stub");
    if (!existsSync(defaultPath)) return;
    return defaultPath;
+}
+
+// utils/prefixSuffix.ts
+export interface NameOpts {
+   tablePrefix?: string;
+   tableSuffix?: string;
+}
+
+/** tx_ + users + _tx → returns "tx_users_tx" */
+export function decorate(name: string, opts: NameOpts): string {
+   const pre = opts.tablePrefix ?? "";
+   const suf = opts.tableSuffix ?? "";
+   return `${pre}${name}${suf}`.trim();
 }

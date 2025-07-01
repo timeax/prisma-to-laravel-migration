@@ -7,7 +7,7 @@ import {
    RelationshipOptions,
    ColumnExtras,
 } from "./column-definition-types";
-import { getType } from "../utils.js";
+import { getType } from "../../utils/utils.js";
 
 
 /**

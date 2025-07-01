@@ -1,50 +1,73 @@
 // writeWithMerge.ts
 import { existsSync, readFileSync, writeFileSync } from "fs";
+import path from "path";
 import * as diff3 from "node-diff3";
 import { backupPathFor } from "./backupPath.js";
 
 /**
  * Git-style 3-way merge writer.
- * @param filePath      Destination file
- * @param newContent    Freshly generated FULL text
- * @param overwrite     Skip write if false and file exists
+ *
+ * @param filePath    Destination file
+ * @param theirs      Freshly-generated FULL text
+ * @param overwrite   Skip writing when false & file exists
  */
 export function writeWithMerge(
    filePath: string,
-   newContent: string,
+   theirs: string,
    overwrite = true
 ) {
    if (!overwrite && existsSync(filePath)) return;
 
-   const bakPath = backupPathFor(filePath);
-   const base = existsSync(bakPath) ? readFileSync(bakPath, "utf-8") : null;
+   /* ---------- Paths & snapshots ---------- */
+   const bakPath = backupPathFor(filePath);          // .prisma-laravel/backups/…
+   const base = existsSync(bakPath)
+      ? readFileSync(bakPath, "utf-8")
+      : null;                                         // previous generator output
+   const mine = existsSync(filePath)
+      ? readFileSync(filePath, "utf-8")
+      : null;                                         // user’s current file
 
-   /* initial write */
-   if (!existsSync(filePath)) {
-      writeFileSync(filePath, newContent, "utf-8");
-      writeFileSync(bakPath, newContent, "utf-8");
+   /* ---------- First run: file missing ---------- */
+   if (mine === null) {
+      writeFileSync(filePath, theirs, "utf-8");
+      writeFileSync(bakPath, theirs, "utf-8");
       return;
    }
 
-   const mine = readFileSync(filePath, "utf-8");
-   if (mine === newContent) return; // already up-to-date
+   /* ---------- Up-to-date ---------- */
+   if (mine === theirs) return; // nothing changed
 
-   /* no baseline yet → save current as baseline, overwrite */
-   if (!base) {
-      writeFileSync(bakPath, mine, "utf-8");
-      writeFileSync(filePath, newContent, "utf-8");
+   /* ---------- Generator unchanged, user edited ---------- */
+   if (theirs === base) {
+      // keep user edits, just refresh baseline
+      writeFileSync(bakPath, theirs, "utf-8");
       return;
    }
 
-   /* diff3 merge */
-   const merged = diff3
-      .merge(
-         mine.split(/\r?\n/),
-         base.split(/\r?\n/),
-         newContent.split(/\r?\n/),
-         { stringSeparator: "\n" }
-      ).result.join("\n");
+   /* ---------- User untouched, generator updated ---------- */
+   if (mine === base) {
+      writeFileSync(filePath, theirs, "utf-8");
+      writeFileSync(bakPath, theirs, "utf-8");
+      return;
+   }
 
-   writeFileSync(filePath, merged, "utf-8");
-   writeFileSync(bakPath, newContent, "utf-8"); // update baseline
+   /* ---------- Real divergence: diff3 ---------- */
+   const mergedLines = diff3.merge(
+      mine.split(/\r?\n/),
+      (base ?? "").split(/\r?\n/),
+      theirs.split(/\r?\n/),
+      { stringSeparator: "\n" }
+   ).result;
+   const mergedText = mergedLines.join("\n");
+
+   /* conflict marker detection */
+   if (/^<{7}|^={7}|^>{7}/m.test(mergedText)) {
+      console.warn(
+         `⚠️  Merge conflicts in ${path.relative(process.cwd(), filePath)} ` +
+         "— resolve <<< >>> markers."
+      );
+   }
+
+   writeFileSync(filePath, mergedText, "utf-8");
+   writeFileSync(bakPath, theirs, "utf-8"); // new baseline
 }

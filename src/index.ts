@@ -24,26 +24,18 @@ cli
    .description('Initialize and customize Prisma→Laravel generators & stubs')
    .version('0.1.0');
 
-/**
-* Build a generator block string.
-*
-* @param name      generator name ("migrate" / "modeler")
-* @param provider  provider package name
-* @param stubDir   directory path to inject (relative to schema)
-* @param extras    additional lines inside the block (array, raw Prisma)
-*/
 function generatorBlock(
-   name: string,
-   provider: string,
-   stubDir: string,
+   base: "migration" | "model",        // singular
+   stubDirRel: string,
    extras: string[] = []
 ): string {
-   const extraLines = extras.length ? "\n  " + extras.join("\n  ") : "";
+   const name = `${base}s`;              // migrations / models
+   const provider = `prisma-laravel-${name}s`; // prisma-laravel-migrations
+   const extra = extras.length ? "\n  " + extras.join("\n  ") : "";
    return `
 generator ${name} {
-  provider = "prisma-laravel-${provider}s"
-  overwriteExisting = true
-  stubDir  = "${stubDir}"${extraLines}
+  provider = "${provider}"
+  stubDir  = "${stubDirRel}"${extra}
 }
 `;
 }
@@ -51,48 +43,100 @@ generator ${name} {
 // init
 //
 cli
-   .command('init')
-   .description('Inject generators into schema.prisma and scaffold stubs/')
-   .option('-s, --schema <path>', 'Prisma schema file', 'prisma/schema.prisma')
-   .action(async opts => {
+   .command("init")
+   .description("Inject generators into schema.prisma and scaffold stubs/")
+   .option(
+      "-s, --schema <path>",
+      "Prisma schema file",
+      "prisma/schema.prisma"
+   )
+   .action(async (opts) => {
+      /* 1. Paths ------------------------------------------------------ */
       const schemaPath = path.resolve(process.cwd(), opts.schema);
-      let schema = await fs.readFile(schemaPath, 'utf-8');
+      const schemaDir = path.dirname(schemaPath);             // prisma/
+      const userStubs = path.join(schemaDir, "stubs");        // prisma/stubs
+      const stubDirRel =
+         "./" + path.relative(schemaDir, userStubs).replace(/\\/g, "/"); // "./stubs"
 
-      await fs.writeFile(schemaPath, schema, 'utf-8');
-      console.log(`✅ Updated ${schemaPath}`);
+      const __dirname = path.dirname(fileURLToPath(import.meta.url));
+      const pkgStubs = path.resolve(__dirname, "../stubs");    // bundled stubs
+
+      /* 2. Load schema.prisma ---------------------------------------- */
+      let schema = await fs.readFile(schemaPath, "utf-8");
 
       const hasGen = (base: "migration" | "model") =>
          new RegExp(`generator\\s+${base}s\\s*\\{`).test(schema);
 
-      // ③ copy your package’s built-in stubs into prisma/stubs/
-      const schemaDir = path.dirname(schemaPath);
-      const userStubs = path.join(schemaDir, 'stubs');
-      const __filename = fileURLToPath(import.meta.url);
-      const __dirname = path.dirname(__filename);
-      const pkgStubs = path.resolve(__dirname, '../stubs');
+      /* 3. Inject generator blocks if missing ------------------------ */
+      if (!hasGen("migration")) {
+         schema += generatorBlock("migration", stubDirRel, [
+            'outputDir = "database/migrations"',
+         ]);
+         console.log("➡️  Added migrations generator");
+      }
 
-      for (const type of ['migration', 'model', 'enums'] as StubType[]) {
-         const target = path.join(userStubs, type);
-         await fs.mkdir(target, { recursive: true });
-         // copy <type>.stub → <type>/index.stub
+      if (!hasGen("model")) {
+         schema += generatorBlock("model", stubDirRel, [
+            'outputDir     = "app/Models"',
+            'outputEnumDir = "app/Enums"',
+         ]);
+         console.log("➡️  Added models generator");
+      }
+
+      await fs.writeFile(schemaPath, schema, "utf-8");
+      console.log(`✅ Updated ${schemaPath}`);
+
+      /* 4. Copy default stub files ---------------------------------- */
+      const stubTypes: StubType[] = ["migration", "model", "enum"];
+
+      for (const type of stubTypes) {
+         const targetDir = path.join(userStubs, type);
+         await fs.mkdir(targetDir, { recursive: true });
+
+         /* index.stub */
          const src = path.join(pkgStubs, `${type}.stub`);
-         const dst = path.join(target, 'index.stub');
-
-         // ① inject migrations generator
-         if (type !== 'enum' && !hasGen(type)) {
-            schema += generatorBlock(type, type, userStubs, type == 'model' ? ['outputEnumDir = "app/Enums', 'output = "../app/Models"'] : ['outputDir = "../database/migrations"'])
-            console.log(`➡️  Added ${type}s generator`);
-         }
+         const dst = path.join(targetDir, "index.stub");
          try {
             await fs.access(dst);
          } catch {
             await fs.copyFile(src, dst);
             console.log(`➡️  Copied ${type}.stub → stubs/${type}/index.stub`);
          }
+
+         /* simple-model.stub */
+         if (type === "model") {
+            const src2 = path.join(pkgStubs, "simple-model.stub");
+            const dst2 = path.join(targetDir, "simple-model.stub");
+            try { await fs.access(dst2); } catch {
+               await fs.copyFile(src2, dst2);
+               console.log("➡️  Copied simple-model.stub → stubs/model/simple-model.stub");
+            }
+         }
       }
 
-      console.log('🎉 Initialization complete!');
+      /* 5. Create laravel.config.js if absent ------------------------ */
+      const cfgPath = path.join(schemaDir, "prisma-laravel.config.js");
+      try {
+         await fs.access(cfgPath);
+      } catch {
+         const cfgTemplate = `
+// prisma/laravel.config.js
+module.exports = {
+  tablePrefix: "",        // e.g. "tx_"
+  tableSuffix: "",        // e.g. "_arch"
+  stubDir:     "${stubDirRel}",
+  groups:      "./prisma/group-stubs.js",
+  // migrate: { noEmit: false },
+  // modeler: { noEmit: false }
+};
+`;
+         await fs.writeFile(cfgPath, cfgTemplate.trimStart(), "utf-8");
+         console.log("➡️  Created laravel.config.js");
+      }
+
+      console.log("🎉 Initialization complete!");
    });
+
 //
 // customize
 //

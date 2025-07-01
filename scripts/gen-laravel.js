@@ -18,6 +18,7 @@ import { buildModelContent } from '../dist/generator/utils.js';
   // 3) Generate migrations (doesn't write files)
   const migrations = await gg.generateLaravelSchema({
     dmmf,
+    schemaPath,
     generator: { output: { value: null } }
   });
 
@@ -30,6 +31,7 @@ import { buildModelContent } from '../dist/generator/utils.js';
   const generateLaravelModels = modeler.generateLaravelModels;
   const { models, enums } = await generateLaravelModels({
     dmmf,
+    schemaPath,
     generator: { output: { value: null } }
   })
 

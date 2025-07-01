@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { ModelDefinition, EnumDefinition } from 'generator/modeler/types';
-import { formatStub, resolveStub, StubConfig } from '../generator/utils.js';
+import { decorate, formatStub, resolveStub, StubConfig } from '../utils/utils.js';
 
 /**
  * Loads JS‐based stubs for both models and enums, and evaluates
@@ -52,6 +52,9 @@ export class StubModelPrinter {
       content: string
    ): string {
       this.ensureModelStub(model.tableName);
+      //--
+      model.tableName = decorate(model.tableName, this.cfg);
+      //--
       return this.modelTmpl(model, enums, content);
    }
 

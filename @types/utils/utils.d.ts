@@ -1,6 +1,7 @@
 import { DMMF } from "@prisma/generator-helper";
-import { MigrationType } from "./migrator/column-definition-types.js";
-import { ModelDefinition } from "./modeler/types.js";
+import { MigrationType } from "../generator/migrator/column-definition-types";
+import { ModelDefinition } from "../generator/modeler/types";
+import { StubGroupConfig } from "laravel-config";
 /**
  * Given a Prisma field default, return the PHP code fragment
  * to append to your migration column definition.
@@ -18,13 +19,16 @@ export declare function buildModelContent(model: ModelDefinition): string;
  *  - Escape all backticks
  */
 export declare function formatStub(stub: string): string;
-export interface StubGroupConfig {
-    /** path relative to stubDir/<type>/, e.g. "fancy-orders.stub" */
-    stubFile: string;
-    tables: string[];
-}
 export interface StubConfig {
     stubDir: string;
     groups?: StubGroupConfig[];
+    tablePrefix?: string;
+    tableSuffix?: string;
 }
 export declare function resolveStub(cfg: StubConfig, type: "migration" | "model" | "enum", tableName: string): string | undefined;
+export interface NameOpts {
+    tablePrefix?: string;
+    tableSuffix?: string;
+}
+/** tx_ + users + _tx → returns "tx_users_tx" */
+export declare function decorate(name: string, opts: NameOpts): string;

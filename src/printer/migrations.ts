@@ -1,47 +1,63 @@
-import fs from 'fs';
-import path from 'path';
-import { Migration } from '../generator/migrator/PrismaToLaravelMigrationGenerator.js';
-import { formatStub, resolveStub, StubConfig } from '../generator/utils.js';
-import { sortMigrations } from '../generator/migrator/sort.js';
+import fs from "fs";
+import path from "path";
+import { Migration } from "../generator/migrator/PrismaToLaravelMigrationGenerator.js";
+import {
+   formatStub,
+   resolveStub,
+   StubConfig,
+   decorate,            // ⬅️ helper that applies prefix / suffix
+} from "../utils/utils.js";
+import { sortMigrations } from "../generator/migrator/sort.js";
+
+export interface PrinterNameOpts {
+   tablePrefix?: string;
+   tableSuffix?: string;
+}
 
 export class StubMigrationPrinter {
-   #currentStubPath = '';
+   #currentStubPath = "";
    private tmplFn!: (
       tableName: string,
       columns: string,
-      definitions: Migration['definitions']
+      definitions: Migration["definitions"]
    ) => string;
 
+   private static textCache = new Map<string, string>();
+
    constructor(
-      /** base config for per‐table stub resolution */
-      private cfg: StubConfig,
+      /** base config for per-table stub resolution */
+      private cfg: StubConfig & PrinterNameOpts,
       /** optional global override: if set, always use this stub */
       private globalStubPath?: string
    ) { }
 
    /** Switch to the correct stub for this table (or reuse the last one) */
    private ensureStub(tableName: string) {
-      // 1) pick the stub path: global override wins, otherwise per‐table/group/index
-      // Prioritize per‐table/group/index stubs; only fall back to global override if none found
-      const resolved = resolveStub(this.cfg, 'migration', tableName);
+      /* 1) choose stub path */
+      const resolved = resolveStub(this.cfg, "migration", tableName);
       const stubPath = resolved
          ? resolved
          : this.globalStubPath
             ? path.resolve(process.cwd(), this.globalStubPath)
-            : (() => { throw new Error(`No stub found for migration '${tableName}'`); })();
+            : (() => {
+               throw new Error(`No stub found for migration '${tableName}'`);
+            })();
 
-      if (stubPath === this.#currentStubPath) {
-         return;
+      if (stubPath === this.#currentStubPath) return;
+
+      /* 2) compile template */
+      let raw = StubMigrationPrinter.textCache.get(stubPath);
+
+      if (!raw) {
+         raw = fs.readFileSync(stubPath, "utf-8");
+         StubMigrationPrinter.textCache.set(stubPath, raw);
       }
 
-      // 2) load and compile
-      const raw = fs.readFileSync(path.resolve(stubPath), 'utf-8');
-      const escaped = formatStub(raw);
       this.tmplFn = new Function(
-         'tableName',
-         'columns',
-         'definitions',
-         `return \`${escaped}\`;`
+         "tableName",
+         "columns",
+         "definitions",
+         `return \`${formatStub(raw)}\`;`
       ) as typeof this.tmplFn;
 
       this.#currentStubPath = stubPath;
@@ -52,17 +68,17 @@ export class StubMigrationPrinter {
     * Returns both the full file and the raw column block.
     */
    public printMigration(mig: Migration) {
-      // ensure we have the right stub loaded
       this.ensureStub(mig.tableName);
 
-      // prepare the indented columns block
       const columns = mig.statements
-         .map(line => '            ' + line)
-         .join('\n');
+         .map((l) => "            " + l)
+         .join("\n");
 
-      // call the compiled template function
+      /* apply prefix/suffix when inserting into the stub */
+      const physicalTable = decorate(mig.tableName, this.cfg);
+
       const fullContent = this.tmplFn(
-         mig.tableName,
+         physicalTable,
          columns,
          mig.definitions
       );
@@ -70,11 +86,10 @@ export class StubMigrationPrinter {
       return { fullContent, columns };
    }
 
-   /** Helper to render all, sorted and joined with separators */
+   /** Render all migrations, sorted */
    public printAll(migs: Migration[]): string {
-      const sorted = sortMigrations(migs);
-      return sorted
-         .map(m => this.printMigration(m).fullContent)
-         .join('\n\n');
+      return sortMigrations(migs)
+         .map((m) => this.printMigration(m).fullContent)
+         .join("\n\n");
    }
 }

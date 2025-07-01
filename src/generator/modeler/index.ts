@@ -1,52 +1,64 @@
 import { GeneratorConfig, GeneratorOptions } from "@prisma/generator-helper";
 import { existsSync, mkdirSync } from "fs";
 import path from "path";
-import { buildModelContent, StubConfig, StubGroupConfig } from "../utils.js";
+import { buildModelContent, StubConfig } from "../../utils/utils.js";
 import { StubModelPrinter } from "../../printer/models.js";
 import { PrismaToLaravelModelGenerator } from "./generator.js";
 import { ModelDefinition, EnumDefinition } from "./types";
 import { fileURLToPath } from "url";
 import { writeWithMerge } from "../../diff-writer/writer.js";
+import { LaravelGeneratorConfig, ModelConfigOverride, StubGroupConfig } from "laravel-config.js";
+import { loadSharedConfig } from "../../utils/loadSharedCfg.js";
 
-interface ModelConfig extends StubConfig {
-   modelStubPath?: string;
-   enumStubPath?: string;
-   overwriteExisting?: boolean;
-   outputDir?: string;
-   outputEnumDir?: string;
-   startMarker?: string;
-   endMarker?: string;
-}
+interface ModelConfig extends StubConfig, Omit<ModelConfigOverride, 'groups' | 'stubDir'> { }
 
 export async function generateLaravelModels(options: GeneratorOptions) {
    const { dmmf, generator } = options;
    // 0) Pull config values
    // Inside generateLaravelModels()
+   /** ---------------- existing logic --------------------- */
    const raw = (generator.config ?? {}) as Record<string, string | undefined>;
 
+   /* load shared cfg (auto-discovers prisma/laravel.config.js) */
+   const schemaDir = path.dirname(options.schemaPath);          // << from GeneratorOptions
+   const shared = await loadSharedConfig(schemaDir);
+
+   /* merge stub groups from block, then shared file (shared wins) */
    let groups: StubGroupConfig[] = [];
    if (raw["groups"]) {
       const groupsModulePath = path.resolve(process.cwd(), raw["groups"]);
-      const imported = await import(groupsModulePath);
-      const exported = imported.default ?? imported;
-      if (!Array.isArray(exported)) {
+      const imported = (await import(groupsModulePath)).default ?? (await import(groupsModulePath));
+      if (!Array.isArray(imported)) {
          throw new Error(
-            `Custom groups module must export an array, but got ${typeof exported}`
+            `Custom groups module must export an array, but got ${typeof imported}`
          );
       }
-      groups = exported;
+      groups = imported;
    }
 
+   /* helper to prefer shared → per-gen → block */
+   const pick = <K extends keyof ModelConfigOverride>(
+      key: K,
+      fallback?: any
+   ): any | undefined =>
+      (shared.modeler as any)?.[key] ??
+      (shared as any)[key] ??
+      raw[key as string] ??
+      fallback;
+
+   /* -------- merged config -------- */
    const cfg: ModelConfig = {
-      modelStubPath: raw["modelStubPath"],
-      enumStubPath: raw["enumStubPath"],
-      overwriteExisting: raw["overwriteExisting"] === "true",
-      outputDir: raw["outputDir"],
-      outputEnumDir: raw["outputEnumDir"],
-      startMarker: raw["startMarker"] ?? "// <prisma-laravel:start>",
-      endMarker: raw["endMarker"] ?? "// <prisma-laravel:end>",
-      stubDir: raw["stubDir"]!,
+      overwriteExisting: pick("overwriteExisting", true),
+      outputDir: pick("outputDir"),
+      outputEnumDir: pick("outputEnumDir"),
+      stubDir: pick("stubDir")!,          // shared stubDir wins
       groups,
+      /* NEW global prefix/suffix made available downstream */
+      tablePrefix: (shared as any).tablePrefix ?? "",
+      tableSuffix: (shared as any).tableSuffix ?? "",
+      enumStubPath: pick('enumStubPath'),
+      modelStubPath: pick('modelStubPath'),
+      noEmit: pick('noEmit', false)
    };
 
    // 1) Determine and ensure output directories
@@ -81,6 +93,7 @@ export async function generateLaravelModels(options: GeneratorOptions) {
       ? path.resolve(process.cwd(), cfg.enumStubPath)
       : path.resolve(__dirname, "../../../stubs/enums.stub");
 
+
    const printer = new StubModelPrinter(cfg, modelStub, enumStub);
 
    // 3) Generate definitions
@@ -95,12 +108,12 @@ export async function generateLaravelModels(options: GeneratorOptions) {
    for (const enumDef of enums) {
       const enumPhp = printer.printEnum(enumDef);
       const enumFile = path.join(enumsDir, `${enumDef.name}.php`);
-
-      writeWithMerge(
-         enumFile,
-         enumPhp,
-         cfg.overwriteExisting ?? false
-      );
+      !!cfg.noEmit &&
+         writeWithMerge(
+            enumFile,
+            enumPhp,
+            cfg.overwriteExisting ?? false
+         );
    }
 
    // 5) Write model files
@@ -111,11 +124,12 @@ export async function generateLaravelModels(options: GeneratorOptions) {
       const modelPhp = printer.printModel(model, enums, content);
       const modelFile = path.join(modelsDir, `${model.className}.php`);
 
-      writeWithMerge(
-         modelFile,
-         modelPhp,
-         cfg.overwriteExisting ?? false
-      );
+      !!cfg.noEmit &&
+         writeWithMerge(
+            modelFile,
+            modelPhp,
+            cfg.overwriteExisting ?? false
+         );
    }
 
    return { models, enums };
