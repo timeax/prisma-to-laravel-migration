@@ -2,7 +2,6 @@ import { DMMF } from "@prisma/generator-helper";
 import { existsSync } from 'fs';
 import { MigrationType } from "../types/column-definition-types";
 import { MigrationTypes } from "../generator/migrator/migrationTypes.js";
-import { ModelDefinition } from "../generator/modeler/types";
 import { StubGroupConfig } from "types/laravel-config";
 import path from "path";
 import { NativeToMigrationTypeMap } from "../generator/migrator/column-maps.js";
@@ -108,88 +107,6 @@ export function getType(field: DMMF.Field): MigrationType {
    const key = nativeType?.[0] ?? prismaType;
    // @ts-ignore
    return NativeToMigrationTypeMap[key] ?? MigrationTypes.string;
-}
-
-export function buildModelContent(model: ModelDefinition): string {
-   const lines: string[] = [];
-
-   // 1) If @guarded is used, emit $guarded instead of $fillable
-   if (model.guarded) {
-      lines.push(
-         `protected $guarded = [\n${model.guarded.map(f => `        '${f}'`).join(",\n")
-         }\n    ];`
-      );
-   }
-   else if (model.properties.some(p => p.fillable)) {
-      lines.push(
-         `protected $fillable = [\n${model.properties
-            .filter(p => p.fillable)
-            .map(p => `        '${p.name}'`)
-            .join(",\n")
-         }\n    ];`
-      );
-   }
-
-   // 2) Hidden (unchanged)
-   if (model.properties.some(p => p.hidden)) {
-      lines.push(
-         `protected $hidden = [\n${model.properties
-            .filter(p => p.hidden)
-            .map(p => `        '${p.name}'`)
-            .join(",\n")
-         }\n    ];`
-      );
-   }
-
-
-   // 0) If any @with, emit protected $with = [...]
-   if (model.with?.length) {
-      lines.push(
-         `protected $with = [\n${model.with.map(r => `    '${r}'`).join(',\n')
-         }\n];`
-      );
-   }
-
-   // 3) Casts (unchanged)
-   if (model.properties.some(p => p.cast || p.enumRef)) {
-      lines.push(
-         `protected $casts = [\n${model.properties
-            .filter(p => p.cast || p.enumRef)
-            .map(p => `        '${p.name}' => ${p.enumRef ? `${p.enumRef}::class` : `'${p.cast}'`}`)
-            .join(",\n")
-         }\n    ];`
-      );
-   }
-
-   // — Interfaces metadata slot —
-   if (model.interfaces && Object.keys(model.interfaces).length) {
-      lines.push(`    public array $interfaces = [`);
-      for (const [key, info] of Object.entries(model.interfaces)) {
-         const parts: string[] = [];
-         if (info.import) parts.push(`import: '${info.import}'`);
-         parts.push(`type: '${info.type}'`);
-         lines.push(`        '${key}' => { ${parts.join(', ')} },`);
-      }
-      lines.push(`    ];`);
-   }
-
-   // 4) Relations (unchanged)
-   for (const rel of model.relations) {
-      const args = [
-         `${rel.modelClass}`,
-         rel.foreignKey ? ` '${rel.foreignKey}'` : "",
-         rel.localKey ? ` '${rel.localKey}'` : "",
-      ]
-         .filter(Boolean)
-         .join(",");
-      lines.push(
-         `public function ${rel.name}()\n    {\n` +
-         `        return $this->${rel.type}(${args});\n` +
-         `    }`
-      );
-   }
-
-   return lines.map(l => "    " + l).join("\n\n");
 }
 
 /**

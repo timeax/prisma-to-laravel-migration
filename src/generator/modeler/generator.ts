@@ -152,6 +152,33 @@ export class PrismaToLaravelModelGenerator {
             }
          }
 
+
+         /* ---------- NEW: trait / implements / observer / factory -------------- */
+         const traitRE = /@trait:([^\s]+)/g;
+         const implRE = /@implements:([^\s]+)(?:\s+as\s+(\w+))?/g;
+         const observerRE = /@observer:([^\s]+)/;
+         const factoryRE = /@factory:([^\s]+)/;
+         const touchRE = /@touch\{([^}]+)\}/;
+         const appendsRE = /@appends\{([^}]+)\}/;
+
+         const traits: string[] = [];
+         for (let m; (m = traitRE.exec(modelDoc));) traits.push(m[1]);
+
+         const implementsArr: { iface: string; alias?: string }[] = [];
+         for (let m; (m = implRE.exec(modelDoc));) {
+            implementsArr.push({ iface: m[1], alias: m[2] });
+         }
+
+         const observer = observerRE.exec(modelDoc)?.[1];
+         const factory = factoryRE.exec(modelDoc)?.[1];
+
+         const touches = touchRE.exec(modelDoc)?.[1]
+            ?.split(",").map(s => s.trim()).filter(Boolean) ?? [];
+
+         const appends = appendsRE.exec(modelDoc)?.[1]
+            ?.split(",").map(s => s.trim()).filter(Boolean) ?? [];
+
+
          /* ── 2.6  Final ModelDefinition ────────────────────────────────── */
          return {
             className: model.name,
@@ -162,6 +189,12 @@ export class PrismaToLaravelModelGenerator {
             enums,
             interfaces,
             with: withList.length ? withList : undefined,
+            appends,
+            factory,
+            implements: implementsArr,
+            observer,
+            touches,
+            traits
          };
       });
 

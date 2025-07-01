@@ -37,8 +37,16 @@ export interface ModelDefinition {
         import?: string;
         type: string;
     }>;
-    /** NEW: list of fields to put in $guarded, if any */
     guarded?: string[];
     with?: string[];
     imports?: string[];
+    traits?: string[];
+    implements?: {
+        iface: string;
+        alias?: string;
+    }[];
+    observer?: string;
+    factory?: string;
+    touches?: string[];
+    appends?: string[];
 }

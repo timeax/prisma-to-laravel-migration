@@ -1,6 +1,5 @@
 import { DMMF } from "@prisma/generator-helper";
 import { MigrationType } from "../types/column-definition-types";
-import { ModelDefinition } from "../generator/modeler/types";
 import { StubGroupConfig } from "types/laravel-config";
 /**
  * Given a Prisma field default, return the PHP code fragment
@@ -11,7 +10,6 @@ import { StubGroupConfig } from "types/laravel-config";
  */
 export declare function formatDefault(field: DMMF.Field): string;
 export declare function getType(field: DMMF.Field): MigrationType;
-export declare function buildModelContent(model: ModelDefinition): string;
 /**
  * Escape a stub’s contents so it can be safely wrapped in a JS template literal.
  * This will:

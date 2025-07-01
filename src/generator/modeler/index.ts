@@ -1,14 +1,15 @@
 import { GeneratorConfig, GeneratorOptions } from "@prisma/generator-helper";
 import { existsSync, mkdirSync } from "fs";
 import path from "path";
-import { buildModelContent, StubConfig } from "../../utils/utils.js";
+import { StubConfig } from "../../utils/utils.js";
 import { StubModelPrinter } from "../../printer/models.js";
 import { PrismaToLaravelModelGenerator } from "./generator.js";
 import { ModelDefinition, EnumDefinition } from "./types";
 import { fileURLToPath } from "url";
 import { writeWithMerge } from "../../diff-writer/writer.js";
-import { LaravelGeneratorConfig, ModelConfigOverride, StubGroupConfig } from "types/laravel-config.js";
+import { ModelConfigOverride, StubGroupConfig } from "types/laravel-config.js";
 import { loadSharedConfig } from "../../utils/loadSharedCfg.js";
+import { buildModelContent } from "../../utils/build.js";
 
 interface ModelConfig extends StubConfig, Omit<ModelConfigOverride, 'groups' | 'stubDir'> { }
 
@@ -120,7 +121,10 @@ export async function generateLaravelModels(options: GeneratorOptions) {
 
    // 5) Write model files
    for (const model of models) {
-      model.imports = model.properties.filter(item => item.enumRef).map(item => `use App\\Enums\\${item.enumRef};`);
+      let imports = model.properties.filter(item => item.enumRef).map(item => `use App\\Enums\\${item.enumRef};`);
+      //----
+      if (Array.isArray(model.imports)) model.imports.push(...imports);
+      else model.imports = imports;
       //----
       const content = buildModelContent(model);
       const modelPhp = printer.printModel(model, enums, content);

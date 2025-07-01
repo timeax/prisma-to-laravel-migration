@@ -5,7 +5,7 @@ import path from 'path';
 import * as dmf from '@prisma/sdk';
 import * as gg from '../dist/generator/migrator/index.js';
 import * as modeler from '../dist/generator/modeler/index.js';
-import { buildModelContent } from '../dist/utils/utils.js';
+import { buildModelContent } from '../dist/utils/build.js';
 
 (async () => {
   // 1) Load your Prisma schema

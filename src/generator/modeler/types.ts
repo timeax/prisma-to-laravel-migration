@@ -39,14 +39,32 @@ export interface PropertyDefinition {
 }
 
 export interface ModelDefinition {
-   className: string;
-   tableName: string;
-   properties: PropertyDefinition[];
-   relations: RelationDefinition[];
-   enums: EnumDefinition[];
-   interfaces: Record<string, { import?: string; type: string }>;
-   /** NEW: list of fields to put in $guarded, if any */
-   guarded?: string[];
-   with?: string[];
-   imports?: string[]
+  /* Core identity */
+  className : string;
+  tableName : string;
+
+  /* Columns & relations */
+  properties : PropertyDefinition[];
+  relations  : RelationDefinition[];
+
+  /* Enum metadata referenced by fields */
+  enums : EnumDefinition[];
+
+  /* Type-hint interfaces for fumeapp/modeltyper, etc. */
+  interfaces : Record<string, { import?: string; type: string }>;
+
+  /* Mass-assignment & eager-loading */
+  guarded?: string[];    //  $guarded
+  with?   : string[];    //  $with
+
+  /* Generated PHP imports (filled by printer) */
+  imports?: string[];
+
+  /* ── NEW model-level helpers ─────────────────────── */
+  traits?     : string[];                           // use TraitA, TraitB
+  implements? : { iface: string; alias?: string }[];// implements Interface as Alias
+  observer?   : string;                             // boot() -> observe(...)
+  factory?    : string;                             // static $factory = FooFactory::class
+  touches?    : string[];                           // protected $touches = [...]
+  appends?    : string[];                           // protected $appends = [...]
 }

@@ -544,6 +544,12 @@ your Eloquent model.
 | `@ignore` | Relation field | Skips generating the relationship method |
 | `@with` (no args) | Relation field | Adds that single relation to `$with` |
 | `@with(rel1,rel2,…)` | Model only | Adds listed relations to `$with` |
+| **NEW** `@trait:Full\Namespace\MyTrait`      | Model only                          | Adds `use MyTrait;` inside the class                                                    |
+| **NEW** `@implements:Full\Interface as Alias`| Model only                          | Adds the interface (with alias) to the class’s `implements` list                        |
+| **NEW** `@observer:App\Observers\FooObserver`| Model only                          | Generates a `boot()` method that calls `static::observe(FooObserver::class);`           |
+| **NEW** `@factory:FooFactory`                | Model only                          | Adds `use HasFactory;` and `protected static string $factory = FooFactory::class;`      |
+| **NEW** `@touch{col1,col2}`                  | Model only                          | Generates `protected $touches = ['col1','col2'];`                                       |
+| **NEW** `@appends{attr1,attr2}`               | Model only                          | Generates `protected $appends = ['attr1','attr2'];` plus `$this->getAttrAttribute()` stubs |
 
 > **Syntax options**  
 > • Inline:  
@@ -554,7 +560,15 @@ your Eloquent model.
 >  `/// @fillable{name,balance}`  
 > • Model eager‑load:  
 >  `/// @with(posts,roles)`
-
+> • **Traits / implements**:  
+>   `/// @trait:Illuminate\Auth\Authenticatable`  
+>   `/// @implements:Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract`  
+> • **Observers / factory**:  
+>   `/// @observer:App\Observers\UserObserver`  
+>   `/// @factory:UserFactory`  
+> • **Touches / appends**:  
+>   `/// @touch{company,profile}`  
+>   `/// @appends{full_name,age}`  
 ---
 
 #### Example
@@ -602,6 +616,71 @@ protected $with = ['posts','comments'];
 
 `@ignore` prevents the `company()` relation method.  
 Combine multiple inline directives; they’re processed left‑to‑right.
+
+
+#### Example: Combined Directives
+
+```prisma
+/// @fillable{name,balance}
+/// @hidden{secretToken}
+/// @guarded{password,apiToken}
+/// @trait:Illuminate\Auth\Authenticatable
+/// @implements:Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract
+/// @observer:App\Observers\UserObserver
+/// @factory:UserFactory
+/// @touch{company}
+/// @appends{full_name}
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique                      /// @hidden @fillable
+  password  String                                 /// @hidden @guarded
+  balance   Decimal @default(0.0) /// @cast{decimal:2}
+  profile   Json?    /// @type{ import:'@types/forms', type:'ProfileDTO' }
+  company   Company? @relation(fields:[companyId], references:[id]) /// @ignore
+  companyId Int?
+  posts     Post[]   /// @with
+}
+```
+
+**Generated output (simplified)**
+
+```php
+use Illuminate\Auth\Authenticatable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
+use App\Observers\UserObserver;
+
+class User extends Model implements AuthenticatableContract
+{
+    use HasFactory, Authenticatable;
+
+    protected $fillable = ['name','balance','email'];
+    protected $hidden   = ['secretToken','password'];
+    protected $guarded  = ['password','apiToken'];
+
+    protected $casts    = ['balance' => 'decimal:2'];
+    protected $touches  = ['company'];
+    protected $appends  = ['full_name'];
+    protected static string $factory = UserFactory::class;
+
+    protected static function boot()
+    {
+        parent::boot();
+        static::observe(UserObserver::class);
+    }
+
+    public function getFullNameAttribute()
+    {
+        // TODO
+        return $this->attributes['full_name'] ?? null;
+    }
+
+    public function posts()
+    {
+        return $this->hasMany(Post::class);
+    }
+}
+```
 
 ---
 
