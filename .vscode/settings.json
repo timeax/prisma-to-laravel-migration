@@ -4,7 +4,6 @@
     "LICENSE": true,
     "package-lock.json": true,
     "tsconfig.json": true,
-    "node_modules": true,
     "dist": true,
     "@types": true
   }
