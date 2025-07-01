@@ -1,5 +1,5 @@
 import { DMMF } from "@prisma/generator-helper";
-import { ColumnDefinition } from "./column-definition-types.js";
+import { ColumnDefinition } from "../../types/column-definition-types.js";
 import { Rule } from "./rules.js";
 /**
  * The shape returned by the generator—pure data, no rendering.

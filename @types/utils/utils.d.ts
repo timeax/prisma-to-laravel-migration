@@ -1,7 +1,7 @@
 import { DMMF } from "@prisma/generator-helper";
-import { MigrationType } from "../generator/migrator/column-definition-types";
+import { MigrationType } from "../types/column-definition-types";
 import { ModelDefinition } from "../generator/modeler/types";
-import { StubGroupConfig } from "laravel-config";
+import { StubGroupConfig } from "types/laravel-config";
 /**
  * Given a Prisma field default, return the PHP code fragment
  * to append to your migration column definition.

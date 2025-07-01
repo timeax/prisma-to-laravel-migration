@@ -30,7 +30,12 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "cjs": "node scripts/toCommons.cjs",
-    "gen:laravel": "node scripts/gen-laravel.js"
+    "gen:laravel": "node scripts/gen-laravel.js",
+    
+    "build": "rm -rf dist @types && tsc",
+    "commit-if-needed": "git diff --quiet || git add . && git commit -m \"Release commit before publish\"",
+    "release": "npm run build && npm run commit-if-needed && npm version patch && npm publish",
+    "dev": "tsc --watch"
   },
   "dependencies": {
     "@prisma/generator-helper": "^6.10.0",

@@ -3,8 +3,9 @@ import { existsSync } from 'fs';
 import { MigrationType } from "../types/column-definition-types";
 import { MigrationTypes } from "../generator/migrator/migrationTypes.js";
 import { ModelDefinition } from "../generator/modeler/types";
-import { LaravelGeneratorConfig, StubGroupConfig } from "types/laravel-config";
+import { StubGroupConfig } from "types/laravel-config";
 import path from "path";
+import { NativeToMigrationTypeMap } from "../generator/migrator/column-maps.js";
 
 /**
  * Given a Prisma field default, return the PHP code fragment
