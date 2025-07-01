@@ -1,8 +1,8 @@
 // src/index.ts
 
 // Types
-export * from './types/column-definition-types';
-export * from './types/laravel-config';
+export type * from './types/column-definition-types';
+export type * from './types/laravel-config';
 
 // Rule interface
 export { Rule } from './generator/migrator/rules';
