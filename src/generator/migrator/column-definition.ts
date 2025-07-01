@@ -6,7 +6,7 @@ import {
    ColumnDefinitionWithoutDefault,
    RelationshipOptions,
    ColumnExtras,
-} from "./column-definition-types";
+} from "../../types/column-definition-types.js";
 import { getType } from "../../utils/utils.js";
 
 

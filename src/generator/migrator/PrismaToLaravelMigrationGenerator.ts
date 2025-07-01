@@ -1,7 +1,7 @@
 import { DMMF } from "@prisma/generator-helper";
 import { ColumnDefinitionGenerator } from "./column-definition.js";
 import { RuleResolver } from "./rule-definition.js";
-import { ColumnDefinition } from "./column-definition-types.js";
+import { ColumnDefinition } from "../../types/column-definition-types.js";
 import { Rule } from "./rules.js";
 
 /**

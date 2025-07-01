@@ -7,7 +7,7 @@ import {
    StubConfig,
    decorate,            // ⬅️ helper that applies prefix / suffix
 } from "../utils/utils.js";
-import { sortMigrations } from "../generator/migrator/sort.js";
+import { sortMigrations } from "../utils/sort.js";
 
 export interface PrinterNameOpts {
    tablePrefix?: string;

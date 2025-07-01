@@ -1,4 +1,4 @@
-import { RelationshipOptions } from "./column-definition-types";
+import { RelationshipOptions } from "../../types/column-definition-types";
 
 /**
  * The exact Prisma referential actions as strings in DMMF.Field

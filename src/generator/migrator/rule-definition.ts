@@ -1,5 +1,5 @@
 import { DMMF } from "@prisma/generator-helper";
-import { ColumnDefinition } from "./column-definition-types";
+import { ColumnDefinition } from "../../types/column-definition-types";
 import {
    defaultBuild,
    foreignIdRule,

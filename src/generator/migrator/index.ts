@@ -5,10 +5,10 @@ import { PrismaToLaravelMigrationGenerator, Migration } from "./PrismaToLaravelM
 import { StubMigrationPrinter } from "../../printer/migrations.js";
 import { StubConfig } from "../../utils/utils.js";
 import { fileURLToPath } from "url";
-import { sortMigrations } from "./sort.js";
+import { sortMigrations } from "../../utils/sort.js";
 import { writeWithMerge } from "../../diff-writer/writer.js";
 import { loadSharedConfig } from "../../utils/loadSharedCfg.js";
-import { MigratorConfigOverride, StubGroupConfig } from "laravel-config.js";
+import { MigratorConfigOverride, StubGroupConfig } from "types/laravel-config.js";
 
 interface MigratorConfig extends StubConfig, Omit<MigratorConfigOverride, 'groups' | 'stubDir'> {
 }
@@ -107,8 +107,9 @@ export async function generateLaravelSchema(options: GeneratorOptions): Promise<
    const __filename = fileURLToPath(import.meta.url);
    const __dirname = path.dirname(__filename);
    // 4) Prepare the stub printer
-   const fallbackStubFile = cfg.stubPath
-      ? path.resolve(process.cwd(), cfg.stubPath)
+   const stub = (shared.output?.migrations ?? cfg.stubPath);
+   const fallbackStubFile = stub
+      ? path.resolve(process.cwd(), stub)
       : path.resolve(__dirname, "../../../stubs/migration.stub");
    let printer = new StubMigrationPrinter(cfg, fallbackStubFile);
 

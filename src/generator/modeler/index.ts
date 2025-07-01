@@ -7,7 +7,7 @@ import { PrismaToLaravelModelGenerator } from "./generator.js";
 import { ModelDefinition, EnumDefinition } from "./types";
 import { fileURLToPath } from "url";
 import { writeWithMerge } from "../../diff-writer/writer.js";
-import { LaravelGeneratorConfig, ModelConfigOverride, StubGroupConfig } from "laravel-config.js";
+import { LaravelGeneratorConfig, ModelConfigOverride, StubGroupConfig } from "types/laravel-config.js";
 import { loadSharedConfig } from "../../utils/loadSharedCfg.js";
 
 interface ModelConfig extends StubConfig, Omit<ModelConfigOverride, 'groups' | 'stubDir'> { }
@@ -85,12 +85,14 @@ export async function generateLaravelModels(options: GeneratorOptions) {
    // …
 
    // 2) Load stubs (allow overrides)
-   const modelStub = cfg.modelStubPath
-      ? path.resolve(process.cwd(), cfg.modelStubPath)
+   const mStub = (shared.output?.models ?? cfg.modelStubPath);
+   const modelStub = mStub
+      ? path.resolve(process.cwd(), mStub)
       : path.resolve(__dirname, "../../../stubs/model.stub");
 
-   const enumStub = cfg.enumStubPath
-      ? path.resolve(process.cwd(), cfg.enumStubPath)
+   const eStub = (shared.output?.enums ?? cfg.enumStubPath);
+   const enumStub = eStub
+      ? path.resolve(process.cwd(), eStub)
       : path.resolve(__dirname, "../../../stubs/enums.stub");
 
 

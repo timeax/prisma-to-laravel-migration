@@ -1,6 +1,6 @@
 // utils/loadSharedCfg.ts
 import fs from "fs";
-import { LaravelSharedConfig } from "laravel-config";
+import { LaravelSharedConfig } from "types/laravel-config";
 import path from "path";
 /** ---------------- shared-config loader ---------------- */
 export async function loadSharedConfig(schemaDir: string): Promise<LaravelSharedConfig> {

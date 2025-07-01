@@ -1,5 +1,5 @@
 import { DMMF } from '@prisma/generator-helper';
-import { MigrationTypes } from './migrationTypes';
+import { MigrationTypes } from '../generator/migrator/migrationTypes';
 
 /**
  * The union of all values in the MigrationTypes object.

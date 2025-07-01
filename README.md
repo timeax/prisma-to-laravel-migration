@@ -14,45 +14,181 @@ npm install prisma-laravel-migrate --save-dev
 ```
 
 ---
+🛠️ Configuration layers
 
-## 🛠️ Prisma Generator Setup
+The generators read options in **three tiers (highest → lowest)**:
 
-Add both generator blocks to **`schema.prisma`**:
+1. **Environment override** – `PRISMA_LARAVEL_CFG=/path/to/laravel.config.js`
+2. **Shared project file** – **`prisma/laravel.config.js`** (auto‑loaded if present)
+3. **`generator … { … }` blocks** in `schema.prisma`
+
+A key in tier ① shadows the same key in ② and ③; tier ② shadows tier ③.
+
+### 📁 Shared project file — `prisma/laravel.config.js`
+
+```js
+/** Global to all Prisma‑Laravel generators */
+module.exports = {
+  /* -- table decoration ------------------------------- */
+  tablePrefix: "tx_",
+  tableSuffix: "_arch",
+
+  /* -- default stub root ------------------------------ */
+  stubDir: "prisma/stubs",
+
+  /* -- global dry‑run --------------------------------- */
+  noEmit: false,
+
+  /* -- override default outputs ----------------------- */
+  output: {
+    migrations: "database/migrations",
+    models:      "app/Models",
+    enums:       "app/Enums"
+  },
+
+  /* -- per‑generator overrides ------------------------ */
+  migrate: {
+    groups: "./prisma/migrate-groups.js",
+    rules : "./prisma/custom-rules.js"
+  },
+
+  modeler: {
+    groups: [
+      { stubFile: "audit.stub", tables: ["logs","audit_trails"] }
+    ],
+    outputEnumDir: "app/Enums",
+    overwriteExisting: true
+  }
+};
+```
+
+<details>
+<summary>Type reference</summary>
+
+```ts
+export interface Rule {
+   test(
+      def: ColumnDefinition,
+      allDefs: ColumnDefinition[],
+      dmmf: DMMF.Document
+   ): boolean;
+   render(
+      def: ColumnDefinition,
+      allDefs: ColumnDefinition[],
+      dmmf: DMMF.Document
+   ): Render;
+}
+/* ------------------------------------------------------------
+ *  Re-usable stub-group description
+ * ---------------------------------------------------------- */
+export interface StubGroupConfig {
+   /** Path relative to stubDir/<type>/  (e.g. "auth.stub") */
+   stubFile: string;
+   tables: string[];      // ["users","accounts",…] or enum names
+}
+
+/* ------------------------------------------------------------
+ *  Per-generator overrides  (migration / modeler)
+ * ---------------------------------------------------------- */
+export interface LaravelGeneratorConfig {
+
+   /** Override stubDir only for this generator */
+   stubDir?: string;
+
+   /** Where the generated PHP goes (overrides block) */
+   outputDir?: string;
+
+   overwriteExisting?: boolean;
+
+   /**
+    * Stub grouping:
+    *  • string  – path to a JS module exporting StubGroupConfig[]
+    *  • array   – the group definitions themselves
+    */
+   groups?: string | StubGroupConfig[];
+
+   /** Skip file emission for *this* generator only */
+   noEmit?: boolean;
+}
+
+/* ------------------------------------------------------------
+ *  Top-level shared config  (visible to all generators)
+ * ---------------------------------------------------------- */
+export interface LaravelSharedConfig {
+   /** Table name decoration */
+   tablePrefix?: string;
+   tableSuffix?: string;
+
+   /** Default stub root (migration/, model/, enum/) */
+   stubDir?: string;
+
+   /** Global “don’t write files” switch */
+   noEmit?: boolean;
+
+   /** Override default output folders */
+   output?: {
+      migrations?: string;
+      models?: string;
+      enums?: string;
+   };
+
+   /** Per-generator fine-tuning */
+   migrate?: Partial<MigratorConfigOverride>;
+   modeler?: Partial<ModelConfigOverride>;
+}
+
+
+/* --- Migrator-specific extra keys ---------------------------------------- */
+export interface MigratorConfigOverride extends LaravelGeneratorConfig {
+   /**
+    * Custom migration rules:
+    *  • string – path to JS module exporting Rule[]
+    *  • Rule[] – rules array inline
+    */
+   rules?: string | Rule[];
+
+   stubPath?: string;
+}
+
+
+export interface ModelConfigOverride extends LaravelGeneratorConfig {
+   modelStubPath?: string;
+   enumStubPath?: string;
+   /** Extra folder for enums (modeler only) */
+   outputEnumDir?: string;
+}
+```
+
+</details>
+
+---
+
+## 🛠️ Prisma Generator Setup (quick)
+
+Even with the shared file you may still keep minimal blocks in `schema.prisma`:
 
 ```prisma
 generator migrate {
   provider  = "prisma-laravel-migrations"
   stubDir   = "./prisma/stubs"
-
-  output    = "database/migrations"   // fallback
-  outputDir = "database/migrations"   // takes precedence
-
-  noEmit    = false                   // skip writing if true
-  groups    = "./prisma/group-stubs.js"
 }
 
 generator modeler {
-  provider      = "prisma-laravel-models"
-  stubDir       = "./prisma/stubs"
-
-  output        = "app/Models"
-  outputDir     = "app/Models"        // overrides output
-  outputEnumDir = "app/Enums"
-
-  noEmit        = false
-  groups        = "./prisma/group-stubs.js"
-}
+  provider  = "prisma-laravel-models"
+  stubDir   = "./prisma/stubs"
 ```
 
 ### Field Reference
 
-| Key | Notes |
-| --- | --- |
-| `outputDir / output` | Destination folder (`outputDir` overrides `output`). |
-| `outputEnumDir` | (modeler) directory for generated enum classes. |
-| `stubDir` | Root stub folder (`migration/`, `model/`, `enum/`). |
-| `groups` | JS module that maps stub files to table groups. |
-| `noEmit` | If `true`, generator parses but **writes no** files (dry‑run). |
+| Key                    | Notes                                                                                                     |
+| ---------------------- | --------------------------------------------------------------------------------------------------------- |
+| `outputDir / output`   | Destination folder (`outputDir` overrides `output`).                                                      |
+| `outputEnumDir`        | (modeler) directory for generated enum classes.                                                           |
+| `stubDir`              | Root stub folder (`migration/`, `model/`, `enum/`).                                                       |
+| `tablePrefix`          | String prepended to every generated **physical** table name.                                              |
+| `tableSuffix`          | String appended to every generated **physical** table name.                                               |
+| `groups`               | JS module *or* inline array that maps stub files to table groups.                                         |
+| `noEmit`               | If `true`, generator parses and validates but **does not write** any files (dry-run / CI mode).           |
 
 ---
 
@@ -474,6 +610,110 @@ Combine multiple inline directives; they’re processed left‑to‑right.
 - Combine `migration` & `model` in one customize command when table names align.
 - Use `noEmit: true` for dry‑runs or CI validation.
 - Escape template chars in stub files.
+
+---
+
+## 📚 Programmatic API (ES / TypeScript)
+
+Use the library directly in a script or build tool instead of the CLI.
+
+```ts
+import {
+  generateLaravelSchema,
+  generateLaravelModels,
+  sortMigrations,
+} from 'prisma-laravel-migrate';
+import { readFileSync, writeFileSync } from 'fs';
+import { getDMMF } from '@prisma/sdk';
+
+(async () => {
+  /* 1. Load schema & build DMMF */
+  const schemaPath = 'prisma/schema.prisma';
+  const datamodel  = readFileSync(schemaPath, 'utf8');
+  const dmmf       = await getDMMF({ datamodel });
+
+  /* 2. Run generators entirely in-memory */
+  const migrations = generateLaravelSchema({
+    dmmf,
+    schemaPath,                 // ← always pass this
+    generator : { config: {} } as any,
+  });
+
+  const { models, enums } = generateLaravelModels({
+    dmmf,
+    schemaPath,
+    generator : { config: {} } as any,
+  });
+
+  /* 3. Inspect or write output */
+  sortMigrations(migrations).forEach(m => {
+    writeFileSync(`./out/${m.tableName}.php`, m.statements.join('\n'), 'utf8');
+  });
+})();
+```
+
+### Custom migration rules in code
+
+```ts
+import { Rule } from 'prisma-laravel-migrate';
+
+const softDeleteRule: Rule = {
+  test:   d => d.name === 'deleted_at' && d.migrationType === 'timestamp',
+  render: () => ({
+    column : 'deleted_at',
+    snippet: ["$table->timestamp('deleted_at')->nullable();"],
+  }),
+};
+
+generateLaravelSchema({
+  dmmf,
+  schemaPath: 'prisma/schema.prisma',
+  generator : { config: { rules: [softDeleteRule] } } as any,
+});
+```
+
+### Public exports
+
+| Export                           | Purpose                                             |
+| -------------------------------- | --------------------------------------------------- |
+| `generateLaravelSchema`          | Build migration objects (and optionally write files)|
+| `generateLaravelModels`          | Build model + enum definitions                      |
+| `sortMigrations`                 | Topologically sort migrations by FK dependencies    |
+| `Rule`                           | Type helper for custom migration shortcuts          |
+| _types_ (`column-definition-types`, `laravel-config`) | Full TypeScript typings          |
+
+```ts
+import {
+  ColumnDefinition,
+  LaravelSharedConfig,
+  MigratorConfigOverride,
+} from 'prisma-laravel-migrate';
+```
+
+> **Heads-up:**  
+> `generateLaravelSchema` and `generateLaravelModels` **write files by default**  
+> (honouring the `outputDir` settings).  
+> If you only want the in-memory objects—e.g. to capture the returned
+> `migrations`, `models`, or `enums` arrays—set  
+> `noEmit: true` in either
+>
+> * the per-call `generator.config` object:
+>   ```ts
+>   generateLaravelSchema({
+>     dmmf,
+>     schemaPath,
+>     generator: { config: { noEmit: true } } as any,
+>   });
+>   ```
+> * **or** in `prisma/laravel.config.js`:
+>   ```js
+>   module.exports = {
+>     migrate: { noEmit: true },
+>     modeler: { noEmit: true },
+>   };
+>   ```
+> This prevents any files from being created or overwritten while still
+> returning the fully-populated data structures for custom processing.
 
 ---
 
