@@ -120,12 +120,11 @@ cli
          await fs.access(cfgPath);
       } catch {
          const cfgTemplate = `
-// prisma/laravel.config.js
+// prisma/prisma-laravel.config.js
 module.exports = {
   tablePrefix: "",        // e.g. "tx_"
   tableSuffix: "",        // e.g. "_arch"
   stubDir:     "${stubDirRel}",
-  groups:      "./prisma/group-stubs.js",
   // migrate: { noEmit: false },
   // modeler: { noEmit: false }
 };
