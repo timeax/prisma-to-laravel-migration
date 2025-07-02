@@ -40,7 +40,7 @@ import { buildModelContent } from '../dist/utils/build.js';
   const modelPrinter = new StubModelPrinter(
     {},
     path.resolve(process.cwd(), 'stubs/model.stub'),
-    path.resolve(process.cwd(), 'stubs/enums.stub')
+    path.resolve(process.cwd(), 'stubs/enum.stub')
   );
 
   // build content for each model

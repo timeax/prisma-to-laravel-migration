@@ -94,7 +94,7 @@ export async function generateLaravelModels(options: GeneratorOptions) {
    const eStub = (shared.output?.enums ?? cfg.enumStubPath);
    const enumStub = eStub
       ? path.resolve(process.cwd(), eStub)
-      : path.resolve(__dirname, "../../../stubs/enums.stub");
+      : path.resolve(__dirname, "../../../stubs/enum.stub");
 
 
    const printer = new StubModelPrinter(cfg, modelStub, enumStub);
