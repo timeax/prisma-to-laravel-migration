@@ -192,7 +192,23 @@ generator modeler {
 
 ---
 
-## 🔀 `groups` – Stub Grouping
+
+## 🔀 `groups` – Stub Grouping (v2)
+
+A **group** links one stub file to _many_ tables (or enums).  
+From v2 you can keep the old **`tables: [...]`** list **or** use the new, more
+expressive selectors:
+
+| Key          | Type / Example                         | Meaning                                                      |
+|--------------|----------------------------------------|--------------------------------------------------------------|
+| `tables`     | `["users","accounts"]`                 | Classic explicit list – **exact names** only                 |
+| `include`    | `["audit_*","logs"]` **or** `"*"`      | White‑list using globs or `'*'` (all)                       |
+| `exclude`    | `["*_archive","failed_jobs"]`          | Black‑list applied *after* include / pattern                 |
+| `pattern`    | `/^temp_/` or `"report_*"`             | `RegExp` **or** glob(s) – match if **any** hits              |
+
+> Only one of **`tables`** **or** the new selector trio is required.
+
+### Generator block
 
 ```prisma
 generator migrate {
@@ -202,28 +218,41 @@ generator migrate {
 }
 ```
 
-`prisma/group-stubs.js`
+### `prisma/group-stubs.js`
 
 ```js
+/** @type {import('prisma-laravel-migrate').FlexibleStubGroup[]} */
 module.exports = [
+  // 1. legacy explicit list
   {
     stubFile: "auth.stub",                // stubs/migration/auth.stub
     tables:   ["users","accounts","password_resets"]
   },
+
+  // 2. regex + blacklist
   {
-    stubFile: "billing.stub",             // stubs/migration/billing.stub
-    tables:   ["invoices","transactions"]
+    stubFile: "audit.stub",
+    pattern : /^audit_/,
+    exclude : ["audit_archive"]
+  },
+
+  // 3. catch‑all
+  {
+    stubFile: "catch-all.stub",
+    include : "*",
+    exclude : ["failed_jobs","migrations"]
   }
 ];
 ```
 
-**Resolution order**
+### Resolution order
 
-1. `stubs/<type>/<table>.stub` (table‑specific)
-2. Matching group stub (`stubFile`)
-3. `stubs/<type>/index.stub` (default)
+1. **Table‑specific** — `stubs/<type>/<table>.stub`  
+2. **First matching group** (objects are checked top‑to‑bottom)  
+3. **Default** — `stubs/<type>/index.stub`
 
----
+> If a group’s `stubFile` does not exist it is skipped, so you may leave unused
+> groups in place without breaking the build.
 
 ## 📁 Stub Folder Layout
 
@@ -793,6 +822,134 @@ import {
 >   ```
 > This prevents any files from being created or overwritten while still
 > returning the fully-populated data structures for custom processing.
+
+---
+
+
+# Prisma → Laravel Migration Guide
+
+This document explains **how `prisma‑laravel‑migrate` converts your Prisma schema into
+Laravel migration code**, so you can model your database in Prisma while still getting
+clean, idiomatic Laravel migrations.
+
+---
+
+## 1. Scalar → Migration type map
+
+The generator first turns every Prisma (or native) scalar into the
+corresponding **Laravel schema builder method**.
+
+| Native type | Laravel method |
+|-------------|----------------|
+| `Text` | `text()` |
+| `VarChar` | `string()` |
+| `Boolean` | `boolean()` |
+| `TinyInt` | `tinyInteger()` |
+| `UnsignedBigInt` | `unsignedBigInteger()` |
+| `BigInt` | `bigInteger()` |
+| `Decimal` | `decimal()` |
+| `Double` | `double()` |
+| `DateTime` | `timestamp()` |
+| `Timestamptz` | `timestampsTz()` |
+| `Json` | `json()` |
+| `Uuid` | `uuid()` |
+| `Inet` | `ipAddress()` |
+
+*(See source `migrationTypes.ts` for the full mapping.)*
+
+---
+
+## 2. Automatic shorthand rules
+
+After basic mapping, each column is checked against a **rule set**
+so that common Laravel helper methods are used instead of verbose definitions.
+
+| Rule | Condition in Prisma | Generated code |
+|------|--------------------|----------------|
+| **Primary ID** | `id BigInt @id @default(autoincrement())` | `$table->id();` |
+| **Timestamps** | `created_at / updated_at` pair (`DateTime` or `Timestamp`) | `$table->timestamps();` |
+| **TimestampsTz** | Same pair but `DateTimeTz` / tz‑aware types | `$table->timestampsTz();` |
+| **Soft‑deletes** | `deleted_at DateTime` | `$table->softDeletes();` |
+| **Soft‑deletesTz** | `deleted_at DateTimeTz` | `$table->softDeletesTz();` |
+| **Remember token** | `remember_token String?` | `$table->rememberToken();` |
+| **`foreignId`** | `<col>_id` + `@relation(...)` | `$table->foreignId('…')->constrained();` |
+| **Morphs / NullableMorphs** | `<base>_id` & `<base>_type` combo | `$table->morphs('base');` / `$table->nullableMorphs('base');` |
+| **UUID / ULID Morphs** | Same but with `Uuid` / `Ulid` id column | `$table->uuidMorphs()` & friends |
+
+If a rule fires, both columns involved are marked *ignored* so the fallback
+builder doesn't emit them twice.
+
+---
+
+## 3. Fallback builder
+
+Anything that doesn't match a rule is rendered with:
+
+```php
+$table->{method}('{name}', ...args)
+      ->nullable()      // if applicable
+      ->unsigned()      // if applicable
+      ->default(...)    // if applicable
+      ->comment('…');   // if present
+```
+
+Foreign‑key references (`@relation`) then add a separate `$table->foreign()` chain.
+
+---
+
+## 4. Example
+
+### Prisma model
+
+```prisma
+model Post {
+  id          Int      @id @default(autoincrement())       // ➜ $table->id()
+  title       String                                         
+  body        Text
+  author_id   Int
+  author      User     @relation(fields:[author_id], references:[id])
+  remember_token String?  // ➜ rememberToken
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  deleted_at  DateTime?
+}
+```
+
+### Generated migration excerpt
+
+```php
+$table->id();
+$table->string('title');
+$table->text('body');
+$table->foreignId('author_id')->constrained('users', 'id');
+$table->rememberToken();
+$table->timestamps();
+$table->softDeletes();
+```
+
+---
+
+## 5. Customising
+
+* **Native type hints** – use `@db.VarChar(191)` etc. Prisma passes the native type,
+  the generator maps it to the proper Laravel builder.
+* **Override or extend** – supply your own `rules` array in `schema.prisma` to replace
+  or add to the built‑in ones.
+* **Stub files** – tweak the surrounding PHP (imports, namespace, etc.) by editing
+  `prisma/stubs/migration/index.stub` or create per‑table stubs.
+
+---
+
+## 6. Gotchas
+
+* **Make columns nullable** in Prisma if you expect `->nullable()` in Laravel.
+* The generator relies on conventional column names (`*_id`, `created_at`, …)
+  for shortcut rules; non‑standard names fall back to the generic builder.
+* Remember to run migrations **after** generating to ensure FK order is correct
+  (the tool topologically sorts tables to avoid dependency loops).
+
+Happy scaffolding! 🎉
+
 
 ---
 

@@ -126,39 +126,6 @@ export interface StubConfig {
    tableSuffix?: string
 }
 
-export function resolveStub(
-   cfg: StubConfig,
-   type: "migration" | "model" | "enum",
-   tableName: string
-): string | undefined {
-   if (!cfg.stubDir) return;
-   //---
-   const dir = path.resolve(process.cwd(), cfg.stubDir, type);
-
-   // A) 1st: file‐based override: <tableName>.stub
-   const fileOverride = path.join(dir, `${tableName}.stub`);
-   if (existsSync(fileOverride)) {
-      return fileOverride;
-   }
-
-   // B) 2nd: group‐based override
-   if (cfg.groups) {
-      for (const { stubFile, tables } of cfg.groups) {
-         if (tables.includes(tableName)) {
-            const groupPath = path.join(dir, stubFile);
-            if (existsSync(groupPath)) {
-               return groupPath;
-            }
-         }
-      }
-   }
-
-   // C) Fallback to index.stub
-   const defaultPath = path.join(dir, "index.stub");
-   if (!existsSync(defaultPath)) return;
-   return defaultPath;
-}
-
 // utils/prefixSuffix.ts
 export interface NameOpts {
    tablePrefix?: string;
@@ -171,3 +138,5 @@ export function decorate(name: string, opts: NameOpts): string {
    const suf = opts.tableSuffix ?? "";
    return `${pre}${name}${suf}`.trim();
 }
+
+export { resolveStub } from './stubResolver.js'

@@ -3,11 +3,33 @@ import { Rule } from "generator/migrator/rules";
 /* ------------------------------------------------------------
  *  Re-usable stub-group description
  * ---------------------------------------------------------- */
-export interface StubGroupConfig {
+export interface StubGroupConfig extends FlexibleStubGroup {
    /** Path relative to stubDir/<type>/  (e.g. "auth.stub") */
    stubFile: string;
    tables: string[];      // ["users","accounts",…] or enum names
 }
+
+/**
+ * Back-compat + new matching options.
+ * Supply EITHER `tables` *or* (`include` / `exclude` / `pattern`).
+ */
+interface FlexibleStubGroup {
+   /** Path relative to stubDir/<type>/, e.g. "auth.stub" */
+   stubFile: string;
+
+   /** Old style - explicit white-list */
+   tables?: string[];
+
+   /** New style – include list ( '*' means “all tables” ) */
+   include?: string[] | '*';
+
+   /** New style – blacklist applied after include / pattern */
+   exclude?: string[];
+
+   /** New style – RegExp OR minimatch glob(s) */
+   pattern?: RegExp | string | Array<RegExp | string>;
+}
+
 
 /* ------------------------------------------------------------
  *  Per-generator overrides  (migration / modeler)
