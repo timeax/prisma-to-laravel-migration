@@ -55,8 +55,7 @@ cli
       const schemaPath = path.resolve(process.cwd(), opts.schema);
       const schemaDir = path.dirname(schemaPath);             // prisma/
       const userStubs = path.join(schemaDir, "stubs");        // prisma/stubs
-      const stubDirRel =
-         "./" + path.relative(schemaDir, userStubs).replace(/\\/g, "/"); // "./stubs"
+      const stubDirRel = "./" + path.relative(process.cwd(), userStubs).replace(/\\/g, "/"); // "./stubs"
 
       const __dirname = path.dirname(fileURLToPath(import.meta.url));
       const pkgStubs = path.resolve(__dirname, "../../stubs");    // bundled stubs
