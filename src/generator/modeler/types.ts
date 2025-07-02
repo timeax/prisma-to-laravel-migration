@@ -62,7 +62,7 @@ export interface ModelDefinition {
 
   /* ── NEW model-level helpers ─────────────────────── */
   traits?     : string[];                           // use TraitA, TraitB
-  implements? : { iface: string; alias?: string }[];// implements Interface as Alias
+  implements? : string[];// implements Interface as Alias
   observer?   : string;                             // boot() -> observe(...)
   factory?    : string;                             // static $factory = FooFactory::class
   touches?    : string[];                           // protected $touches = [...]

@@ -41,10 +41,7 @@ export interface ModelDefinition {
     with?: string[];
     imports?: string[];
     traits?: string[];
-    implements?: {
-        iface: string;
-        alias?: string;
-    }[];
+    implements?: string[];
     observer?: string;
     factory?: string;
     touches?: string[];

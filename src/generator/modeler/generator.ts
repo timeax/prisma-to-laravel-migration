@@ -153,30 +153,59 @@ export class PrismaToLaravelModelGenerator {
          }
 
 
-         /* ---------- NEW: trait / implements / observer / factory -------------- */
-         const traitRE = /@trait:([^\s]+)/g;
+         /* -------- NEW: parse @trait / @implements / @observer / @factory -------- */
+         type UseImport = { fqcn: string; alias?: string };
+         const addUse = (arr: UseImport[], fqcn: string, alias?: string) =>
+            arr.push({ fqcn, alias });
+
+         // extract short-name or alias
+         const shortName = (fqcn: string, alias?: string) =>
+            alias ?? fqcn.split('\\').pop()!;
+
+         // regexes -----------------------------------------------------------------
+         const traitRE = /@trait:([^\s]+)(?:\s+as\s+(\w+))?/g;
          const implRE = /@implements:([^\s]+)(?:\s+as\s+(\w+))?/g;
-         const observerRE = /@observer:([^\s]+)/;
-         const factoryRE = /@factory:([^\s]+)/;
+         const observerRE = /@observer:([^\s]+)(?:\s+as\s+(\w+))?/;
+         const factoryRE = /@factory:([^\s]+)(?:\s+as\s+(\w+))?/;
          const touchRE = /@touch\{([^}]+)\}/;
          const appendsRE = /@appends\{([^}]+)\}/;
 
+         // collect traits ----------------------------------------------------------
+         const traitUses: UseImport[] = [];
          const traits: string[] = [];
-         for (let m; (m = traitRE.exec(modelDoc));) traits.push(m[1]);
-
-         const implementsArr: { iface: string; alias?: string }[] = [];
-         for (let m; (m = implRE.exec(modelDoc));) {
-            implementsArr.push({ iface: m[1], alias: m[2] });
+         for (let m; (m = traitRE.exec(modelDoc));) {
+            addUse(traitUses, m[1], m[2]);
+            traits.push(shortName(m[1], m[2]));
          }
 
-         const observer = observerRE.exec(modelDoc)?.[1];
-         const factory = factoryRE.exec(modelDoc)?.[1];
+         // collect implements ------------------------------------------------------
+         const implUses: UseImport[] = [];
+         const implementsArr: string[] = [];
+         for (let m; (m = implRE.exec(modelDoc));) {
+            addUse(implUses, m[1], m[2]);
+            implementsArr.push(shortName(m[1], m[2]));
+         }
 
-         const touches = touchRE.exec(modelDoc)?.[1]
-            ?.split(",").map(s => s.trim()).filter(Boolean) ?? [];
+         // observer / factory ------------------------------------------------------
+         const obsMatch = observerRE.exec(modelDoc);
+         const observer = obsMatch ? shortName(obsMatch[1], obsMatch[2]) : undefined;
+         const observerUse = obsMatch ? { fqcn: obsMatch[1], alias: obsMatch[2] } : undefined;
 
-         const appends = appendsRE.exec(modelDoc)?.[1]
-            ?.split(",").map(s => s.trim()).filter(Boolean) ?? [];
+         const facMatch = factoryRE.exec(modelDoc);
+         const factory = facMatch ? shortName(facMatch[1], facMatch[2]) : undefined;
+         const factoryUse = facMatch ? { fqcn: facMatch[1], alias: facMatch[2] } : undefined;
+
+         // eager-load arrays -------------------------------------------------------
+         const touches = touchRE.exec(modelDoc)?.[1]?.split(',').map(s => s.trim()).filter(Boolean) ?? [];
+         const appends = appendsRE.exec(modelDoc)?.[1]?.split(',').map(s => s.trim()).filter(Boolean) ?? [];
+
+         // final imports list ------------------------------------------------------
+         const imports = [
+            ...traitUses,
+            ...implUses,
+            ...(observerUse ? [observerUse] : []),
+            ...(factoryUse ? [factoryUse] : []),
+         ].map(u => `use ${u.fqcn}${u.alias ? ` as ${u.alias}` : ''};`);
 
 
          /* ── 2.6  Final ModelDefinition ────────────────────────────────── */
@@ -194,7 +223,8 @@ export class PrismaToLaravelModelGenerator {
             implements: implementsArr,
             observer,
             touches,
-            traits
+            traits,
+            imports
          };
       });
 

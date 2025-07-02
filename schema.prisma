@@ -39,6 +39,10 @@ enum AuditArchiveStatus {
 }
 
 // ─── MODELS ────────────────────────────────────────────────────────────────────
+/// @trait:Illuminate\Auth\Authenticatable
+/// @implements:Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract
+/// @observer:App\Observers\UserObserver
+/// @factory:UserFactory
 model AuditLog {
    id BigInt @id @default(autoincrement()) @db.BigInt
 
