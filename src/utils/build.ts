@@ -112,6 +112,29 @@ export function buildModelContent(model: ModelDefinition): string {
       });
    }
 
+   //--- handle relationships -----------------------------------------
+   model.relations.forEach(rel => {
+      // For morphTo* the first param is the relation name (string),
+      // otherwise it’s the related model class.
+      const isMorph = rel.type.startsWith('morph');
+
+      const args = [
+         isMorph ? `'${rel.morphType ?? rel.name}'` : rel.modelClass,
+         rel.foreignKey ? `'${rel.foreignKey}'` : null,
+         rel.localKey ? `'${rel.localKey}'` : null,
+      ]
+         .filter(Boolean)
+         .join(', ');
+
+      out.push(
+         `public function ${rel.name}()`,
+         '{',
+         `    return $this->${rel.type}(${args});` +
+         (rel.pivotTable ? ` // pivot: ${rel.pivotTable}` : ''),
+         '}',
+         ''
+      );
+   });
    //---
    out.push(...buildAppendAccessors(model.appends));
    /* ---- done --------------------------------------------------------- */

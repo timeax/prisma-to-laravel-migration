@@ -40,6 +40,7 @@ export interface ModelDefinition {
     guarded?: string[];
     with?: string[];
     imports?: string[];
+    extends?: string;
     traits?: string[];
     implements?: string[];
     observer?: string;

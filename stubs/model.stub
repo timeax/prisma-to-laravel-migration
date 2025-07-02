@@ -2,10 +2,13 @@
 
 namespace App\\Models;
 
-${model.imports.join('\n')}
-use Illuminate\\Database\\Eloquent\\Model;
+${model.imports.join('\n')}${model.extends && model.extends !== 'Illuminate\Database\Eloquent\Model'
+  ? ''
+  : '\nuse Illuminate\\Database\\Eloquent\\Model;'} 
 
-class ${model.className} extends Model ${model.implements.length ? 'implements ' + model.implements.join(',') : ''}
+class ${model.className} extends ${model.extends ?? 'Model'}${model.implements.length
+  ? ' implements ' + model.implements.join(', ')
+  : ''} 
 {
     protected $table = '${model.tableName}';
 

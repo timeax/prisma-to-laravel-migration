@@ -61,6 +61,7 @@ export interface ModelDefinition {
   imports?: string[];
 
   /* ── NEW model-level helpers ─────────────────────── */
+  extends?    : string
   traits?     : string[];                           // use TraitA, TraitB
   implements? : string[];// implements Interface as Alias
   observer?   : string;                             // boot() -> observe(...)

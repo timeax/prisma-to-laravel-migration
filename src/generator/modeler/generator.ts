@@ -178,6 +178,25 @@ export class PrismaToLaravelModelGenerator {
             traits.push(shortName(m[1], m[2]));
          }
 
+         /* ---------------- NEW: @extend ----------------------------------------- */
+         // Syntax:  /// @extend:App\BaseClasses\SoftModel
+         // Optional alias just like traits:
+         /*
+            /// @extend:App\Foo\Bar as BaseBar
+            → use App\Foo\Bar as BaseBar;
+            → extends "BaseBar"
+         */
+         const extendRE = /@extend:([^\s]+)(?:\s+as\s+(\w+))?/;
+
+         let parentClass = "Model";               // default
+         let parentUse: UseImport | undefined;    // for imports[]
+
+         const extMatch = extendRE.exec(modelDoc);
+         if (extMatch) {
+            parentClass = shortName(extMatch[1], extMatch[2]);      // "Bar" | "BaseBar"
+            parentUse = { fqcn: extMatch[1], alias: extMatch[2] };
+         }
+
          // collect implements ------------------------------------------------------
          const implUses: UseImport[] = [];
          const implementsArr: string[] = [];
@@ -201,6 +220,7 @@ export class PrismaToLaravelModelGenerator {
 
          // final imports list ------------------------------------------------------
          const imports = [
+            ...(parentUse ? [parentUse] : []),
             ...traitUses,
             ...implUses,
             ...(observerUse ? [observerUse] : []),
@@ -224,7 +244,8 @@ export class PrismaToLaravelModelGenerator {
             observer,
             touches,
             traits,
-            imports
+            imports,
+            extends: parentClass !== 'Model' ? parentClass : undefined
          };
       });
 
