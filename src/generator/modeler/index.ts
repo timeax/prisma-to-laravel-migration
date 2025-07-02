@@ -111,7 +111,7 @@ export async function generateLaravelModels(options: GeneratorOptions) {
    for (const enumDef of enums) {
       const enumPhp = printer.printEnum(enumDef);
       const enumFile = path.join(enumsDir, `${enumDef.name}.php`);
-      !!cfg.noEmit &&
+      !cfg.noEmit &&
          writeWithMerge(
             enumFile,
             enumPhp,
@@ -125,6 +125,8 @@ export async function generateLaravelModels(options: GeneratorOptions) {
       //----
       if (Array.isArray(model.imports)) model.imports.push(...imports);
       else model.imports = imports;
+      //---
+      model.imports = Array.from(new Set(model.imports));
       //----
       const content = buildModelContent(model);
       const modelPhp = printer.printModel(model, enums, content);
