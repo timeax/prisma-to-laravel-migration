@@ -59,7 +59,7 @@ cli
          "./" + path.relative(schemaDir, userStubs).replace(/\\/g, "/"); // "./stubs"
 
       const __dirname = path.dirname(fileURLToPath(import.meta.url));
-      const pkgStubs = path.resolve(__dirname, "../stubs");    // bundled stubs
+      const pkgStubs = path.resolve(__dirname, "../../stubs");    // bundled stubs
 
       /* 2. Load schema.prisma ---------------------------------------- */
       let schema = await fs.readFile(schemaPath, "utf-8");
