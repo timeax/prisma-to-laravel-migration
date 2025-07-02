@@ -130,7 +130,7 @@ export async function generateLaravelModels(options: GeneratorOptions) {
       const modelPhp = printer.printModel(model, enums, content);
       const modelFile = path.join(modelsDir, `${model.className}.php`);
 
-      !!cfg.noEmit &&
+      !cfg.noEmit &&
          writeWithMerge(
             modelFile,
             modelPhp,

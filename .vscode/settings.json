@@ -5,6 +5,7 @@
     "package-lock.json": true,
     "tsconfig.json": true,
     "dist": true,
-    "@types": true
+    "@types": true,
+    "node_modules": true
   }
 }

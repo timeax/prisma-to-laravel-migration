@@ -134,7 +134,7 @@ export async function generateLaravelSchema(options: GeneratorOptions): Promise<
 
 
       // 4) Write with markers as before
-      !!cfg.noEmit &&
+      !cfg.noEmit &&
          writeWithMerge(
             filePath,
             content,
