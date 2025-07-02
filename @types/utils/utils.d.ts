@@ -23,10 +23,10 @@ export interface StubConfig {
     tablePrefix?: string;
     tableSuffix?: string;
 }
-export declare function resolveStub(cfg: StubConfig, type: "migration" | "model" | "enum", tableName: string): string | undefined;
 export interface NameOpts {
     tablePrefix?: string;
     tableSuffix?: string;
 }
 /** tx_ + users + _tx → returns "tx_users_tx" */
 export declare function decorate(name: string, opts: NameOpts): string;
+export { resolveStub } from './stubResolver.js';
