@@ -573,7 +573,7 @@ your Eloquent model.
 | `@ignore` | Relation field | Skips generating the relationship method |
 | `@with` (no args) | Relation field | Adds that single relation to `$with` |
 | `@with(rel1,rel2,…)` | Model only | Adds listed relations to `$with` |
-| **NEW** `@extends:Full\Namespace\MyExtension`      | Model only                          | Adds `extends MyExtension;`                                                     |
+| **NEW** `@extend:Full\Namespace\MyExtension`      | Model only                          | Adds `extends MyExtension;`                                                     |
 | **NEW** `@trait:Full\Namespace\MyTrait`      | Model only                          | Adds `use MyTrait;` inside the class                                                    |
 | **NEW** `@implements:Full\Interface as Alias`| Model only                          | Adds the interface (with alias) to the class’s `implements` list                        |
 | **NEW** `@observer:App\Observers\FooObserver`| Model only                          | Generates a `boot()` method that calls `static::observe(FooObserver::class);`           |
