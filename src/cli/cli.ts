@@ -102,16 +102,6 @@ cli
             await fs.copyFile(src, dst);
             console.log(`➡️  Copied ${type}.stub → stubs/${type}/index.stub`);
          }
-
-         /* simple-model.stub */
-         if (type === "model") {
-            const src2 = path.join(pkgStubs, "simple-model.stub");
-            const dst2 = path.join(targetDir, "simple-model.stub");
-            try { await fs.access(dst2); } catch {
-               await fs.copyFile(src2, dst2);
-               console.log("➡️  Copied simple-model.stub → stubs/model/simple-model.stub");
-            }
-         }
       }
 
       /* 5. Create laravel.config.js if absent ------------------------ */
