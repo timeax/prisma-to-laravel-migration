@@ -1,6 +1,6 @@
 import { DMMF } from "@prisma/generator-helper";
 import { ColumnDefinition } from "../../types/column-definition-types";
-import { rules as ruleList, Rule, defaultBuild, Render, DefaultMaps } from "./rules.js";
+import { rules as ruleList, Rule, defaultBuild, DefaultMaps } from "./rules.js";
 
 /**
  * Encapsulates all special‐case column rendering rules.

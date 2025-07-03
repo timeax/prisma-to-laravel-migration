@@ -1,6 +1,6 @@
 import { DMMF } from "@prisma/generator-helper";
 import { ColumnDefinition } from "../../types/column-definition-types";
-import { Rule, Render, DefaultMaps } from "./rules.js";
+import { Rule, DefaultMaps } from "./rules.js";
 /**
  * Encapsulates all special‐case column rendering rules.
  * Needs access to the full DMMF document and the set of all column definitions
@@ -22,7 +22,7 @@ export declare class RuleResolver {
      * Returns the special‐case lines for this column,
      * or an empty array if none of the rules match.
      */
-    resolve(def: ColumnDefinition): Render;
+    resolve(def: ColumnDefinition): import("./rules.js").Render;
     /** NEW: run all *utility* rules once and gather their snippets */
     resolveUtilities(): string[];
 }

@@ -4,7 +4,7 @@ datasource d {
 }
 
 model Test {
-  uuid  String @id @default(uuid()) @d.Char(36)
+  id  Int @id @default(autoincrement())
   name  String
   email String
 

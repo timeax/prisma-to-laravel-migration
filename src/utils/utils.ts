@@ -1,9 +1,7 @@
 import { DMMF } from "@prisma/generator-helper";
-import { existsSync } from 'fs';
 import { MigrationType } from "../types/column-definition-types";
 import { MigrationTypes } from "../generator/migrator/migrationTypes.js";
 import { StubGroupConfig } from "types/laravel-config";
-import path from "path";
 import { NativeToMigrationTypeMap, PrismaTypes } from "../generator/migrator/column-maps.js";
 import { DefaultMaps } from "generator/migrator/rules";
 
@@ -80,7 +78,7 @@ export function formatDefault(field: DMMF.Field, defaultMaps: DefaultMaps): stri
    return `->default(${JSON.stringify(def)})`;
 }
 
-const intTypes = [NativeToMigrationTypeMap.BigInt, NativeToMigrationTypeMap.Int, NativeToMigrationTypeMap.UnsignedBigInt, NativeToMigrationTypeMap.UnsignedInt];
+const intTypes = [PrismaTypes.BigInt, PrismaTypes.Int, PrismaTypes.UnsignedBigInt, PrismaTypes.UnsignedInt];
 
 export function getType(field: DMMF.Field): MigrationType {
    const {
