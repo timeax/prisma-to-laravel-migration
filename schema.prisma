@@ -45,7 +45,6 @@ enum AuditArchiveStatus {
 /// @factory:UserFactory
 model AuditLog {
    id BigInt @id @default(autoincrement()) @db.BigInt
-
    /// who did it ─
    account_id BigInt @db.BigInt // FK → Account.id
 

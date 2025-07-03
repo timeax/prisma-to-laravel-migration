@@ -86,6 +86,92 @@ export const NativeToMigrationTypeMap = {
    Inet: MigrationTypes.ipAddress,
 }
 
+export const PrismaTypes = {
+   // ──────────────── TEXT / STRING ────────────────\
+   Text: "Text",
+   TinyText: "TinyText",
+   MediumText: "MediumText",
+   LongText: "LongText",
+   Char: "Char",
+   NChar: "NChar",
+   CatalogSingleChar: "CatalogSingleChar",
+   VarChar: "VarChar",
+   NVarChar: "NVarChar",
+   String: "String",
+   Xml: "Xml",
+   NText: "NText",
+   Citext: "Citext",
+
+   // ──────────────── BOOLEAN / BIT ───────────────
+   Boolean: "Boolean",
+   Bool: "Bool",
+   Bit: "Bit",
+   VarBit: "VarBit",
+
+   // ──────────────── INTEGERS ────────────────────
+   TinyInt: "TinyInt",
+   UnsignedTinyInt: "UnsignedTinyInt",
+   SmallInt: "SmallInt",
+   UnsignedSmallInt: "UnsignedSmallInt",
+   MediumInt: "MediumInt",
+   UnsignedMediumInt: "UnsignedMediumInt",
+   Int2: "Int2",
+   Int4: "Int4",
+   Int8: "Int8",
+   Integer: "Integer",
+   Int: "Int",
+   BigInt: "BigInt",
+   Long: "Long",
+   Oid: "Oid",
+   UnsignedInt: "UnsignedInt",
+   UnsignedBigInt: "UnsignedBigInt",
+
+   // ──────────────── FLOAT / DOUBLE / DECIMAL ────
+   Float4: "Float4",
+   Float8: "Float8",
+   Float: "Float",
+   Double: "Double",
+   DoublePrecision: "DoublePrecision",
+   Real: "Real",
+   Decimal: "Decimal",
+   Money: "Money",
+   SmallMoney: "SmallMoney",
+
+   // ──────────────── DATE / TIME ─────────────────
+   Date: "Date",
+   Time: "Time",
+   Timetz: "Timetz",
+   Timestamp: "Timestamp",
+   Timestamptz: "Timestamptz",
+   DateTime: "DateTime",
+   DateTime2: "DateTime2",
+   SmallDateTime: "SmallDateTime",
+   DateTimeOffset: "DateTimeOffset",
+   Year: "Year",
+
+   // ──────────────── JSON / BINARY ───────────────
+   Json: "Json",
+   JsonB: "JsonB",
+   ByteA: "ByteA",
+   Binary: "Binary",
+   VarBinary: "VarBinary",
+   TinyBlob: "TinyBlob",
+   Blob: "Blob",
+   MediumBlob: "MediumBlob",
+   LongBlob: "LongBlob",
+   BinData: "BinData",
+   Image: "Image",
+   Bytes: "Bytes",
+
+   // ──────────────── UUID / ID ───────────────────
+   Uuid: "Uuid",
+   UniqueIdentifier: "UniqueIdentifier",
+   ObjectId: "ObjectId",
+
+   // ──────────────── NETWORK / OTHER ─────────────
+   Inet: "Inet",
+}
+
 export function getType(type: string) {
    //@ts-ignore
    return NativeToMigrationTypeMap[type] as ValueOf<typeof NativeToMigrationTypeMap>

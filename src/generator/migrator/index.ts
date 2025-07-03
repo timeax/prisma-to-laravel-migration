@@ -60,7 +60,8 @@ export async function generateLaravelSchema(options: GeneratorOptions): Promise<
       /* NEW global table decoration */
       tablePrefix: (shared as any).tablePrefix ?? "",
       tableSuffix: (shared as any).tableSuffix ?? "",
-      noEmit: pick('noEmit', false)
+      noEmit: pick('noEmit', false),
+      defaultMaps: pick('defaultMaps', {})
    };
 
    // 1) Determine and ensure output directory exists
@@ -96,9 +97,9 @@ export async function generateLaravelSchema(options: GeneratorOptions): Promise<
          );
       }
 
-      schemaGen = new PrismaToLaravelMigrationGenerator(dmmf, customRules);
+      schemaGen = new PrismaToLaravelMigrationGenerator(dmmf, customRules, cfg.defaultMaps);
    } else {
-      schemaGen = new PrismaToLaravelMigrationGenerator(dmmf);
+      schemaGen = new PrismaToLaravelMigrationGenerator(dmmf, [], cfg.defaultMaps);
    }
 
    // 3) Generate Migration objects

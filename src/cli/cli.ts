@@ -3,7 +3,7 @@ import { Command } from 'commander';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import * as dmf from '@prisma/sdk';
+import * as dmf from '@prisma/internals';
 import { generateLaravelSchema } from '../generator/migrator/index.js';
 import { generateLaravelModels } from '../generator/modeler/index.js';
 import { existsSync, readFileSync } from 'fs';

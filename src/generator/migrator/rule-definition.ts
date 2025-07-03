@@ -1,20 +1,6 @@
 import { DMMF } from "@prisma/generator-helper";
 import { ColumnDefinition } from "../../types/column-definition-types";
-import {
-   defaultBuild,
-   foreignIdRule,
-   idRule,
-   morphsMergeRule,
-   morphsRule,
-   nullableMorphsRule,
-   rememberTokenRule,
-   Render,
-   Rule,
-   softDeletesRule,
-   softDeletesTzRule,
-   timestampsRule,
-   timestampsTzRule,
-} from "./rules.js";
+import { rules as ruleList, Rule, defaultBuild, Render, DefaultMaps } from "./rules.js";
 
 /**
  * Encapsulates all special‐case column rendering rules.
@@ -24,7 +10,7 @@ import {
 export class RuleResolver {
    private definitions: ColumnDefinition[] = [];
 
-   constructor(private dmmf: DMMF.Document, private customRules: Rule[] = []) { }
+   constructor(private dmmf: DMMF.Document, private customRules: Rule[] = [], private defaultMaps: DefaultMaps = {}) { }
 
    /**
     * Supply the full list of column definitions so that rules can inspect
@@ -34,29 +20,38 @@ export class RuleResolver {
       this.definitions = defs;
    }
 
-   private rules: Array<Rule> = [
-      softDeletesRule,
-      softDeletesTzRule,
-      timestampsRule,
-      timestampsTzRule,
-      idRule,
-      rememberTokenRule,
-      foreignIdRule,
-      morphsRule,
-      nullableMorphsRule,
-      morphsMergeRule,
-   ];
+   private rules: Array<Rule> = ruleList;
 
    /**
     * Returns the special‐case lines for this column,
     * or an empty array if none of the rules match.
     */
-   public resolve(def: ColumnDefinition): Render {
-      for (const { test, render } of [...this.rules, ...(this.customRules ?? [])]) {
-         if (test(def, this.definitions, this.dmmf)) {
-            return render(def, this.definitions, this.dmmf);
+   public resolve(def: ColumnDefinition) {
+      for (const rule of [...this.rules, ...this.customRules]) {
+         if (rule.utility) continue;                // skip utility rules here
+         if (rule.test(def, this.definitions, this.dmmf)) {
+            return rule.render(def, this.definitions, this.dmmf, this.defaultMaps);
          }
       }
-      return defaultBuild(def);
+      return defaultBuild(def, this.defaultMaps);                   // fallback
    }
+
+   /** NEW: run all *utility* rules once and gather their snippets */
+   public resolveUtilities(): string[] {
+      const snippets: string[] = [];
+
+      for (const rule of [...this.rules, ...this.customRules]) {
+         if (!rule.utility) continue;
+
+         // many utility rules fire only once per model; iterate all defs
+         for (const def of this.definitions) {
+            if (rule.test(def, this.definitions, this.dmmf)) {
+               const { snippet } = rule.render(def, this.definitions, this.dmmf, this.defaultMaps);
+               snippets.push(...snippet);
+            }
+         }
+      }
+      return snippets;
+   }
+
 }

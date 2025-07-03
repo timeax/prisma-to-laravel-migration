@@ -4,7 +4,8 @@ import { MigrationType } from "../types/column-definition-types";
 import { MigrationTypes } from "../generator/migrator/migrationTypes.js";
 import { StubGroupConfig } from "types/laravel-config";
 import path from "path";
-import { NativeToMigrationTypeMap } from "../generator/migrator/column-maps.js";
+import { NativeToMigrationTypeMap, PrismaTypes } from "../generator/migrator/column-maps.js";
+import { DefaultMaps } from "generator/migrator/rules";
 
 /**
  * Given a Prisma field default, return the PHP code fragment
@@ -13,7 +14,7 @@ import { NativeToMigrationTypeMap } from "../generator/migrator/column-maps.js";
  * You’ll need to have `use Illuminate\Support\Facades\DB;`
  * at the top of your migration stub for the `DB::raw()` calls.
  */
-export function formatDefault(field: DMMF.Field): string {
+export function formatDefault(field: DMMF.Field, defaultMaps: DefaultMaps): string {
    const def = field.default as
       | { name: string; args: Array<string | number> }
       | string
@@ -23,6 +24,16 @@ export function formatDefault(field: DMMF.Field): string {
    // No default → nothing to append
    if (def == null) {
       return "";
+   }
+
+   // 1) if there's a custom function, call it
+   if (typeof def === "object" && "name" in def) {
+      const fn = defaultMaps[def.name];
+      if (fn) {
+         const snippet = fn(field);
+         // ensure we return leading `->`
+         return snippet.startsWith("->") ? snippet : `->${snippet}`;
+      }
    }
 
    // Prisma‐built functions
@@ -69,6 +80,8 @@ export function formatDefault(field: DMMF.Field): string {
    return `->default(${JSON.stringify(def)})`;
 }
 
+const intTypes = [NativeToMigrationTypeMap.BigInt, NativeToMigrationTypeMap.Int, NativeToMigrationTypeMap.UnsignedBigInt, NativeToMigrationTypeMap.UnsignedInt];
+
 export function getType(field: DMMF.Field): MigrationType {
    const {
       name,
@@ -83,6 +96,7 @@ export function getType(field: DMMF.Field): MigrationType {
    if (
       name === "id" &&
       kind === "scalar" &&
+      intTypes.includes(prismaType as any) &&
       isId &&
       (def as any)?.name === "autoincrement"
    ) {
@@ -91,13 +105,13 @@ export function getType(field: DMMF.Field): MigrationType {
 
    // 2. Other @default(autoincrement()) fields
    if ((def as any)?.name === "autoincrement") {
-      return prismaType === "BigInt"
+      return prismaType === PrismaTypes.BigInt
          ? MigrationTypes.bigIncrements
          : MigrationTypes.increments;
    }
 
    // 3. Char-length UUID/ULID shortcuts
-   if (prismaType === "String" && nativeType?.[0] === "Char") {
+   if (prismaType === PrismaTypes.String && (nativeType?.[0] === PrismaTypes.Char || nativeType?.[0] === PrismaTypes.Binary)) {
       const len = Number(nativeType[1]?.[0]);
       if (len === 36) return MigrationTypes.uuid;
       if (len === 26) return MigrationTypes.ulid;

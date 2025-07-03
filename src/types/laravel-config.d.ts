@@ -1,4 +1,4 @@
-import { Rule } from "generator/migrator/rules";
+import { DefaultMaps, Rule } from "generator/migrator/rules";
 
 /* ------------------------------------------------------------
  *  Re-usable stub-group description
@@ -90,8 +90,8 @@ export interface MigratorConfigOverride extends LaravelGeneratorConfig {
     *  • Rule[] – rules array inline
     */
    rules?: string | Rule[];
-
    stubPath?: string;
+   defaultMaps?: DefaultMaps
 }
 
 

@@ -950,7 +950,50 @@ $table->softDeletes();
   for shortcut rules; non‑standard names fall back to the generic builder.
 * Remember to run migrations **after** generating to ensure FK order is correct
   (the tool topologically sorts tables to avoid dependency loops).
+---
+### Custom `defaultMaps` for `formatDefault`
 
+You can override the built‑in `formatDefault()` logic without forking the package by
+passing a **`defaultMaps`** object in your generator (or shared) config.
+
+```js
+// prisma/laravel.config.js
+module.exports = {
+  migrate: {
+    // …
+  },
+  modeler: {
+    // …
+  },
+
+  /* 👇 NEW: map Prisma default names → your own formatter */
+  defaultMaps: {
+    uuid(field) {
+      // e.g. MSSQL `NEWID()`
+      return "->default(DB::raw('NEWID()'))";
+    },
+    cuid(field) {
+      // Use a DB function from a custom extension
+      return "->default(DB::raw('gen_cuid()'))";
+    },
+    // Fallback for any unmapped default remains the package default.
+  },
+};
+```
+
+**How it works**
+
+1. If `defaultMaps[name]` exists, it is called with the current `DMMF.Field`.
+2. If the function returns a string, that string is appended directly to the
+   column definition.
+3. If the function returns `null`/`undefined`, the generator falls back to the
+   built‑in behaviour.
+4. Keys are matched *case‑sensitive* to the Prisma default function
+   (`uuid`, `cuid`, `sequence`, etc.).
+
+> **Reference** – full list of Prisma `@@default()` helpers  
+> <https://www.prisma.io/docs/orm/reference/prisma-schema-reference#default>
+---
 Happy scaffolding! 🎉
 
 

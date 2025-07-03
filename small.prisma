@@ -1,0 +1,19 @@
+datasource d {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Test {
+  uuid  String @id @default(uuid()) @d.Char(36)
+  name  String
+  email String
+
+  firstName String
+  lastName  String
+  //  @@id([firstName, lastName])
+
+  @@unique([name, email])
+  @@index(fields: [name, firstName], name: "index")
+  @@index([lastName])
+  // @@id(fields: [name, email], name: "id")
+}

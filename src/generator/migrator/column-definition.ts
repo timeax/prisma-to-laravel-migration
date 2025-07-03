@@ -59,7 +59,7 @@ export class ColumnDefinitionGenerator {
          migrationType: getType(field),
          args: field.nativeType?.[1] as Array<string | number> | undefined,
       } as any;
-
+      
       // Handle enums
       if (field.kind === "enum") {
          const enumMeta = this.dmmf.datamodel.enums.find(
@@ -70,6 +70,8 @@ export class ColumnDefinitionGenerator {
          const args = enumMeta?.values.map((v) => v.name);
          base.args = args ? [args] : [];
       }
+
+      if ([MigrationTypes.uuid, MigrationTypes.ulid].includes(base.migrationType as any)) base.args = [];
 
       // Foreign key relationship
       if (field.kind === 'object' && field.relationName) {

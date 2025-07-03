@@ -42,6 +42,8 @@ export interface ColumnExtras {
    relationship?: RelationshipOptions;
    /** Ignore definition */
    ignore?: boolean;
+   //---
+   [x: string]: any
 }
 
 /**

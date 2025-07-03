@@ -1,6 +1,7 @@
 import { DMMF } from "@prisma/generator-helper";
 import { MigrationType } from "../types/column-definition-types";
 import { StubGroupConfig } from "types/laravel-config";
+import { DefaultMaps } from "generator/migrator/rules";
 /**
  * Given a Prisma field default, return the PHP code fragment
  * to append to your migration column definition.
@@ -8,7 +9,7 @@ import { StubGroupConfig } from "types/laravel-config";
  * You’ll need to have `use Illuminate\Support\Facades\DB;`
  * at the top of your migration stub for the `DB::raw()` calls.
  */
-export declare function formatDefault(field: DMMF.Field): string;
+export declare function formatDefault(field: DMMF.Field, defaultMaps: DefaultMaps): string;
 export declare function getType(field: DMMF.Field): MigrationType;
 /**
  * Escape a stub’s contents so it can be safely wrapped in a JS template literal.

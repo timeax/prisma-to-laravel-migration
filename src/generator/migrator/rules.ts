@@ -3,7 +3,12 @@ import { ColumnDefinition } from "../../types/column-definition-types";
 import { MigrationTypes } from "./migrationTypes.js";
 import { formatDefault } from "../../utils/utils.js";
 
+export type DefaultMapFn = (field: DMMF.Field) => string;
+
+export type DefaultMaps = Record<string, DefaultMapFn>;
+
 export interface Rule {
+   utility?: boolean;
    test(
       def: ColumnDefinition,
       allDefs: ColumnDefinition[],
@@ -12,12 +17,14 @@ export interface Rule {
    render(
       def: ColumnDefinition,
       allDefs: ColumnDefinition[],
-      dmmf: DMMF.Document
+      dmmf: DMMF.Document,
+      defaultMaps: DefaultMaps
    ): Render;
 }
 
 export interface Render {
-   column: string; snippet: string[]
+   column: string;
+   snippet: string[]
 }
 
 const intTypes = [MigrationTypes.unsignedBigInteger, MigrationTypes.bigInteger, MigrationTypes.unsignedInteger, MigrationTypes.integer];
@@ -132,7 +139,7 @@ const foreignIdRule: Rule = {
             item.relationFromFields?.length === 1 &&
             item.relationFromFields.includes(def.name)
       ),
-   render: (def, allDefs) => {
+   render: (def, allDefs, _d, defaultMaps) => {
       // Find the related field which contains the relationship metadata
       const ref = allDefs.find(
          item =>
@@ -146,7 +153,7 @@ const foreignIdRule: Rule = {
       // Build the foreignId snippet
       let snippet = `$table->foreignId('${def.name}')`;
       if (def.nullable) snippet += '->nullable()';
-      if (def.hasDefaultValue) snippet += formatDefault(def);
+      if (def.hasDefaultValue) snippet += formatDefault(def, defaultMaps);
       if (def.comment) snippet += `->comment(${JSON.stringify(def.comment)})`;
 
       // Use relationship info from the ref, not def
@@ -214,7 +221,7 @@ const nullableMorphsRule: Rule = {
 /**
  * Fallback renderer: respects def.ignore
  */
-function defaultBuild(def: ColumnDefinition): { column: string; snippet: string[] } {
+export function defaultBuild(def: ColumnDefinition, defaultMaps: DefaultMaps): { column: string; snippet: string[] } {
    def.ignore && (def.ignore = true); // leave ignore as set
    let snippet: string[] = [];
    if (!def.ignore) {
@@ -224,7 +231,7 @@ function defaultBuild(def: ColumnDefinition): { column: string; snippet: string[
       let line = `$table->${def.migrationType}('${def.name}'${argsStr})`;
       if (def.unsigned) line += "->unsigned()";
       if (def.nullable) line += "->nullable()";
-      if (def.hasDefaultValue) line += formatDefault(def);
+      if (def.hasDefaultValue) line += formatDefault(def, defaultMaps);
       if (def.comment) line += `->comment(${JSON.stringify(def.comment)})`;
       line += ";";
       snippet.push(line);
@@ -260,7 +267,7 @@ const morphsMergeRule: Rule = {
       const isNullable = def.nullable || typeDef.nullable;
 
       // pick the correct morphs method
-      const method: 'morphs' | 'nullableMorphs' | 'uuidMorphs' | 'nullableUuidMorphs' | 'ulidMorphs' | 'nullableUlidMorphs' =
+      const method: 'uuidMorphs' | 'nullableUuidMorphs' | 'ulidMorphs' | 'nullableUlidMorphs' =
          def.migrationType === MigrationTypes.uuid
             ? isNullable ? 'nullableUuidMorphs' : 'uuidMorphs'
             : isNullable ? 'nullableUlidMorphs' : 'ulidMorphs';
@@ -276,7 +283,100 @@ const morphsMergeRule: Rule = {
    }
 };
 
-export {
+/* ────────────────────────────────────────────────────────────────── */
+/* 1. Composite PRIMARY KEY                                          */
+/* ────────────────────────────────────────────────────────────────── */
+const compositePrimaryRule: Rule = {
+   utility: true,
+   /* fire on the *first* PK column only, and only if we haven’t
+      already handled the composite */
+   test(def, allDefs) {
+      if (!def.isId || def.ignoreCompositePK) return false;
+
+      const pkCols = allDefs.filter(d => d.isId);
+      if (pkCols.length < 2) return false;           // not composite
+      if (pkCols[0].name !== def.name) return false; // only once
+
+      return true;
+   },
+
+   render(_def, allDefs) {
+      // Mark every PK column so the rule never fires again
+      allDefs.forEach(d => {
+         if (d.isId) d.ignoreCompositePK = true;
+      });
+
+      const cols = allDefs.filter(d => d.isId).map(d => `'${d.name}'`);
+      return {
+         column: '__composite_pk__',
+         snippet: [`$table->primary([${cols.join(', ')}]);`],
+      };
+   },
+};
+
+/* ────────────────────────────────────────────────────────────────── */
+/* 2. Per-column INDEX shorthand                                     */
+/*    (works the same for UNIQUE if you want another rule)           */
+/* ────────────────────────────────────────────────────────────────── */
+const indexRule: Rule = {
+   utility: true,
+   test(def) {
+      return !!def.isIndexed && !def.ignoreIndex;
+   },
+
+   render(def) {
+      // Flip the flag so this rule never re-fires for this column
+      def.ignoreIndex = true;
+
+      return {
+         column: def.name,
+         snippet: [`$table->index('${def.name}');`],
+      };
+   },
+};
+
+/* ------------------------------------------------------------------ *
+ *  Single-column PRIMARY KEY utility (non-id, non-$table->id())       *
+ * ------------------------------------------------------------------ */
+const singlePrimaryRule: Rule = {
+   /** utility-only → doesn’t replace the column’s normal render */
+   utility: true,
+
+   test(def, allDefs, dmmf) {
+      // already handled once for this column?
+      if (def.ignoreSinglePK) return false;
+
+      // must be the *only* @id field in the model
+      const pkCols = allDefs.filter(d => d.isId);
+      if (pkCols.length !== 1 || !def.isId) return false;
+
+      // skip if the canonical idRule would emit $table->id()
+      if (idRule.test(def, allDefs, dmmf)) return false;
+
+      return true; // eligible
+   },
+
+   render(def) {
+      def.ignoreSinglePK = true;       // block re-runs
+
+      return {
+         column: '__single_pk__',       // synthetic anchor
+         snippet: [`$table->primary('${def.name}');`],
+      };
+   },
+};
+
+/* ------------------------------------------------------------------ */
+/*  Export so you can push them into your resolver’s rule list        */
+/* ------------------------------------------------------------------ */
+
+
+export const rules = [
+   // utilities
+   singlePrimaryRule,
+   compositePrimaryRule,
+   indexRule,
+   //----
    idRule,
    timestampsTzRule,
    timestampsRule,
@@ -287,5 +387,4 @@ export {
    morphsMergeRule,       // <— added back
    morphsRule,
    nullableMorphsRule,
-   defaultBuild,
-};
+];
