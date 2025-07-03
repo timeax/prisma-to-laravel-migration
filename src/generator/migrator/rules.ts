@@ -20,6 +20,7 @@ export interface Render {
    column: string; snippet: string[]
 }
 
+const intTypes = [MigrationTypes.unsignedBigInteger, MigrationTypes.bigInteger, MigrationTypes.unsignedInteger, MigrationTypes.integer];
 /** ID primary key */
 const idRule: Rule = {
    test: def =>
@@ -122,7 +123,7 @@ const rememberTokenRule: Rule = {
 /** Foreign ID shorthand, plus ignore its related back‐reference */
 const foreignIdRule: Rule = {
    test: (def, allDefs) =>
-      [MigrationTypes.bigInteger, MigrationTypes.unsignedBigInteger].includes(
+      intTypes.includes(
          def.migrationType as any
       ) &&
       def.name.endsWith("_id") &&
@@ -168,7 +169,7 @@ const morphsRule: Rule = {
       const typeDef = allDefs.find(d => d.name === `${base}_type`);
       if (!typeDef) return false;
       if (
-         def.migrationType !== MigrationTypes.unsignedBigInteger ||
+         !intTypes.includes(def.migrationType as any) ||
          typeDef.migrationType !== MigrationTypes.string
       )
          return false;
@@ -192,7 +193,7 @@ const nullableMorphsRule: Rule = {
       const typeDef = allDefs.find(d => d.name === `${base}_type`);
       if (!typeDef) return false;
       if (
-         def.migrationType !== MigrationTypes.unsignedBigInteger ||
+         !intTypes.includes(def.migrationType as any) ||
          typeDef.migrationType !== MigrationTypes.string
       )
          return false;
