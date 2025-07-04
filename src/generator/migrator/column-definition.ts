@@ -7,7 +7,7 @@ import {
    RelationshipOptions,
    ColumnExtras,
 } from "../../types/column-definition-types.js";
-import { getType } from "../../utils/utils.js";
+import { getType, stripDirectives } from "../../utils/utils.js";
 
 
 /**
@@ -88,6 +88,9 @@ export class ColumnDefinitionGenerator {
             ignore: (field.relationFromFields?.length ?? 0) === 0
          };
       }
+      
+      //@ts-ignore
+      base.documentation = stripDirectives(base.documentation)
 
       // Discriminate default
       if (field.hasDefaultValue) {

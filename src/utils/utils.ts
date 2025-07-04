@@ -151,4 +151,6 @@ export function decorate(name: string, opts: NameOpts): string {
    return `${pre}${name}${suf}`.trim();
 }
 
+
 export { resolveStub } from './stubResolver.js'
+export { stripDirectives } from './clean.js'

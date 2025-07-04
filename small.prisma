@@ -6,7 +6,7 @@ datasource d {
 model Test {
   id  Int @id @default(autoincrement())
   name  String
-  email String
+  email String //@fillable
 
   firstName String
   lastName  String

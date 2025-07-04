@@ -31,3 +31,4 @@ export interface NameOpts {
 /** tx_ + users + _tx → returns "tx_users_tx" */
 export declare function decorate(name: string, opts: NameOpts): string;
 export { resolveStub } from './stubResolver.js';
+export { stripDirectives } from './clean.js';
