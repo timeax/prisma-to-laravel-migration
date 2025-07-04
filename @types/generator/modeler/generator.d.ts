@@ -6,6 +6,7 @@ import { ModelDefinition, EnumDefinition } from "./types";
 export declare class PrismaToLaravelModelGenerator {
     private dmmf;
     constructor(dmmf: DMMF.Document);
+    primitiveTypes: string[];
     generateAll(): {
         models: ModelDefinition[];
         enums: EnumDefinition[];

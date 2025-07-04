@@ -5,13 +5,14 @@ import {
    RelationDefinition,
    PropertyDefinition,
 } from "./types";
+import { PrismaTypes } from "../migrator/column-maps.js";
 
 /**
  * Build ModelDefinition[] + EnumDefinition[] from your DMMF.
  */
 export class PrismaToLaravelModelGenerator {
    constructor(private dmmf: DMMF.Document) { }
-
+   public primitiveTypes: string[] = [PrismaTypes.BigInt, PrismaTypes.Int, PrismaTypes.String, PrismaTypes.Boolean, PrismaTypes.Bool];
    public generateAll(): {
       models: ModelDefinition[];
       enums: EnumDefinition[];
@@ -49,6 +50,7 @@ export class PrismaToLaravelModelGenerator {
          const guardedSet = new Set(modelGuarded);
          const fillableSet = new Set(modelFillable);
          const hiddenSet = new Set(modelHidden);
+         const propImps: string[] = [];
 
          const properties: PropertyDefinition[] = model.fields.map(field => {
             const doc = field.documentation ?? "";
@@ -68,7 +70,7 @@ export class PrismaToLaravelModelGenerator {
 
             // custom cast
             const castMatch = doc.match(/@cast\{([^}]+)\}/);
-            const cast = castMatch ? castMatch[1].trim() : undefined;
+            let cast = castMatch ? castMatch[1].trim() : undefined;
 
             // @type{ import:'x', type:'Y' }
             const typeMatch = doc.match(/@type\{\s*(?:import\s*:\s*'([^']+)')?\s*,?\s*type\s*:\s*'([^']+)'\s*\}/);
@@ -77,9 +79,22 @@ export class PrismaToLaravelModelGenerator {
                : undefined;
 
             const enumMeta = enums.find(e => e.name === field.type);
-            const phpType = enumMeta
+            let phpType = enumMeta
                ? enumMeta.name
-               : this.mapPrismaToPhpType(field.type);
+               : this.mapPrismaToPhpType(field.type, field.isList, this.primitiveTypes);
+
+            // Saw a fully-qualified “Some\\Namespace\\CastClass::class”
+            if (phpType.endsWith('::class')) {
+               // 1️⃣ keep the full FQN (including ::class) for the import list
+               if (!propImps.includes(phpType)) propImps.push(phpType.slice(0, -7));
+
+               // 2️⃣ convert to the **short** class reference *but keep* ::class,
+               //    because Laravel’s $casts array expects that literal.
+               //
+               //    "App\\Casts\\AsObject::class"  ➜  "AsObject::class"
+               //
+               phpType = phpType.split('\\').pop()!; // last segment already ends with ::class
+            }
 
             return {
                name: field.name,
@@ -227,7 +242,7 @@ export class PrismaToLaravelModelGenerator {
             ...(factoryUse ? [factoryUse] : []),
          ].map(u => `use ${u.fqcn}${u.alias ? ` as ${u.alias}` : ''};`);
 
-
+         imports.push(...propImps.map(item => `use ${item};`));
          /* ── 2.6  Final ModelDefinition ────────────────────────────────── */
          return {
             className: model.name,
@@ -252,7 +267,29 @@ export class PrismaToLaravelModelGenerator {
       return { models, enums };
    }
 
-   private mapPrismaToPhpType(prismaType: string): string {
+   private mapPrismaToPhpType(prismaType: string, isList?: boolean, ignore?: string[]): string {
+      if (isList) {
+         return "Illuminate\\Database\\Eloquent\\Casts\\AsCollection::class"
+      }
+
+      if (prismaType == PrismaTypes.Json || prismaType == PrismaTypes.JsonB) {
+         return "Illuminate\\Database\\Eloquent\\Casts\\AsArrayObject::class";
+      }
+
+      if (ignore?.includes(prismaType)) return '';
+
+      if ([
+         PrismaTypes.Date,
+         PrismaTypes.Time,
+         PrismaTypes.Timetz,
+         PrismaTypes.Timestamp,
+         PrismaTypes.Timestamptz,
+         PrismaTypes.DateTime,
+         PrismaTypes.DateTime2,
+         PrismaTypes.SmallDateTime,
+         PrismaTypes.DateTimeOffset,
+      ].includes(prismaType)) return '"datetime"';
+
       switch (prismaType) {
          case "String":
             return "string";
@@ -262,13 +299,13 @@ export class PrismaToLaravelModelGenerator {
          case "BigInt":
             return "int";
          case "Float":
-            return "float";
+            return "'float'";
          case "DateTime":
-            return "\\DateTimeInterface";
+            return "'datetime'";
          case "Json":
-            return "array";
+            return "'array'";
          default:
-            return "mixed";
+            return "'mixed'";
       }
    }
 }

@@ -37,7 +37,8 @@ export function buildModelContent(model: ModelDefinition): string {
    const castsLines: string[] = [];
    model.properties.forEach(p => {
       if (p.cast) castsLines.push(`'${p.name}' => '${p.cast}'`);
-      if (p.enumRef) castsLines.push(`'${p.name}' => ${p.enumRef}::class`);
+      else if (p.enumRef) castsLines.push(`'${p.name}' => ${p.enumRef}::class`);
+      else if (p.phpType) castsLines.push(`'${p.name}' => ${p.phpType}`)
    });
    if (castsLines.length) {
       out.push(

@@ -52,7 +52,7 @@ export class ColumnDefinitionGenerator {
          ...field,
          unsigned: field.isId || field.isGenerated || false,
          nullable: !field.isRequired,
-         comment: field.documentation ?? undefined,
+         comment: stripDirectives(field.documentation),
          nativeType: field.nativeType?.[0]
             ? `${field.nativeType[0]}(${(field.nativeType[1] as Array<string | number>).join(",")})`
             : field.type,
@@ -89,9 +89,6 @@ export class ColumnDefinitionGenerator {
          };
       }
       
-      //@ts-ignore
-      base.documentation = stripDirectives(base.documentation)
-
       // Discriminate default
       if (field.hasDefaultValue) {
          return {

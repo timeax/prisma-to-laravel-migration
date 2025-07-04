@@ -1,15 +1,15 @@
 datasource d {
-  provider = "mysql"
+  provider = "postgres"
   url      = env("DATABASE_URL")
 }
 
 model Test {
   id  Int @id @default(autoincrement())
   name  String
-  email String //@fillable
+  email String /// @fillable
 
   firstName String
-  lastName  String
+  lastName  String[]
   //  @@id([firstName, lastName])
 
   @@unique([name, email])

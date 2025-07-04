@@ -10,34 +10,27 @@
  *                       @factory:Database\Factories\UserFactory
  *                       @extend:Foo\Bar
  * ------------------------------------------------------------------ */
-const DIRECTIVE_NAMES = [
-   // simple flags
-   'fillable', 'hidden', 'guarded', 'ignore', 'with',
-   // block args
-   'cast', 'type', 'touch', 'appends',
-   // namespaced
-   'trait', 'implements', 'observer', 'factory', 'extend',
-];
-
-/* Build one giant, *explicit* RegExp */
-const DIRECTIVE_RE = new RegExp(
-   String.raw`@(?:${[
-      //  @fillable   @ignore   @with
-      ...DIRECTIVE_NAMES.map(n => `${n}\\b`).join('|'),
-      //  @with(...)   (keep directive name before parens)
-      'with\\([^)]*\\)',
-      //  @cast{..}  @type{..}  @touch{..}  @appends{..}
-      '(?:cast|type|touch|appends)\\{[^}]*\\}',
-      //  @trait:Namespace\Foo  (@implements may have " as Alias")
-      '(?:trait|implements|observer|factory|extend):[^\\s]+(?:\\s+as\\s+\\w+)?',
-   ].join('|')
-      })`,
-   'gi'
-);
-
-/** Remove our directives only */
+/**
+ * Remove any @-directive (and its immediate args) from a Prisma doc string.
+ *
+ * Matches:
+ *  • @name
+ *  • @name(...)
+ *  • @name{...}
+ *  • @name:Something
+ *
+ * Leaves all other text intact.
+ *
+ * @param doc  the original documentation string (may be `///` above or inline)
+ * @returns    the cleaned doc, or `undefined` if it’s empty
+ */
 export function stripDirectives(doc?: string): string | undefined {
-   if (!doc) return undefined;
-   const cleaned = doc.replace(DIRECTIVE_RE, '').trim();
-   return cleaned.length ? cleaned : undefined;
+  if (!doc) return undefined;
+  // 1) remove all @directives with optional (), {} or :… args
+  const cleaned = doc
+    .replace(/@\w+(?:\([^)]*\)|\{[^}]*\}|:[^\s]*)?/g, '')
+    // 2) collapse multiple spaces/newlines into single space
+    .replace(/[\s\uFEFF\xA0]{2,}/g, ' ')
+    .trim();
+  return cleaned.length ? cleaned : undefined;
 }
