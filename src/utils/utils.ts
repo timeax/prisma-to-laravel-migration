@@ -88,7 +88,10 @@ export function getType(field: DMMF.Field): MigrationType {
       default: def,
       kind,
       isId,
+      isList
    } = field;
+
+   if (isList) return MigrationTypes.json;
 
    // 1. Only map a true auto-increment PK called "id" to Laravel's id()
    if (
