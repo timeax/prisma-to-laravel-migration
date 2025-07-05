@@ -83,6 +83,7 @@ export class PrismaToLaravelModelGenerator {
                ? enumMeta.name
                : this.mapPrismaToPhpType(field.type, field.isList, this.primitiveTypes);
 
+            if (phpType == 'mixed' || field.relationFromFields?.length || field.relationName) phpType = '';
             // Saw a fully-qualified “Some\\Namespace\\CastClass::class”
             if (phpType.endsWith('::class')) {
                // 1️⃣ keep the full FQN (including ::class) for the import list
@@ -95,6 +96,7 @@ export class PrismaToLaravelModelGenerator {
                //
                phpType = phpType.split('\\').pop()!; // last segment already ends with ::class
             }
+
 
             return {
                name: field.name,
