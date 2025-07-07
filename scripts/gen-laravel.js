@@ -20,7 +20,12 @@ import { buildModelContent } from '../dist/utils/build.js';
   await gg.generateLaravelSchema({
     dmmf,
     schemaPath,
-    generator: { output: { value: null } }
+    generator: {
+      output: { value: null },
+      config: {
+        namespace: "Namespace"
+      }
+    }
   });
 
   // 4) Print migrations to stdout
@@ -33,7 +38,12 @@ import { buildModelContent } from '../dist/utils/build.js';
   const { models, enums } = await generateLaravelModels({
     dmmf,
     schemaPath,
-    generator: { output: { value: null } }
+    generator: {
+      output: { value: null },
+      config: {
+        namespace: "Namespace"
+      }
+    }
   })
 
   // 6) Print models to stdout
