@@ -53,6 +53,9 @@ export interface LaravelGeneratorConfig {
 
    /** Skip file emission for *this* generator only */
    noEmit?: boolean;
+
+   /**Default namespace for local imports */
+   namespace?: "App\\"
 }
 
 /* ------------------------------------------------------------
