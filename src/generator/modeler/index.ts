@@ -60,7 +60,7 @@ export async function generateLaravelModels(options: GeneratorOptions) {
       enumStubPath: pick('enumStubPath'),
       modelStubPath: pick('modelStubPath'),
       noEmit: pick('noEmit', false),
-      namespace: pick("namespace", "App\\")
+      namespace: pick("namespace", "App")
    };
 
    // 1) Determine and ensure output directories
@@ -122,7 +122,7 @@ export async function generateLaravelModels(options: GeneratorOptions) {
 
    // 5) Write model files
    for (const model of models) {
-      let imports = model.properties.filter(item => item.enumRef).map(item => `use ${cfg.namespace ?? 'App\\'}\\Enums\\${item.enumRef};`);
+      let imports = model.properties.filter(item => item.enumRef).map(item => `use ${cfg.namespace ?? 'App'}\\Enums\\${item.enumRef};`);
       //----
       if (Array.isArray(model.imports)) model.imports.push(...imports);
       else model.imports = imports;
