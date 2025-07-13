@@ -128,8 +128,6 @@ export async function generateLaravelModels(options: GeneratorOptions) {
       if (Array.isArray(model.imports)) model.imports.push(...imports);
       else model.imports = imports;
       //---
-      model.tableName = `${cfg.tablePrefix}${model.tableName}${cfg.tableSuffix}`
-      //---
       model.imports = Array.from(new Set(model.imports));
       //----
       const content = buildModelContent(model);
