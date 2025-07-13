@@ -8,7 +8,7 @@ export async function loadSharedConfig(schemaDir: string): Promise<LaravelShared
   const defaultPath = path.join(schemaDir, "prisma-laravel.config.js");
   const cfgPath = envOverride ? path.resolve(envOverride) : defaultPath;
 
-  console.log("Loading shared config from - " + schemaDir)
+  console.log("Loading shared config from - " + cfgPath)
 
   try {
     await fs.accessSync(cfgPath);
