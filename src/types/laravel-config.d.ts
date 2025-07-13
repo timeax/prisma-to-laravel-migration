@@ -35,6 +35,8 @@ interface FlexibleStubGroup {
  *  Per-generator overrides  (migration / modeler)
  * ---------------------------------------------------------- */
 export interface LaravelGeneratorConfig {
+   tablePrefix?: string;
+   tableSuffix?: string;
 
    /** Override stubDir only for this generator */
    stubDir?: string;

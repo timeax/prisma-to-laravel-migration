@@ -58,8 +58,8 @@ export async function generateLaravelSchema(options: GeneratorOptions): Promise<
       stubDir: pick("stubDir")!,          // shared stubDir > block
       groups,
       /* NEW global table decoration */
-      tablePrefix: (shared as any).tablePrefix ?? "",
-      tableSuffix: (shared as any).tableSuffix ?? "",
+      tablePrefix: pick('tablePrefix', ''),
+      tableSuffix: pick('tableSuffix', ''),
       noEmit: pick('noEmit', false),
       defaultMaps: pick('defaultMaps', {})
    };
