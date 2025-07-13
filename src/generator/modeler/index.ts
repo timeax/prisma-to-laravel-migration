@@ -55,8 +55,9 @@ export async function generateLaravelModels(options: GeneratorOptions) {
       stubDir: pick("stubDir")!,          // shared stubDir wins
       groups,
       /* NEW global prefix/suffix made available downstream */
-      tablePrefix: (shared as any).tablePrefix ?? "",
-      tableSuffix: (shared as any).tableSuffix ?? "",
+      /* NEW global table decoration */
+      tablePrefix: pick('tablePrefix', ''),
+      tableSuffix: pick('tableSuffix', ''),
       enumStubPath: pick('enumStubPath'),
       modelStubPath: pick('modelStubPath'),
       noEmit: pick('noEmit', false),
@@ -126,6 +127,8 @@ export async function generateLaravelModels(options: GeneratorOptions) {
       //----
       if (Array.isArray(model.imports)) model.imports.push(...imports);
       else model.imports = imports;
+      //---
+      model.tableName = `${cfg.tablePrefix}${model.tableName}${cfg.tableSuffix}`
       //---
       model.imports = Array.from(new Set(model.imports));
       //----
