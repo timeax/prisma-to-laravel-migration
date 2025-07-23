@@ -641,7 +641,7 @@ public array $interfaces = [
     'profile' => { import: '@types/forms', type: 'ProfileDTO' },
 ];
 
-protected $with = ['posts','comments'];
+protected $with = ['posts'];
 ```
 
 `@ignore` prevents the `company()` relation method.  
