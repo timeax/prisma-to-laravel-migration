@@ -253,13 +253,13 @@ export class PrismaToLaravelModelGenerator {
             return `@property ${nullable ? type + '|null' : type} $${p.name}`;
          }).filter(Boolean) as string[];
 
-         for (const rel of relations) {
-            if (rel.type === 'hasMany' || rel.type === 'belongsToMany') {
-               docblockProps.push(`@property \\Illuminate\\Support\\Collection<int, ${rel.modelClass}> $${rel.name}`);
-            } else {
-               docblockProps.push(`@property ${rel.modelClass} $${rel.name}`);
-            }
-         }
+         // for (const rel of relations) {
+         //    if (rel.type === 'hasMany' || rel.type === 'belongsToMany') {
+         //       docblockProps.push(`@property \\Illuminate\\Support\\Collection<int, ${rel.modelClass}> $${rel.name}`);
+         //    } else {
+         //       docblockProps.push(`@property ${rel.modelClass} $${rel.name}`);
+         //    }
+         // }
 
          /* ── 2.6  Final ModelDefinition ────────────────────────────────── */
          return {
