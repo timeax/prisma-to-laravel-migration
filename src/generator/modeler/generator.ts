@@ -246,20 +246,35 @@ export class PrismaToLaravelModelGenerator {
 
          imports.push(...propImps.map(item => `use ${item};`));
          //--- docprops
-         const docblockProps: string[] = properties.map(p => {
-            if (p.ignore) return null;
+         const docblockProps: string[] = [];
+         const docblockNames = new Set<string>();
+
+         // Step 1: Skip any property name that is shadowed by a relation
+         const relationNames = new Set(relations.map(r => r.name));
+
+         // Only include properties not overridden by a relation
+         for (const p of properties) {
+            if (p.ignore || relationNames.has(p.name)) continue;
+
             const type = p.phpType || 'mixed';
             const nullable = type === 'mixed' || type.startsWith('?') || type.includes('null');
-            return `@property ${nullable ? type + '|null' : type} $${p.name}`;
-         }).filter(Boolean) as string[];
+            const line = `@property ${nullable ? type + '|null' : type} $${p.name}`;
+            docblockProps.push(line);
+            docblockNames.add(p.name);
+         }
 
-         // for (const rel of relations) {
-         //    if (rel.type === 'hasMany' || rel.type === 'belongsToMany') {
-         //       docblockProps.push(`@property \\Illuminate\\Support\\Collection<int, ${rel.modelClass}> $${rel.name}`);
-         //    } else {
-         //       docblockProps.push(`@property ${rel.modelClass} $${rel.name}`);
-         //    }
-         // }
+         // Step 2: Add all relations (they take precedence)
+         for (const rel of relations) {
+            const name = rel.name;
+            const type =
+               rel.type === 'hasMany' || rel.type === 'belongsToMany'
+                  ? `\\Illuminate\\Support\\Collection<int, ${rel.modelClass}>`
+                  : rel.modelClass;
+
+            const line = `@property ${type} $${name}`;
+            docblockProps.push(line);
+            docblockNames.add(name); // optional: tracking
+         }
 
          /* ── 2.6  Final ModelDefinition ────────────────────────────────── */
          return {
