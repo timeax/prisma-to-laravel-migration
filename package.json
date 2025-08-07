@@ -1,6 +1,6 @@
 {
   "name": "prisma-laravel-migrate",
-  "version": "0.0.45",
+  "version": "0.0.46",
   "description": "Generate laravel migrations and/or models using prisma files",
   "bin": {
     "prisma-laravel-migrations": "./dist/cli/migrator.index.js",
