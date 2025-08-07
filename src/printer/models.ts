@@ -21,7 +21,8 @@ export class StubModelPrinter {
    private modelTmpl!: (
       model: ModelDefinition,
       enums: EnumDefinition[],
-      content: string
+      content: string,
+      dockblock: string
    ) => string;
    private enumTmpl!: (enumDef: EnumDefinition) => string;
 
@@ -54,8 +55,13 @@ export class StubModelPrinter {
       this.ensureModelStub(model.tableName);
       //--
       model.tableName = decorate(model.tableName, this.cfg);
+      const docblock = [
+         '/**',
+         ...model.docblockProps?.map(p => ` * ${p}`) ?? [],
+         ' */'
+      ].join('\n');
       //--
-      return this.modelTmpl(model, enums, content);
+      return this.modelTmpl(model, enums, content, docblock);
    }
 
    /** Render multiple models, each with its own `content`, separated by two newlines. */
@@ -96,7 +102,7 @@ export class StubModelPrinter {
 
       const raw = fs.readFileSync(path.resolve(stubPath), 'utf-8').trim();
       this.modelTmpl = new Function(
-         'model', 'enums', 'content',
+         'model', 'enums', 'content', 'docblock',
          `return \`${formatStub(raw)}\`;`
       ) as typeof this.modelTmpl;
 

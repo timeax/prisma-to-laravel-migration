@@ -47,4 +47,5 @@ export interface ModelDefinition {
     factory?: string;
     touches?: string[];
     appends?: string[];
+    docblockProps?: string[];
 }

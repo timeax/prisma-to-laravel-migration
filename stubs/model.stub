@@ -6,6 +6,7 @@ ${model.imports.join('\n')}${model.extends && model.extends !== 'Illuminate\Data
   ? ''
   : '\nuse Illuminate\\Database\\Eloquent\\Model;'} 
 
+${docblock}
 class ${model.className} extends ${model.extends ?? 'Model'}${model.implements.length
   ? ' implements ' + model.implements.join(', ')
   : ''} 

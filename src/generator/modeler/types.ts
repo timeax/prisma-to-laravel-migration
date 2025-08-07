@@ -68,4 +68,5 @@ export interface ModelDefinition {
   factory?    : string;                             // static $factory = FooFactory::class
   touches?    : string[];                           // protected $touches = [...]
   appends?    : string[];                           // protected $appends = [...]
+  docblockProps?: string[]
 }

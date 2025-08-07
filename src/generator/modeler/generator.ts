@@ -245,6 +245,22 @@ export class PrismaToLaravelModelGenerator {
          ].map(u => `use ${u.fqcn}${u.alias ? ` as ${u.alias}` : ''};`);
 
          imports.push(...propImps.map(item => `use ${item};`));
+         //--- docprops
+         const docblockProps: string[] = properties.map(p => {
+            if (p.ignore) return null;
+            const type = p.phpType || 'mixed';
+            const nullable = type === 'mixed' || type.startsWith('?') || type.includes('null');
+            return `@property ${nullable ? type + '|null' : type} $${p.name}`;
+         }).filter(Boolean) as string[];
+
+         for (const rel of relations) {
+            if (rel.type === 'hasMany' || rel.type === 'belongsToMany') {
+               docblockProps.push(`@property \\Illuminate\\Support\\Collection<int, ${rel.modelClass}> $${rel.name}`);
+            } else {
+               docblockProps.push(`@property ${rel.modelClass} $${rel.name}`);
+            }
+         }
+
          /* ── 2.6  Final ModelDefinition ────────────────────────────────── */
          return {
             className: model.name,
@@ -262,7 +278,8 @@ export class PrismaToLaravelModelGenerator {
             touches,
             traits,
             imports,
-            extends: parentClass !== 'Model' ? parentClass : undefined
+            extends: parentClass !== 'Model' ? parentClass : undefined,
+            docblockProps
          };
       });
 
