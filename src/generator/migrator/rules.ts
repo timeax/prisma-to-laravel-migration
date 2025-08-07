@@ -378,10 +378,10 @@ export const rules = [
    indexRule,
    //----
    idRule,
-   timestampsTzRule,
    timestampsRule,
-   softDeletesTzRule,
+   timestampsTzRule,
    softDeletesRule,
+   softDeletesTzRule,
    rememberTokenRule,
    foreignIdRule,
    morphsMergeRule,       // <— added back
