@@ -59,9 +59,8 @@ export function writeWithMerge(
       { stringSeparator: "\n" }
    ).result;
    const mergedText = mergedLines.join("\n");
-
    /* conflict marker detection */
-   if (/^<{7}|^={7}|^>{7}/m.test(mergedText)) {
+   if (/^(<{7}|={7}|>{7})/gm.test(mergedText)) {
       console.warn(
          `⚠️  Merge conflicts in ${path.relative(process.cwd(), filePath)} ` +
          "— resolve <<< >>> markers."
