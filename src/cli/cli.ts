@@ -157,6 +157,7 @@ cli
          throw new Error('`enum` cannot be combined with other types');
       }
 
+      const __dirname = path.dirname(fileURLToPath(import.meta.url));
       const schemaDir = path.dirname(path.resolve(process.cwd(), opts.schema));
       const stubRoot = path.join(schemaDir, 'stubs');
       const doBoth = want.includes('migration') && want.includes('model');
