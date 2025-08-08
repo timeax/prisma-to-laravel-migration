@@ -161,10 +161,20 @@ cli
       const stubRoot = path.join(schemaDir, 'stubs');
       const doBoth = want.includes('migration') && want.includes('model');
 
+      function resolveStubIndex(kind: 'enum' | 'model' | 'migration'): string {
+         const userPath = path.join(stubRoot, kind, 'index.stub');
+         const fallbackPath = path.resolve(__dirname, "../../stubs", `${kind}.stub`);
+
+         if (existsSync(userPath)) return userPath;
+         if (existsSync(fallbackPath)) return fallbackPath;
+
+         throw new Error(`Missing both user and fallback index.stub for kind "${kind}"`);
+      }
+
       for (const t of want) {
          if (t === 'enum') {
             const dir = path.join(stubRoot, 'enum');
-            const idx = path.join(dir, 'index.stub');
+            const idx = resolveStubIndex('enum');
             await fs.mkdir(dir, { recursive: true });
             for (const name of bases) {
                const dst = path.join(dir, `${name}.stub`);
@@ -176,7 +186,7 @@ cli
 
          for (const kind of doBoth ? ['migration', 'model'] : [t]) {
             const dir = path.join(stubRoot, kind);
-            const idx = path.join(dir, 'index.stub');
+            const idx = resolveStubIndex(kind as 'migration' | 'model');
             await fs.mkdir(dir, { recursive: true });
             for (const base of bases) {
                const dst = path.join(dir, `${base}.stub`);
@@ -188,6 +198,8 @@ cli
 
       console.log('🎉 Customize complete!');
    });
+
+
 
 //
 // proxy to Prisma generate
