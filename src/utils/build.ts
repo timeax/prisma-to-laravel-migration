@@ -17,8 +17,8 @@ export function buildModelContent(model: ModelDefinition): string {
    }
 
    /* ---- Mass-assignment arrays --------------------------------------- */
-   const pushArray = (label: string, arr?: string[]) => {
-      if (arr && arr.length) {
+   const pushArray = (label: string, arr?: string[], printEmpty?: boolean) => {
+      if (arr && (arr.length || printEmpty)) {
          out.push(
             `protected $${label} = [` +
             arr.map(n => `'${n}'`).join(", ") +
@@ -30,7 +30,7 @@ export function buildModelContent(model: ModelDefinition): string {
 
    pushArray("fillable", model.properties.filter(p => p.fillable).map(p => p.name));
    pushArray("hidden", model.properties.filter(p => p.hidden).map(p => p.name));
-   pushArray("guarded", model.guarded);
+   pushArray("guarded", model.guarded, true);
    pushArray("with", model.guarded);
 
    /* ---- Casts --------------------------------------------------------- */
