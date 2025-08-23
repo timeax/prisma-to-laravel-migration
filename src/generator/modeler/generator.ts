@@ -35,6 +35,8 @@ export class PrismaToLaravelModelGenerator {
             return m ? m[1].split(",").map(s => s.trim()).filter(Boolean) : [];
          };
 
+         const hasToken = (tag: string, doc: string) => new RegExp(`@${tag}\\b`).test(doc);
+
          const modelFillable = listFrom(modelDoc, "fillable");
          const modelHidden = listFrom(modelDoc, "hidden");
          const modelGuarded = listFrom(modelDoc, "guarded");
@@ -56,7 +58,7 @@ export class PrismaToLaravelModelGenerator {
             const doc = field.documentation ?? "";
 
             // quick helper for boolean flags
-            const flag = (tag: string) => new RegExp(`@${tag}\\b`).test(doc);
+            const flag = (tag: string) => hasToken(tag, doc);
 
             const fillable = flag("fillable") || fillableSet.has(field.name);
             const hidden = flag("hidden") || hiddenSet.has(field.name);
@@ -118,7 +120,7 @@ export class PrismaToLaravelModelGenerator {
                   ...guardedSet,
                   ...properties.filter(p => p.guarded).map(p => p.name),
                ]
-               : undefined;
+               : hasToken('guarded', modelDoc) ? [] : undefined;
 
          /* ── 2.4  Relations (unchanged except @ignore honoured) ────────── */
          const relations: RelationDefinition[] = model.fields
