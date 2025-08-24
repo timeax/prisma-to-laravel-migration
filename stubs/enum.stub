@@ -5,8 +5,4 @@ namespace App\\Enums;
 enum ${enumDef.name}: string
 {
 ${enumDef.values.map(v => `    case ${v} = '${v}';`).join('\n')}
-   public function __toString(): string
-    {
-        return $this->value; // for backed enums, return the scalar value
-    }
 }
