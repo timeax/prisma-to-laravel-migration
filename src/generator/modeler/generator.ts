@@ -112,6 +112,7 @@ export class PrismaToLaravelModelGenerator {
                optional: !field.isRequired,
                enumRef: enumMeta?.name,
                typeAnnotation,
+               type: field.type,
             };
          });
 
@@ -260,9 +261,8 @@ export class PrismaToLaravelModelGenerator {
          for (const p of properties) {
             if (p.ignore || relationNames.has(p.name)) continue;
 
-            const type = this.mapPrismaToPhpDocType(p.phpType, p.optional, p.isList);
-            const nullable = type === 'mixed' || type.startsWith('?') || type.includes('null');
-            const line = `@property ${nullable ? type + '|null' : type} $${p.name}`;
+            const type = this.mapPrismaToPhpDocType(p.type, p.optional, p.isList);
+            const line = `@property ${type} $${p.name}`;
             docblockProps.push(line);
             docblockNames.add(p.name);
          }

@@ -15,6 +15,7 @@ export interface RelationDefinition {
 export interface PropertyDefinition {
     name: string;
     phpType: string;
+    type: string;
     fillable: boolean;
     hidden: boolean;
     ignore: boolean;
