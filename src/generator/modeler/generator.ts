@@ -364,16 +364,31 @@ export class PrismaToLaravelModelGenerator {
             type = "bool"; break;
          case PrismaTypes.Int:
          case PrismaTypes.BigInt:
+         case PrismaTypes.SmallInt:
+         case PrismaTypes.MediumInt:
+         case PrismaTypes.TinyInt:
+         case PrismaTypes.UnsignedBigInt:
+         case PrismaTypes.UnsignedInt:
+         case PrismaTypes.UnsignedSmallInt:
+         case PrismaTypes.UnsignedMediumInt:
+         case PrismaTypes.UnsignedTinyInt:
             type = "int"; break;
          case PrismaTypes.Float:
          case PrismaTypes.Double:
          case PrismaTypes.Decimal:
+         case PrismaTypes.Real:
+         case PrismaTypes.Money:
+         case PrismaTypes.SmallMoney:
             type = "float"; break;
          case PrismaTypes.DateTime:
          case PrismaTypes.Timestamp:
          case PrismaTypes.Timestamptz:
          case PrismaTypes.Date:
          case PrismaTypes.DateTimeOffset:
+         case PrismaTypes.Time:
+         case PrismaTypes.Timetz:
+         case PrismaTypes.SmallDateTime:
+         case PrismaTypes.DateTime2:
             type = "\\Carbon\\Carbon"; break;
          case PrismaTypes.Json:
          case PrismaTypes.JsonB:
