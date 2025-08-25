@@ -12,4 +12,5 @@ export declare class PrismaToLaravelModelGenerator {
         enums: EnumDefinition[];
     };
     private mapPrismaToPhpType;
+    mapPrismaToPhpDocType(prismaType: string, nullable?: boolean, isList?: boolean): string;
 }
