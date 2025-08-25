@@ -28,8 +28,10 @@ export interface PropertyDefinition {
    fillable: boolean;
    hidden: boolean;
    ignore: boolean;
+   optional: boolean;
    cast?: string;
    enumRef?: string;
+   isList: boolean;
    guarded?: boolean;
    relation?: RelationDefinition;
    typeAnnotation?: {

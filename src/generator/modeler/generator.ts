@@ -108,6 +108,8 @@ export class PrismaToLaravelModelGenerator {
                ignore,
                guarded,
                cast,
+               isList: field.isList,
+               optional: !field.isRequired,
                enumRef: enumMeta?.name,
                typeAnnotation,
             };
@@ -258,7 +260,7 @@ export class PrismaToLaravelModelGenerator {
          for (const p of properties) {
             if (p.ignore || relationNames.has(p.name)) continue;
 
-            const type = p.phpType || 'mixed';
+            const type = this.mapPrismaToPhpDocType(p.phpType, p.optional, p.isList);
             const nullable = type === 'mixed' || type.startsWith('?') || type.includes('null');
             const line = `@property ${nullable ? type + '|null' : type} $${p.name}`;
             docblockProps.push(line);
@@ -343,5 +345,43 @@ export class PrismaToLaravelModelGenerator {
          default:
             return "";
       }
+   }
+
+   public mapPrismaToPhpDocType(prismaType: string, nullable = false, isList?: boolean): string {
+      if (isList) {
+         const itemType = this.mapPrismaToPhpDocType(prismaType, false); // inner item is never nullable here
+         const collection = `\\Illuminate\\Support\\Collection<int, ${itemType}>`;
+         return nullable ? `${collection}|null` : collection;
+      }
+
+      let type: string;
+
+      switch (prismaType) {
+         case PrismaTypes.String:
+            type = "string"; break;
+         case PrismaTypes.Boolean:
+         case PrismaTypes.Bool:
+            type = "bool"; break;
+         case PrismaTypes.Int:
+         case PrismaTypes.BigInt:
+            type = "int"; break;
+         case PrismaTypes.Float:
+         case PrismaTypes.Double:
+         case PrismaTypes.Decimal:
+            type = "float"; break;
+         case PrismaTypes.DateTime:
+         case PrismaTypes.Timestamp:
+         case PrismaTypes.Timestamptz:
+         case PrismaTypes.Date:
+         case PrismaTypes.DateTimeOffset:
+            type = "\\Carbon\\Carbon"; break;
+         case PrismaTypes.Json:
+         case PrismaTypes.JsonB:
+            type = "array"; break;
+         default:
+            type = "mixed"; break;
+      }
+
+      return nullable ? `${type}|null` : type;
    }
 }
