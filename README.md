@@ -62,6 +62,10 @@ module.exports = {
 };
 ```
 
+>`Updated! I added a new section in the canvas—“Related Generator Options (Formatting & Compoships)”—covering:
+prettier (per-generator): what it does, defaults, config snippets, and a typings excerpt.
+modeler.awobaz: what enabling Compoships changes, config example, and a reminder to composer require it.`
+
 <details>
 <summary>Type reference</summary>
 
@@ -78,19 +82,44 @@ export interface Rule {
       dmmf: DMMF.Document
    ): Render;
 }
+
 /* ------------------------------------------------------------
  *  Re-usable stub-group description
  * ---------------------------------------------------------- */
-export interface StubGroupConfig {
+export interface StubGroupConfig extends FlexibleStubGroup {
    /** Path relative to stubDir/<type>/  (e.g. "auth.stub") */
    stubFile: string;
    tables: string[];      // ["users","accounts",…] or enum names
 }
 
+/**
+ * Back-compat + new matching options.
+ * Supply EITHER `tables` *or* (`include` / `exclude` / `pattern`).
+ */
+interface FlexibleStubGroup {
+   /** Path relative to stubDir/<type>/, e.g. "auth.stub" */
+   stubFile: string;
+
+   /** Old style - explicit white-list */
+   tables?: string[];
+
+   /** New style – include list ( '*' means “all tables” ) */
+   include?: string[] | '*';
+
+   /** New style – blacklist applied after include / pattern */
+   exclude?: string[];
+
+   /** New style – RegExp OR minimatch glob(s) */
+   pattern?: RegExp | string | Array<RegExp | string>;
+}
+
+
 /* ------------------------------------------------------------
  *  Per-generator overrides  (migration / modeler)
  * ---------------------------------------------------------- */
 export interface LaravelGeneratorConfig {
+   tablePrefix?: string;
+   tableSuffix?: string;
 
    /** Override stubDir only for this generator */
    stubDir?: string;
@@ -99,7 +128,8 @@ export interface LaravelGeneratorConfig {
    outputDir?: string;
 
    overwriteExisting?: boolean;
-
+   /** Allow formatting with prettier */
+   prettier?: boolean;
    /**
     * Stub grouping:
     *  • string  – path to a JS module exporting StubGroupConfig[]
@@ -109,6 +139,9 @@ export interface LaravelGeneratorConfig {
 
    /** Skip file emission for *this* generator only */
    noEmit?: boolean;
+
+   /**Default namespace for local imports */
+   namespace?: "App\\"
 }
 
 /* ------------------------------------------------------------
@@ -146,8 +179,8 @@ export interface MigratorConfigOverride extends LaravelGeneratorConfig {
     *  • Rule[] – rules array inline
     */
    rules?: string | Rule[];
-
    stubPath?: string;
+   defaultMaps?: DefaultMaps
 }
 
 
@@ -156,6 +189,8 @@ export interface ModelConfigOverride extends LaravelGeneratorConfig {
    enumStubPath?: string;
    /** Extra folder for enums (modeler only) */
    outputEnumDir?: string;
+   /** use awobaz/compoships */
+   awobaz?: boolean;
 }
 ```
 
@@ -363,9 +398,7 @@ namespace App\\Enums;
 
 enum ${enumDef.name}: string
 {
-    // <prisma-laravel:start>
 ${enumDef.values.map(v => `    case ${v} = '${v}';`).join('\\n')}
-    // <prisma-laravel:end>
 }
 ```
 
@@ -386,9 +419,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('${tableName}', function (Blueprint $table) {
-            // <prisma-laravel:start>
             ${columns}
-            // <prisma-laravel:end>
         });
     }
 
@@ -451,10 +482,10 @@ ${model.relations.map(r => {
   const args = [r.modelClass, r.foreignKey ? `'${r.foreignKey}'` : '', r.localKey ? `'${r.localKey}'` : ''].filter(Boolean).join(', ');
   return `    public function ${r.name}(): ${r.type.charAt(0).toUpperCase()+r.type.slice(1)}\\n    {\\n        return $this->${r.type}(${args});\\n    }`;
 }).join('\\n\\n')}
+// Or 
+${relationships}
 
-    // <prisma-laravel:start>
     ${content}
-    // <prisma-laravel:end>
 }
 ```
 
@@ -533,7 +564,8 @@ export interface ColumnDefinition extends DMMF.Field {
 
   relationship?: {
     on: string;
-    references?: string;
+    references?: string[];
+    fields: string[]
     onDelete?: string;
     onUpdate?: string;
   };
@@ -556,101 +588,318 @@ https://github.com/prisma/prisma/blob/main/packages/prisma-schema-wasm/src/__tes
 
 
 ---
+# Comment Directives for `schema.prisma` (Prisma → Laravel)
 
-### 📝 Comment-Directives in `schema.prisma`
+These inline **comment directives** let you shape what the generators emit from your Prisma schema — without changing runtime schema semantics.
 
-Attach these `@` directives either to a **field** (inline or `///` above) **or**
-to the **model** (curly‑brace syntax) to control what the generator writes into
-your Eloquent model.
+You can attach them either:
 
-| Directive | Where you can put it | Effect in generated PHP |
-| --- | --- | --- |
-| `@fillable` | Field **or** `@fillable{...}` on model | Adds column(s) to `$fillable` |
-| `@hidden` | Field **or** `@hidden{...}` on model | Adds column(s) to `$hidden` |
-| `@guarded` | Field **or** `@guarded{...}` on model | Adds column(s) to `$guarded` |
-| `@cast{...}` | Field only | Adds custom entry to `$casts` |
-| `@type{ import:'…', type:'…' }` | Field only | Adds entry to `$interfaces` metadata |
-| `@ignore` | Relation field | Skips generating the relationship method |
-| `@with` (no args) | Relation field | Adds that single relation to `$with` |
-| `@with(rel1,rel2,…)` | Model only | Adds listed relations to `$with` |
-| **NEW** `@extend:Full\Namespace\MyExtension`      | Model only                          | Adds `extends MyExtension;`                                                     |
-| **NEW** `@trait:Full\Namespace\MyTrait`      | Model only                          | Adds `use MyTrait;` inside the class                                                    |
-| **NEW** `@implements:Full\Interface as Alias`| Model only                          | Adds the interface (with alias) to the class’s `implements` list                        |
-| **NEW** `@observer:App\Observers\FooObserver`| Model only                          | Generates a `boot()` method that calls `static::observe(FooObserver::class);`           |
-| **NEW** `@factory:FooFactory`                | Model only                          | Adds `use HasFactory;` and `protected static string $factory = FooFactory::class;`      |
-| **NEW** `@touch{col1,col2}`                  | Model only                          | Generates `protected $touches = ['col1','col2'];`                                       |
-| **NEW** `@appends{attr1,attr2}`               | Model only                          | Generates `protected $appends = ['attr1','attr2'];` plus `$this->getAttrAttribute()` stubs |
+* **Per–field** (inline or `///` directly above the field), or
+* **Per–model/enum** (any `///` inside the model/enum’s block).
 
-> **Syntax options**  
-> • Inline:  
->  `balance Decimal /// @fillable @cast{decimal:2}`  
-> • Block above field:  
->  `/// @hidden`  
-> • Model list:  
->  `/// @fillable{name,balance}`  
-> • Model eager‑load:  
->  `/// @with(posts,roles)`
-> • **Traits / implements**:  
->   `/// @trait:Illuminate\Auth\Authenticatable`  
->   `/// @implements:Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract`  
-> • **Observers / factory**:  
->   `/// @observer:App\Observers\UserObserver`  
->   `/// @factory:UserFactory`  
-> • **Touches / appends**:  
->   `/// @touch{company,profile}`  
->   `/// @appends{full_name,age}`  
+> This document focuses on the **new & updated directives** and how they interact with existing ones like `@fillable`, `@hidden`, `@guarded`, `@cast{…}`, `@type{…}`, `@with`, `@trait:…`, `@extend:…`, `@implements:…`, `@observer:…`, `@factory:…`, `@touch{…}`, `@appends{…}`.
+
 ---
 
-#### Example
+## What’s New
+
+* **`@local`** — *replaces* the prior `@ignore` directive. Skips generating a single **relation method** on a model.
+* **`@silent`** — marks an entire **model or enum** to be parsed but **not emitted** (no model file, no migration, no enum class).
+* **`@morph(…)`** — declares **owner-side polymorphic relations** (`morphOne`, `morphMany`, `morphToMany`, `morphedByMany`) with optional chained calls. Child-side `morphTo` remains **auto-detected** from scalar pairs like `commentable_id` + `commentable_type`.
+
+---
+
+## Summary of Directives
+
+| Directive                                                                                   | Scope                                  | Purpose                                                                              |
+| ------------------------------------------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------ |
+| `@fillable`                                                                                 | Field **or** `@fillable{...}` on model | Adds field(s) to `$fillable`.                                                        |
+| `@hidden`                                                                                   | Field **or** `@hidden{...}` on model   | Adds field(s) to `$hidden`.                                                          |
+| `@guarded`                                                                                  | Field **or** `@guarded{...}` on model  | Adds field(s) to `$guarded`.                                                         |
+| `@cast{…}`                                                                                  | Field                                  | Adds a cast to `$casts`.                                                             |
+| `@type{ import:'…', type:'…' }`                                                             | Field                                  | Exposes a PHP/interface type hint for downstream tooling.                            |
+| `@with` / `@with(a,b,…)`                                                                    | Field / Model                          | Eager-load relations via `$with`.                                                    |
+| `@trait:…` `@extend:…` `@implements:…` `@observer:…` `@factory:…` `@touch{…}` `@appends{…}` | Model                                  | Class customization & extras.                                                        |
+| **`@local` (new)**                                                                          | **Relation Field**                     | **Skip generating that specific relation method** on the model (replaces `@ignore`). |
+| **`@silent` (new)**                                                                         | **Model**                              | **Do not emit files** for this entity (model + migration / enum).                    |
+| **`@morph(…)` (new)**                                                                       | **Model**                              | Declare owner-side polymorphic relations; child-side `morphTo` is auto.              |
+> **Syntax options**  
+ • Inline:  
+  `balance Decimal /// @fillable @cast{decimal:2}`  
+ • Block above field:  
+  `/// @hidden`  
+ • Model list:  
+  `/// @fillable{name,balance}`  
+ • Model eager‑load:  
+  `/// @with(posts,roles)`
+ • **Traits / implements**:  
+   `/// @trait:Illuminate\Auth\Authenticatable`  
+   `/// @implements:Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract`  
+ • **Observers / factory**:  
+   `/// @observer:App\Observers\UserObserver`  
+   `/// @factory:UserFactory`  
+ • **Touches / appends**:  
+   `/// @touch{company,profile}`  
+   `/// @appends{full_name,age}`
+
+> **Tip:** `@local` is about **model code only**. It does *not* suppress columns or foreign keys in migrations. Use `@silent` to suppress an entire entity’s output.
+
+---
+
+## `@local` — Skip a Single Relation Method (replaces `@ignore`)
+
+Use `@local` on a **relation field** to prevent generating that one PHP relation method in the model class. This directly replaces older docs/examples that used `@ignore`.
 
 ```prisma
+model Account {
+  id     Int   @id @default(autoincrement())
+  user   User? @relation(fields: [userId], references: [id]) /// @local
+  userId Int?
+}
+```
+
+**Effect:** the `user()` method is *not* written to `Account.php`. Other methods (and migrations) are unaffected.
+
+> If you previously wrote `/// @ignore` on relation fields, switch to `/// @local`.
+
+---
+
+## `@silent` — Ignore a Whole Model or Enum at Emission Time
+
+Apply `/// @silent` inside a **model or enum** docblock to mark it as **non-emitting**. The generator still parses it (so references/validations work), but **no files** are written for that entity.
+
+```prisma
+/// @silent
+model AuditTrail {
+  id   Int @id @default(autoincrement())
+  note String
+}
+```
+
+**Effect:** no Eloquent model and no migration file are emitted for `AuditTrail`. For enums, no PHP enum is emitted.
+
+---
+
+## Polymorphic Relations
+
+### Auto-Detected Child Side: `morphTo`
+
+If a model contains **scalar** columns named `<base>_id` and `<base>_type` — for example `commentable_id` and `commentable_type` — the generator emits the child-side method automatically:
+
+```php
+public function commentable()
+{
+    return $this->morphTo('commentable');
+}
+```
+
+No directive is required for `morphTo`.
+
+### Owner Side via `@morph(…)`
+
+Add one or more `@morph(...)` directives to the **owner model’s** docblock to generate Laravel morph methods. Parentheses and quotes inside `raw:"…"` are supported.
+
+**Parameters**
+
+* `name:` the morph **base**; supplies the string argument in Laravel calls and corresponds to the `*_id` / `*_type` pair on the child.
+* `type:` one of:
+
+  * `one` → `morphOne`
+  * `many` → `morphMany`
+  * `to many` → `morphToMany`
+  * `by many` → `morphedByMany`
+* `model:` target Eloquent model (class *short* name).
+
+**Optional**
+
+* `table:` pivot table for `morphToMany` / `morphedByMany`.
+* `raw:` chained expression appended to the relation, e.g. `raw:"latest()->where('active',1)"`.
+* `as:` method name override (defaults derive from `model`; pluralized for “many” types).
+* `idField:` / `typeField:` to override the default `<base>_id` / `<base>_type` column names on the child.
+
+**Examples**
+
+```prisma
+/// Owner: Post → morphMany(Comment::class, 'commentable') + chain
+/// @morph(name: commentable, type: many, model: Comment, raw:"latest()", as: comments)
+model Post {
+  id    Int   @id @default(autoincrement())
+  title String
+}
+
+/// Owner: User → morphOne(Image::class, 'imageable')
+/// @morph(name: imageable, type: one, model: Image, as: avatar)
+model User {
+  id   Int   @id @default(autoincrement())
+  name String
+}
+
+/// Owner: Video → morphToMany(Tag::class, 'taggable', 'taggables')
+/// @morph(name: taggable, type: to many, model: Tag, table:"taggables")
+model Video {
+  id   Int   @id @default(autoincrement())
+  url  String
+}
+```
+
+**Generated (sketch):**
+
+```php
+public function comments() { return $this->morphMany(Comment::class, 'commentable')->latest(); }
+public function avatar()   { return $this->morphOne(Image::class, 'imageable'); }
+public function tags()     { return $this->morphToMany(Tag::class, 'taggable', 'taggables'); }
+```
+
+---
+
+## Additional Polymorphic Examples for Testing
+
+**A) morphMany + child morphTo**
+
+```prisma
+/// @morph(name: commentable, type: many, model: Comment, raw:"latest()")
+model Post {
+  id    Int     @id @default(autoincrement())
+  title String
+}
+
+model Comment {
+  id               Int     @id @default(autoincrement())
+  body             String
+  commentable_id   Int
+  commentable_type String
+}
+```
+
+**B) morphOne + child morphTo**
+
+```prisma
+/// @morph(name: imageable, type: one, model: Image, as: avatar)
+model User {
+  id   Int    @id @default(autoincrement())
+  name String
+}
+
+model Image {
+  id              Int     @id @default(autoincrement())
+  path            String
+  imageable_id    Int
+  imageable_type  String
+}
+```
+
+**C) Polymorphic M\:N (`morphToMany` / `morphedByMany`)**
+
+```prisma
+/// @morph(name: taggable, type: to many, model: Tag, table: "taggables")
+model Post {
+  id    Int    @id @default(autoincrement())
+  title String
+}
+
+/// @morph(name: taggable, type: to many, model: Tag, table: "taggables")
+model Video {
+  id    Int    @id @default(autoincrement())
+  title String
+  url   String
+}
+
+/// @morph(name: taggable, type: by many, model: Post, table: "taggables")
+/// @morph(name: taggable, type: by many, model: Video, table: "taggables")
+model Tag {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+}
+
+// Optional explicit pivot table for integrity (Prisma treats polymorphic targets as scalars)
+model Taggable {
+  id             Int    @id @default(autoincrement())
+  tag_id         Int
+  taggable_id    Int
+  taggable_type  String
+
+  tag Tag @relation(fields: [tag_id], references: [id])
+
+  @@index([taggable_type, taggable_id])
+  @@map("taggables")
+}
+```
+
+**D) Unconventional base name (`actor`)**
+
+```prisma
+/// @morph(name: actor, type: many, model: Activity, as: activities)
+model User {
+  id    Int    @id @default(autoincrement())
+  email String @unique
+}
+
+model Activity {
+  id         Int     @id @default(autoincrement())
+  action     String
+  actor_id   Int
+  actor_type String
+}
+```
+
+  
+
+#### Other Examples
+
+  
+
+```prisma
+
 /// @fillable{name,balance}
 /// @hidden{secretToken}
 model Account {
-  id        Int      @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
+  balance   Decimal  @default(0.0) /// @cast{decimal:2}
+  nickname  String   /// @fillable @hidden
+  profile   Json?    /// @type{ import:'@types/forms', type:'ProfileDTO' }
+  company   Company? @relation(fields:[companyId], references:[id]) /// @local
 
-  balance   Decimal  @default(0.0) /// @cast{decimal:2}
-
-  nickname  String   /// @fillable @hidden
-
-  profile   Json?    /// @type{ import:'@types/forms', type:'ProfileDTO' }
-
-  company   Company? @relation(fields:[companyId], references:[id]) /// @ignore
-  companyId Int?
-
-  posts     Post[]   /// @with
+  companyId Int?
+  posts     Post[]   /// @with
 }
+
+  
 
 /// @with(posts,comments)
+
 model User {
-  id       Int      @id @default(autoincrement())
-  email    String
-  posts    Post[]
-  comments Comment[]
+  id       Int      @id @default(autoincrement())
+  email    String
+  posts    Post[]
+  comments Comment[]
 }
+
 ```
 
 **Generated output**
 
 ```php
+
 protected $fillable = ['name','balance','nickname'];
-protected $hidden   = ['secretToken','nickname'];
-protected $casts    = ['balance' => 'decimal:2'];
+protected $hidden   = ['secretToken','nickname'];
+protected $casts    = ['balance' => 'decimal:2'];
 
 public array $interfaces = [
-    'profile' => { import: '@types/forms', type: 'ProfileDTO' },
+    'profile' => { import: '@types/forms', type: 'ProfileDTO' },
 ];
 
 protected $with = ['posts'];
+
 ```
 
-`@ignore` prevents the `company()` relation method.  
-Combine multiple inline directives; they’re processed left‑to‑right.
+`@local` prevents the `company()` relation method.  
 
+Combine multiple inline directives; they’re processed left‑to‑right.
 
 #### Example: Combined Directives
 
 ```prisma
+
 /// @fillable{name,balance}
 /// @hidden{secretToken}
 /// @guarded{password,apiToken}
@@ -662,20 +911,22 @@ Combine multiple inline directives; they’re processed left‑to‑right.
 /// @touch{company}
 /// @appends{full_name}
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique                      /// @hidden @fillable
-  password  String                                 /// @hidden @guarded
-  balance   Decimal @default(0.0) /// @cast{decimal:2}
-  profile   Json?    /// @type{ import:'@types/forms', type:'ProfileDTO' }
-  company   Company? @relation(fields:[companyId], references:[id]) /// @ignore
-  companyId Int?
-  posts     Post[]   /// @with
+  id        Int      @id @default(autoincrement())
+  email     String   @unique                      /// @hidden @fillable
+  password  String                                 /// @hidden @guarded
+  balance   Decimal @default(0.0) /// @cast{decimal:2}
+  profile   Json?    /// @type{ import:'@types/forms', type:'ProfileDTO' }
+  company   Company? @relation(fields:[companyId], references:[id]) /// @local
+  companyId Int?
+  posts     Post[]   /// @with
 }
+
 ```
 
 **Generated output (simplified)**
 
 ```php
+
 use Illuminate\Auth\Authenticatable;
 use Illuminate\Auth\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -684,36 +935,40 @@ use App\Observers\UserObserver;
 
 class User extends User implements AuthenticatableContract
 {
-    use HasFactory, Authenticatable;
+    use HasFactory, Authenticatable;
+    
+    protected $fillable = ['name','balance','email'];
+    protected $hidden   = ['secretToken','password'];
+    protected $guarded  = ['password','apiToken'];
+    protected $casts    = ['balance' => 'decimal:2'];
+    protected $touches  = ['company'];
+    protected $appends  = ['full_name'];
+    protected static string $factory = UserFactory::class;
 
-    protected $fillable = ['name','balance','email'];
-    protected $hidden   = ['secretToken','password'];
-    protected $guarded  = ['password','apiToken'];
+    protected static function boot()
+    {
+        parent::boot();
+        static::observe(UserObserver::class);
+    }
 
-    protected $casts    = ['balance' => 'decimal:2'];
-    protected $touches  = ['company'];
-    protected $appends  = ['full_name'];
-    protected static string $factory = UserFactory::class;
+    public function getFullNameAttribute()
+    {
+        return $this->attributes['full_name'] ?? null;
+    }
 
-    protected static function boot()
-    {
-        parent::boot();
-        static::observe(UserObserver::class);
-    }
-
-    public function getFullNameAttribute()
-    {
-        // TODO
-        return $this->attributes['full_name'] ?? null;
-    }
-
-    public function posts()
-    {
-        return $this->hasMany(Post::class);
-    }
+    public function posts()
+    {
+        return $this->hasMany(Post::class);
+    }
 }
 ```
 
+---
+## Notes & Limitations
+
+* `@local` is **model-method only**; it does not change the migration. Use `@silent` to suppress a whole model/enum from emission.
+* Laravel cannot express **composite pivot keys** directly inside `belongsToMany(...)`. If your schema uses composite pivot keys, consider generating a Pivot model or using query/Compoships patterns on the one-to-many sides.
+* The generator keeps your edits safe via merge markers; conflicts will be surfaced with `<<<<<<<` sections for manual resolution.
 ---
 
 ## 💡 Tips
