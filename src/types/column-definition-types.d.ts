@@ -10,8 +10,10 @@ export type MigrationType = typeof MigrationTypes[keyof typeof MigrationTypes];
  * Options for defining a foreign key relationship.
  */
 export interface RelationshipOptions {
+   /* the local column(s) that hold the foreign key */
+   fields: string[];  
    /** The column this references (defaults to 'id') */
-   references?: string;
+   references?: string[] | string;
    /** The table this references */
    on: string;
    /** Action on delete */
@@ -31,7 +33,7 @@ export interface ColumnExtras {
    /** Parsed args from the nativeType, e.g. [255] or [10,2] */
    args?: Array<number | string | any[]>;
    /** The mapped Laravel migration type (strictly one of MigrationType) */
-   migrationType: MigrationType;
+   migrationType: MigrationType | 'relation';
    /** Marks the column as unsigned */
    unsigned?: boolean;
    /** Marks the column as nullable */

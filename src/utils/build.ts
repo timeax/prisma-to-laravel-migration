@@ -115,23 +115,90 @@ export function buildModelContent(model: ModelDefinition): string {
 
    //--- handle relationships -----------------------------------------
    model.relations.forEach(rel => {
-      // For morphTo* the first param is the relation name (string),
-      // otherwise it’s the related model class.
-      const isMorph = rel.type.startsWith('morph');
+      const isMorph = rel.type.startsWith('morph'); // morphTo, morphToMany, morphedByMany
+      const usingAwobaz = !!global._config?.model?.awobaz;
+      const isComposite = Array.isArray(rel.foreignKey) && rel.foreignKey.length > 1;
 
-      const args = [
-         isMorph ? `'${rel.morphType ?? rel.name}'` : rel.modelClass,
-         rel.foreignKey ? `'${rel.foreignKey}'` : null,
-         rel.localKey ? `'${rel.localKey}'` : null,
-      ]
-         .filter(Boolean)
-         .join(', ');
+      const asArray = (v?: string | string[]) =>
+         Array.isArray(v) ? v : (v ? [v] : []);
+
+      const foreignKeys = asArray(rel.foreignKey);
+      const localKeys = asArray(rel.localKey);
+
+      const args: string[] = [];
+
+      // 1) first argument
+      if (isMorph) {
+         args.push(`'${rel.morphType ?? rel.name}'`);
+      } else {
+         args.push(rel.modelClass); // e.g. Related::class
+      }
+
+      // 2) many-to-many pivot table (if any)
+      const isManyToMany =
+         rel.type === 'belongsToMany' ||
+         rel.type === 'morphToMany';
+
+      if (isManyToMany && rel.pivotTable) {
+         args.push(`'${rel.pivotTable}'`);
+      }
+
+      // 3) base key args (single-column signature)
+      if (isComposite && usingAwobaz) {
+         // Awobaz supports arrays
+         const fkArray = `[${foreignKeys.map(k => `'${k}'`).join(', ')}]`;
+         const lkArray = `[${localKeys.map(k => `'${k}'`).join(', ')}]`;
+         args.push(fkArray, lkArray);
+      } else {
+         // Standard Laravel: use the first pair as the "canonical" FK/ownerKey
+         if (foreignKeys.length) args.push(`'${foreignKeys[0]}'`);
+         if (localKeys.length) args.push(`'${localKeys[0]}'`);
+      }
+
+      // 4) build base relation call
+      const call = `$this->${rel.type}(${args.join(', ')})`;
+
+      // 5) if composite && !awobaz, append WHERE constraints for remaining pairs
+      let chained = call;
+      if (isComposite && !usingAwobaz) {
+         // For remaining pairs: index 1..n-1
+         // We need to know direction per relation type:
+         // - belongsTo(Related, localFK, ownerKey): enforce ownerKey[i] = $this->localFK[i]
+         // - hasOne/hasMany(Related, foreignKey, localKey): enforce foreignKey[i] = $this->localKey[i]
+         const extraPairs = foreignKeys
+            .slice(1)
+            .map((fk, i) => {
+               const lk = localKeys[i + 1]; // align the pair
+               // Guard: only add if both sides exist
+               if (!fk || !lk) return null;
+
+               if (rel.type === 'belongsTo') {
+                  // related.ownerKey[i] = this.localFK[i]
+                  // ->where('ownerKey_i', $this->getAttribute('localFK_i'))
+                  return `->where('${localKeys[i + 1]}', $this->getAttribute('${fk}'))`;
+               } else if (rel.type === 'hasOne' || rel.type === 'hasMany') {
+                  // related.foreignKey[i] = this.localKey[i]
+                  return `->where('${fk}', $this->getAttribute('${lk}'))`;
+               } else {
+                  // For many-to-many or morph variants, we don't have reliable extra-key mapping here.
+                  // (If you pass composite via Awobaz, arrays handle this.)
+                  return null;
+               }
+            })
+            .filter(Boolean) as string[];
+
+         if (extraPairs.length) {
+            chained = `${chained}${extraPairs.join('')}`;
+         }
+      }
+
+      const comment = rel.pivotTable ? ` // pivot: ${rel.pivotTable}` : '';
+      const line = `return ${chained};${comment}`;
 
       out.push(
          `public function ${rel.name}()`,
          '{',
-         `    return $this->${rel.type}(${args});` +
-         (rel.pivotTable ? ` // pivot: ${rel.pivotTable}` : ''),
+         `    ${line}`,
          '}',
          ''
       );

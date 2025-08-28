@@ -3,6 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
 import * as diff3 from "node-diff3";
 import { backupPathFor } from "./backupPath.js";
+import { prettyPhp } from "../utils/pretty.js";
 
 /**
  * Git-style 3-way merge writer.
@@ -11,21 +12,23 @@ import { backupPathFor } from "./backupPath.js";
  * @param theirs      Freshly-generated FULL text
  * @param overwrite   Skip writing when false & file exists
  */
-export function writeWithMerge(
+export async function writeWithMerge(
    filePath: string,
    theirs: string,
+   type: 'migrator' | 'model',
    overwrite = true
 ) {
    if (!overwrite && existsSync(filePath)) return;
-
+   const content = (code: string | null | undefined) => global._config[type].prettier ? (code ? prettyPhp(code, { parser: 'php', filepathHint: filePath }) : code) : code;
    /* ---------- Paths & snapshots ---------- */
    const bakPath = backupPathFor(filePath);          // .prisma-laravel/backups/…
-   const base = existsSync(bakPath)
+   theirs = await content(theirs) as string;                          // freshly generated
+   const base = await content(existsSync(bakPath)
       ? readFileSync(bakPath, "utf-8")
-      : null;                                         // previous generator output
-   const mine = existsSync(filePath)
+      : null);                                         // previous generator output
+   const mine = await content(existsSync(filePath)
       ? readFileSync(filePath, "utf-8")
-      : null;                                         // user’s current file
+      : null);                                         // user’s current file
 
    /* ---------- First run: file missing ---------- */
    if (mine === null) {
@@ -53,8 +56,9 @@ export function writeWithMerge(
 
    /* ---------- Real divergence: diff3 ---------- */
    const mergedLines = diff3.merge(
-      mine.split(/\r?\n/),
-      (base ?? "").split(/\r?\n/),
+      //@ts-ignore
+      mine?.split?.(/\r?\n/),
+      (base ?? "")?.split(/\r?\n/),
       theirs.split(/\r?\n/),
       { stringSeparator: "\n" }
    ).result;

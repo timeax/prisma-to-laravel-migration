@@ -224,27 +224,47 @@ const nullableMorphsRule: Rule = {
 export function defaultBuild(def: ColumnDefinition, defaultMaps: DefaultMaps): { column: string; snippet: string[] } {
    def.ignore && (def.ignore = true); // leave ignore as set
    let snippet: string[] = [];
-   if (!def.ignore) {
-      const argsStr = def.args?.length
-         ? `, ${def.args.map(a => JSON.stringify(a)).join(", ")}`
-         : "";
-      let line = `$table->${def.migrationType}('${def.name}'${argsStr})`;
-      if (def.unsigned) line += "->unsigned()";
-      if (def.nullable) line += "->nullable()";
-      if (def.hasDefaultValue) line += formatDefault(def, defaultMaps);
-      if (def.comment) line += `->comment(${JSON.stringify(def.comment)})`;
-      line += ";";
-      snippet.push(line);
+   if (!def.ignore) { // always render relations
+      if (def.migrationType === 'relation' && def.relationship && !def.relationship.ignore) {
+         const { on, references = "id", onDelete, onUpdate, fields } = def.relationship;
 
-      if (def.relationship) {
-         const { on, references = "id", onDelete, onUpdate } = def.relationship;
-         let fk = `$table->foreign('${def.name}')->references('${references}')->on('${on}')`;
-         if (onDelete) fk += `->onDelete('${onDelete}')`;
-         if (onUpdate) fk += `->onUpdate('${onUpdate}')`;
-         fk += ";";
-         snippet.push(fk);
+         let foreignKey: string;
+
+         // Detect composite
+         if (Array.isArray(fields) && fields.length > 1) {
+            const cols = fields.map(f => `'${f}'`).join(', ');
+            const refs = (Array.isArray(references) ? references : [references])
+               .map(r => `'${r}'`)
+               .join(', ');
+
+            foreignKey = `$table->foreign([${cols}])->references([${refs}])->on('${on}')`;
+         } else {
+            const col = Array.isArray(fields) ? fields[0] : fields;
+            const ref = Array.isArray(references) ? references[0] : references;
+
+            foreignKey = `$table->foreign('${col}')->references('${ref}')->on('${on}')`;
+         }
+
+         // Apply onDelete/onUpdate
+         if (onDelete) foreignKey += `->onDelete('${onDelete}')`;
+         if (onUpdate) foreignKey += `->onUpdate('${onUpdate}')`;
+
+         foreignKey += ';';
+         snippet.push(foreignKey);
+      } else {
+         const argsStr = def.args?.length
+            ? `, ${def.args.map(a => JSON.stringify(a)).join(", ")}`
+            : "";
+         let line = `$table->${def.migrationType}('${def.name}'${argsStr})`;
+         if (def.unsigned) line += "->unsigned()";
+         if (def.nullable) line += "->nullable()";
+         if (def.hasDefaultValue) line += formatDefault(def, defaultMaps);
+         if (def.comment) line += `->comment(${JSON.stringify(def.comment)})`;
+         line += ";";
+         snippet.push(line);
       }
    }
+
    return { column: def.name, snippet };
 }
 

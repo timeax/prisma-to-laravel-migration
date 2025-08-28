@@ -3,14 +3,14 @@ import { existsSync, mkdirSync, readdirSync } from "fs";
 import path from "path";
 import { PrismaToLaravelMigrationGenerator, Migration } from "./PrismaToLaravelMigrationGenerator.js";
 import { StubMigrationPrinter } from "../../printer/migrations.js";
-import { StubConfig } from "../../utils/utils.js";
+import { addToConfig, StubConfig } from "../../utils/utils.js";
 import { fileURLToPath } from "url";
 import { sortMigrations } from "../../utils/sort.js";
 import { writeWithMerge } from "../../diff-writer/writer.js";
 import { loadSharedConfig } from "../../utils/loadSharedCfg.js";
 import { MigratorConfigOverride, StubGroupConfig } from "types/laravel-config.js";
 
-interface MigratorConfig extends StubConfig, Omit<MigratorConfigOverride, 'groups' | 'stubDir'> {
+export interface MigratorConfig extends StubConfig, Omit<MigratorConfigOverride, 'groups' | 'stubDir'> {
 }
 
 export async function generateLaravelSchema(options: GeneratorOptions): Promise<Migration[]> {
@@ -54,6 +54,7 @@ export async function generateLaravelSchema(options: GeneratorOptions): Promise<
       stubPath: pick("stubPath"),
       overwriteExisting: pick("overwriteExisting", true),
       rules: pick("rules"),
+      prettier: pick("prettier", false),
       outputDir: pick("outputDir"),
       stubDir: pick("stubDir")!,          // shared stubDir > block
       groups,
@@ -64,6 +65,7 @@ export async function generateLaravelSchema(options: GeneratorOptions): Promise<
       defaultMaps: pick('defaultMaps', {})
    };
 
+   addToConfig('migrator', cfg);
    // 1) Determine and ensure output directory exists
    const baseOut = cfg.outputDir
       ? path.resolve(process.cwd(), cfg.outputDir)
@@ -139,6 +141,7 @@ export async function generateLaravelSchema(options: GeneratorOptions): Promise<
          writeWithMerge(
             filePath,
             content,
+            'migrator',
             cfg.overwriteExisting ?? false
          );
    });

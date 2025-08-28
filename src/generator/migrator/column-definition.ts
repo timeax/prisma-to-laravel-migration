@@ -21,7 +21,7 @@ export class ColumnDefinitionGenerator {
    #build(): Record<string, ColumnDefinition[]> {
       return this.dmmf.datamodel.models.reduce((map, model) => {
          const tableName = model.dbName ?? model.name;
-         map[tableName] = model.fields.map(f => this.generate(f));
+         map[tableName] = model.fields.map(f => this.generate(f, model));
          return map;
       }, {} as Record<string, ColumnDefinition[]>);
    }
@@ -47,10 +47,10 @@ export class ColumnDefinitionGenerator {
    /**
     * Generate a ColumnDefinition from a DMMF.Field.
     */
-   public generate(field: DMMF.Field): ColumnDefinition {
+   public generate(field: DMMF.Field, model: DMMF.Model): ColumnDefinition {
       const base: Partial<ColumnDefinition> = {
          ...field,
-         unsigned: field.isId || field.isGenerated || false,
+         unsigned: this.isUnsigned(model, field),
          nullable: !field.isRequired,
          comment: stripDirectives(field.documentation),
          nativeType: field.nativeType?.[0]
@@ -59,7 +59,7 @@ export class ColumnDefinitionGenerator {
          migrationType: getType(field),
          args: field.nativeType?.[1] as Array<string | number> | undefined,
       } as any;
-      
+
       // Handle enums
       if (field.kind === "enum") {
          const enumMeta = this.dmmf.datamodel.enums.find(
@@ -80,15 +80,18 @@ export class ColumnDefinitionGenerator {
          const tableName = relatedModel?.dbName ?? modelName;
 
          base.ignore = (field.relationFromFields?.length ?? 0) === 0;
+         base.migrationType = 'relation'; // special marker
+
          (base as ColumnExtras).relationship = {
             on: tableName,
-            references: field.relationToFields?.[0] ?? 'id',
+            references: (field.relationToFields as any) ?? 'id',
             onDelete: this.mapPrismaAction(field.relationOnDelete),
             onUpdate: this.mapPrismaAction(field.relationOnUpdate),
-            ignore: (field.relationFromFields?.length ?? 0) === 0
+            ignore: (field.relationFromFields?.length ?? 0) === 0,
+            fields: (field.relationFromFields as any) ?? [],
          };
       }
-      
+
       // Discriminate default
       if (field.hasDefaultValue) {
          return {
@@ -104,6 +107,44 @@ export class ColumnDefinitionGenerator {
       }
    }
 
+   public isUnsigned(model: DMMF.Model, field: DMMF.Field): boolean {
+      if (field.isId || field.isGenerated) return true;
+
+      const native = field.nativeType?.[0]?.toLowerCase() ?? '';
+      if (native.includes('unsigned')) return true;
+
+      if (/^\s*@unsigned\b/m.test(field.documentation ?? '')) return true;
+
+      // Look for the relation object that includes this field as a fromField
+      const relationField = model.fields.find(
+         f =>
+            f.kind === 'object' &&
+            f.relationFromFields?.includes(field.name) &&
+            f.relationToFields &&
+            f.type
+      );
+
+      if (relationField && relationField.relationFromFields && relationField.relationToFields) {
+         const index = relationField.relationFromFields.indexOf(field.name);
+
+         if (index !== -1) {
+            const relatedModel = this.dmmf.datamodel.models.find(
+               m => m.name === relationField.type
+            );
+
+            const referencedFieldName = relationField.relationToFields[index];
+            const referencedField = relatedModel?.fields.find(
+               f => f.name === referencedFieldName
+            );
+
+            if (referencedField) {
+               return this.isUnsigned(relatedModel as any, referencedField); // recursive
+            }
+         }
+      }
+
+      return false;
+   }
    private mapPrismaAction(
       action: DMMF.Field["relationOnDelete"] | undefined
    ): RelationshipOptions["onDelete"] {

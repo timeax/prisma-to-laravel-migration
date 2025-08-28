@@ -12,6 +12,7 @@ export declare class ColumnDefinitionGenerator {
     /**
      * Generate a ColumnDefinition from a DMMF.Field.
      */
-    generate(field: DMMF.Field): ColumnDefinition;
+    generate(field: DMMF.Field, model: DMMF.Model): ColumnDefinition;
+    isUnsigned(model: DMMF.Model, field: DMMF.Field): boolean;
     private mapPrismaAction;
 }

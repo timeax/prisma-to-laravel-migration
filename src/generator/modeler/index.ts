@@ -1,7 +1,7 @@
 import { GeneratorConfig, GeneratorOptions } from "@prisma/generator-helper";
 import { existsSync, mkdirSync } from "fs";
 import path from "path";
-import { StubConfig } from "../../utils/utils.js";
+import { addToConfig, StubConfig } from "../../utils/utils.js";
 import { StubModelPrinter } from "../../printer/models.js";
 import { PrismaToLaravelModelGenerator } from "./generator.js";
 import { ModelDefinition, EnumDefinition } from "./types";
@@ -11,7 +11,7 @@ import { ModelConfigOverride, StubGroupConfig } from "types/laravel-config.js";
 import { loadSharedConfig } from "../../utils/loadSharedCfg.js";
 import { buildModelContent } from "../../utils/build.js";
 
-interface ModelConfig extends StubConfig, Omit<ModelConfigOverride, 'groups' | 'stubDir'> { }
+export interface ModelConfig extends StubConfig, Omit<ModelConfigOverride, 'groups' | 'stubDir'> { }
 
 export async function generateLaravelModels(options: GeneratorOptions) {
    const { dmmf, generator } = options;
@@ -52,6 +52,8 @@ export async function generateLaravelModels(options: GeneratorOptions) {
       overwriteExisting: pick("overwriteExisting", true),
       outputDir: pick("outputDir"),
       outputEnumDir: pick("outputEnumDir"),
+      prettier: pick("prettier", false),
+      awobaz: pick("awobaz", false),
       stubDir: pick("stubDir")!,          // shared stubDir wins
       groups,
       /* NEW global prefix/suffix made available downstream */
@@ -63,6 +65,8 @@ export async function generateLaravelModels(options: GeneratorOptions) {
       noEmit: pick('noEmit', false),
       namespace: pick("namespace", "App")
    };
+
+   addToConfig('model', cfg);
 
    // 1) Determine and ensure output directories
    const modelsDir = cfg.outputDir
@@ -117,6 +121,7 @@ export async function generateLaravelModels(options: GeneratorOptions) {
          writeWithMerge(
             enumFile,
             enumPhp,
+            'model',
             cfg.overwriteExisting ?? false
          );
    }
@@ -138,6 +143,7 @@ export async function generateLaravelModels(options: GeneratorOptions) {
          writeWithMerge(
             modelFile,
             modelPhp,
+            'model',
             cfg.overwriteExisting ?? false
          );
    }

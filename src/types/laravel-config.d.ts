@@ -45,7 +45,8 @@ export interface LaravelGeneratorConfig {
    outputDir?: string;
 
    overwriteExisting?: boolean;
-
+   /** Allow formatting with prettier */
+   prettier?: boolean;
    /**
     * Stub grouping:
     *  • string  – path to a JS module exporting StubGroupConfig[]
@@ -105,4 +106,6 @@ export interface ModelConfigOverride extends LaravelGeneratorConfig {
    enumStubPath?: string;
    /** Extra folder for enums (modeler only) */
    outputEnumDir?: string;
+   /** use awobaz/compoships */
+   awobaz?: boolean;
 }

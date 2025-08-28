@@ -154,6 +154,10 @@ export function decorate(name: string, opts: NameOpts): string {
    return `${pre}${name}${suf}`.trim();
 }
 
+export function addToConfig(key: 'model' | 'migrator', value: any) {
+   global._config = global._config ?? {};
+   global._config[key] = value;
+}
 
 export { resolveStub } from './stubResolver.js'
 export { stripDirectives } from './clean.js'

@@ -37,6 +37,7 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
+    "@prettier/plugin-php": "^0.24.0",
     "@prisma/generator-helper": "^6.10.0",
     "@prisma/internals": "^6.11.0",
     "change-case": "^5.4.4",
@@ -45,13 +46,13 @@
     "ejs": "^3.1.10",
     "minimatch": "^10.0.3",
     "node-diff3": "^3.1.2",
-    "pluralize": "^8.0.0"
+    "pluralize": "^8.0.0",
+    "prettier": "^3.6.2"
   },
   "devDependencies": {
     "@types/ejs": "^3.1.5",
     "@types/node": "^24.0.3",
     "jest": "^30.0.2",
-    "prettier": "^3.5.3",
     "ts-node": "^10.9.2",
     "tsx": "^4.20.3"
   }

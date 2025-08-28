@@ -1,25 +1,9 @@
+import { RelationDefinition } from "./relationship/types";
 
 /** Reuse these from your model‐generator file */
 export interface EnumDefinition {
    name: string;
    values: string[];
-}
-
-export interface RelationDefinition {
-   name: string;
-   type:
-   | 'belongsTo'
-   | 'hasOne'
-   | 'hasMany'
-   | 'belongsToMany'
-   | 'morphTo'
-   | 'morphMany'
-   | 'morphToMany';
-   modelClass: string;
-   foreignKey?: string;
-   localKey?: string;
-   pivotTable?: string;
-   morphType?: string;
 }
 
 export interface PropertyDefinition {

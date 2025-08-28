@@ -13,4 +13,5 @@ export declare class PrismaToLaravelModelGenerator {
     };
     private mapPrismaToPhpType;
     mapPrismaToPhpDocType(prismaType: string, nullable?: boolean, isList?: boolean): string;
+    private extractRelationsFromModel;
 }
