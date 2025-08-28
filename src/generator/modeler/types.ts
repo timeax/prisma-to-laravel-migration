@@ -26,6 +26,7 @@ export interface PropertyDefinition {
 }
 
 export interface ModelDefinition {
+  isIgnored: boolean;
   /* Core identity */
   className : string;
   tableName : string;

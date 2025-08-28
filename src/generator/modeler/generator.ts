@@ -6,6 +6,7 @@ import {
 } from "./types";
 import { PrismaTypes } from "../migrator/column-maps.js";
 import { RelationDefinition } from "./relationship/types";
+import { buildRelationsForModel } from "./relationship/index.js";
 
 /**
  * Build ModelDefinition[] + EnumDefinition[] from your DMMF.
@@ -259,6 +260,7 @@ export class PrismaToLaravelModelGenerator {
             touches,
             traits,
             imports,
+            isIgnored: hasToken('silent', modelDoc),
             extends: parentClass !== 'Model' ? parentClass : undefined,
             docblockProps
          };
@@ -363,111 +365,6 @@ export class PrismaToLaravelModelGenerator {
    }
 
    private extractRelationsFromModel(model: DMMF.Model): RelationDefinition[] {
-      return model.fields
-         .filter(f =>
-            f.kind === 'object' &&
-            f.relationName &&
-            !/@ignore\b/.test(f.documentation ?? '')
-         )
-         .map(f => {
-            const relatedModel = this.dmmf.datamodel.models.find(m => m.name === f.type)!;
-            const relatedTable = relatedModel.dbName ?? relatedModel.name;
-            const thisTable = model.dbName ?? model.name;
-
-            // counterpart: same relationName AND must point back to me
-            const counterpart = relatedModel.fields.find(
-               r => r.kind === 'object' && r.relationName === f.relationName && r.type === model.name
-            );
-
-            const thisOwnsFK = (f.relationFromFields?.length ?? 0) > 0;
-            const otherOwnsFK = (counterpart?.relationFromFields?.length ?? 0) > 0;
-
-            // implicit M:N only if both sides lists, neither owns FKs, and counterpart points back
-            const isImplicitM2M = !!(f.isList && (counterpart?.isList ?? false) && !thisOwnsFK && !otherOwnsFK);
-
-            // explicit M:N only if relatedModel is a relevant pivot for *this* model
-            const otherEndpointType = pivotOtherEndpointFor(model.name, relatedModel);
-            const isExplicitM2M = !!otherEndpointType && f.isList;
-
-            const relType: 'belongsToMany' | 'hasMany' | 'belongsTo' =
-               (isImplicitM2M || isExplicitM2M) ? 'belongsToMany'
-                  : f.isList ? 'hasMany'
-                     : 'belongsTo';
-
-            const targetType = (relType === 'belongsToMany')
-               ? (isExplicitM2M ? otherEndpointType! : f.type)
-               : f.type;
-
-            const modelClass = `${targetType}::class`;
-
-            const pivotTable =
-               isExplicitM2M
-                  ? (relatedModel.dbName ?? relatedModel.name)                // explicit pivot table/model
-                  : isImplicitM2M
-                     ? conventionalPivotName(thisTable, relatedTable)          // implicit convention
-                     : undefined;
-
-           
-            return {
-               name: f.name.replace(/Id$/, ''),
-               type: relType as any,
-               modelClass,
-               foreignKey: f.relationFromFields as any, // supports compoships
-               localKey: f.relationToFields as any,
-               pivotTable,
-            };
-         });
+      return buildRelationsForModel(this.dmmf, model);
    }
-}
-
-// --- helpers ---------------------------------------------------------------
-
-// fields kind === 'object'
-const objectRels = (m: DMMF.Model) => m.fields.filter(f => f.kind === 'object');
-// fields kind === 'scalar'
-const scalarNames = (m: DMMF.Model) => m.fields.filter(f => f.kind === 'scalar').map(s => s.name);
-
-// small whitelist of non-FK scalars allowed on pivots
-const PIVOT_SCALAR_WHITELIST = new Set([
-   'id', 'created_at', 'updated_at', 'deleted_at', // snake
-   'createdAt', 'updatedAt', 'deletedAt',          // camel
-]);
-
-function hasIntersection(a: string[] = [], b: string[] = []) {
-   const S = new Set(a);
-   return b.some(x => S.has(x));
-}
-
-// Return the "other endpoint" type if candidate is a pivot *relevant to this model*,
-// otherwise undefined. Enforces: 2 object rels, both own FKs, one points to me,
-// FK sets disjoint, extra scalars only in whitelist.
-function pivotOtherEndpointFor(thisModelName: string, candidate: DMMF.Model): string | undefined {
-   const rels = objectRels(candidate);
-   if (rels.length !== 2) return undefined;
-
-   // Both relations must own FK arrays
-   if (!rels.every(r => (r.relationFromFields?.length ?? 0) > 0)) return undefined;
-
-   // One relation must target this model
-   const relToMe = rels.find(r => r.type === thisModelName);
-   if (!relToMe) return undefined;
-
-   const relOther = rels.find(r => r !== relToMe)!;
-
-   const fkA = relToMe.relationFromFields ?? [];
-   const fkB = relOther.relationFromFields ?? [];
-
-   // FK sets must be disjoint (typical for real join tables; prevents Account false positive)
-   if (hasIntersection(fkA as any, fkB as any)) return undefined;
-
-   // Extra scalars must be only FK union + whitelist
-   const fkUnion = new Set([...fkA, ...fkB]);
-   const extras = scalarNames(candidate).filter(n => !fkUnion.has(n) && !PIVOT_SCALAR_WHITELIST.has(n));
-   if (extras.length > 0) return undefined;
-
-   return relOther.type; // the true target (self-join ok: may equal thisModelName)
-}
-
-function conventionalPivotName(a: string, b: string) {
-   return [a, b].map(s => s.toLowerCase()).sort().join('_');
 }

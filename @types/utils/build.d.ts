@@ -1,4 +1,4 @@
-import { ModelDefinition } from "generator/modeler/types";
+import { ModelDefinition } from "../generator/modeler/types";
 /**
  * Build the “generated chunk” that lives between
  * // <prisma-laravel:start> … // :end

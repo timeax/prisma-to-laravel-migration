@@ -128,6 +128,7 @@ export async function generateLaravelModels(options: GeneratorOptions) {
 
    // 5) Write model files
    for (const model of models) {
+      if(model.isIgnored) continue;
       let imports = model.properties.filter(item => item.enumRef).map(item => `use ${cfg.namespace ?? 'App'}\\Enums\\${item.enumRef};`);
       //----
       if (Array.isArray(model.imports)) model.imports.push(...imports);
@@ -135,8 +136,8 @@ export async function generateLaravelModels(options: GeneratorOptions) {
       //---
       model.imports = Array.from(new Set(model.imports));
       //----
-      const content = buildModelContent(model);
-      const modelPhp = printer.printModel(model, enums, content);
+      const content = { toString() { return buildModelContent(model); } };
+      const modelPhp = printer.printModel(model, enums, content as any);
       const modelFile = path.join(modelsDir, `${model.className}.php`);
 
       !cfg.noEmit &&

@@ -8,6 +8,7 @@ import { DefaultMaps, Rule } from "./rules.js";
  * The shape returned by the generator—pure data, no rendering.
  */
 export interface Migration {
+   isIgnored: any;
    /** Table name (from dbName or model name) */
    tableName: string;
    /** Fully resolved migration lines for that table */
@@ -82,9 +83,14 @@ export class PrismaToLaravelMigrationGenerator {
 
          // d) Build the table-level utilities and append them *after* the columns
          const utilities = this.buildTableUtilities(indexes);
+         // e) Check for @silent tag in model docblock
+         const isSilent = model.documentation
+            ? /\B@silent\b/.test(model.documentation)
+            : false;
 
          return {
             tableName,
+            isIgnored: isSilent,
             definitions,
             statements: [...columns, ...utilities],
          };

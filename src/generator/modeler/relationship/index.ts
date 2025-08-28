@@ -12,7 +12,7 @@ import {
    isUniqueOn,
    PIVOT_SCALAR_WHITELIST,
 } from "./types.js";
-import { detectMorphToRelations, parseMorphOwnerDirectives } from "./morph";
+import { detectMorphToRelations, parseMorphOwnerDirectives } from "./morph.js";
 
 /* ------------------ pivot relevance (explicit M:N) ----------------------- */
 const pivotOtherEndpointFor = (
@@ -118,7 +118,7 @@ export function buildRelationsForModel(
    // object relations (belongsTo / hasOne / hasMany / belongsToMany)
    for (const f of model.fields) {
       if (f.kind !== "object" || !f.relationName) continue;
-      if (/@ignore\b/.test(f.documentation ?? "")) continue;
+      if (/@local\b/.test(f.documentation ?? "")) continue;
 
       if (f.isList) {
          const keys = extractListRelationKeys(dmmf, model, f);

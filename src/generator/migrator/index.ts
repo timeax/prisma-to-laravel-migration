@@ -118,6 +118,8 @@ export async function generateLaravelSchema(options: GeneratorOptions): Promise<
 
    // 5) Write each migration file
    migrations.forEach((mig, idx) => {
+      if (mig.isIgnored) return;  // <<<<<<<<<<<<<<<<<<<<< SKIP IGNORED
+      // Unique timestamp (index ensures uniqueness if run multiple times in a second)
       const timestamp = formatLaravelTimestamp(new Date(), idx + 1);
 
       // 1) Look for an existing migration for this table

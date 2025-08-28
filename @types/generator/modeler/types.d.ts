@@ -23,6 +23,7 @@ export interface PropertyDefinition {
     };
 }
 export interface ModelDefinition {
+    isIgnored: boolean;
     className: string;
     tableName: string;
     properties: PropertyDefinition[];

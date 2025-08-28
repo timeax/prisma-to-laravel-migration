@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { ModelDefinition, EnumDefinition } from 'generator/modeler/types';
 import { decorate, formatStub, resolveStub, StubConfig } from '../utils/utils.js';
+import { relationTemplate } from '../generator/modeler/relationship/template-builder.js';
 
 /**
  * Loads JS‐based stubs for both models and enums, and evaluates
@@ -22,7 +23,8 @@ export class StubModelPrinter {
       model: ModelDefinition,
       enums: EnumDefinition[],
       content: string,
-      dockblock: string
+      dockblock: string,
+      relationships: { toString(): string }
    ) => string;
    private enumTmpl!: (enumDef: EnumDefinition) => string;
 
@@ -61,7 +63,13 @@ export class StubModelPrinter {
          ' */'
       ].join('\n');
       //--
-      return this.modelTmpl(model, enums, content, docblock);
+      return this.modelTmpl(model, enums, content, docblock, {
+         toString() {
+            return model.relations
+               .map(r => relationTemplate(r, { useCompoships: true }))
+               .join('\n\n');
+         }
+      });
    }
 
    /** Render multiple models, each with its own `content`, separated by two newlines. */
@@ -102,7 +110,7 @@ export class StubModelPrinter {
 
       const raw = fs.readFileSync(path.resolve(stubPath), 'utf-8').trim();
       this.modelTmpl = new Function(
-         'model', 'enums', 'content', 'docblock',
+         'model', 'enums', 'content', 'docblock', 'relationships',
          `return \`${formatStub(raw)}\`;`
       ) as typeof this.modelTmpl;
 
