@@ -224,7 +224,7 @@ export class PrismaToLaravelModelGenerator {
          for (const p of properties) {
             if (p.ignore || relationNames.has(p.name)) continue;
 
-            const type = this.mapPrismaToPhpDocType(p.type, p.optional, p.isList);
+            const type = p.enumRef ? `${p.enumRef}::class` : this.mapPrismaToPhpDocType(p.type, p.optional, p.isList);
             const line = `@property ${type} $${p.name}`;
             docblockProps.push(line);
             docblockNames.add(p.name);
