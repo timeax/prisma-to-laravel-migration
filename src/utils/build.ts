@@ -58,7 +58,7 @@ export function buildModelContent(model: ModelDefinition): string {
    if (Object.keys(model.interfaces).length) {
       const lines = Object.entries(model.interfaces).map(
          ([k, v]) =>
-            `'${k}' => {${v.import ? ` import: '${v.import}',` : ""} type: '${v.type}' }`
+            `'${k}' => {${v.import ? ` 'import': '${v.import}',` : ""} 'type': '${v.type}' }`
       );
       out.push(
          "public array $interfaces = [" +
