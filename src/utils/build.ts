@@ -32,7 +32,7 @@ export function buildModelContent(model: ModelDefinition): string {
    pushArray("fillable", model.properties.filter(p => p.fillable).map(p => p.name));
    pushArray("hidden", model.properties.filter(p => p.hidden).map(p => p.name));
    pushArray("guarded", model.guarded, true);
-   pushArray("with", model.guarded);
+   pushArray("with", model.with);
 
    /* ---- Casts --------------------------------------------------------- */
    const castsLines: string[] = [];
