@@ -44,7 +44,7 @@ export class PrismaToLaravelModelGenerator {
 
          // model-level eager-loads  @with(rel1,rel2)
          const modelWith = (() => {
-            const m = modelDoc.match(/@with([^)]+)/);
+            const m = modelDoc.match(/@with\(([^)]+)\)/);
             return m ? m[1].split(",").map(s => s.trim()).filter(Boolean) : [];
          })();
 
