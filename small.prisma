@@ -44,11 +44,12 @@ model Tag {
 }
 
 // Pivot table (Prisma can't express the polymorphic side as relations; that's fine for the generator)
+///@with(tag_id)
 model Taggable {
   id             Int    @id @default(autoincrement())
   tag_id         Int
   taggable_id    Int
-  taggable_type  String
+  taggable_type  String ///@with
 
   // Normal FK to Tag for integrity
   tag Tag @relation(fields: [tag_id], references: [id])

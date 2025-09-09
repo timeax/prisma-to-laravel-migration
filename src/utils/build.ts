@@ -117,7 +117,7 @@ export function buildModelContent(model: ModelDefinition): string {
    //--- handle relationships -----------------------------------------
    out.push(...model.relations.map(r => relationTemplate(r, { useCompoships: global._config?.model?.awobaz, indent: "  " })));
    //---
-   out.push(...buildAppendAccessors(model.appends));
+   // out.push(...buildAppendAccessors(model.appends));
    /* ---- done --------------------------------------------------------- */
    return out.join("\n");
 }
