@@ -117,56 +117,63 @@ export async function generateLaravelSchema(options: GeneratorOptions): Promise<
    let printer = new StubMigrationPrinter(cfg, fallbackStubFile);
 
    // 5) Write each migration file
-   migrations.forEach((mig, idx) => {
-      if (mig.isIgnored) return;  // <<<<<<<<<<<<<<<<<<<<< SKIP IGNORED
-      // Unique timestamp (index ensures uniqueness if run multiple times in a second)
-      const timestamp = formatLaravelTimestamp(new Date(), idx + 1);
+   const active = migrations.filter(m => !m.isIgnored);
+   const padWidth = String(active.length).length; // e.g. 10 -> 2, 150 -> 3
 
-      // 1) Look for an existing migration for this table
+   active.forEach((mig, idx) => {
+      // 2) Base timestamp with padded index (01..NN or 001..NNN, etc.)
+      const now = new Date();
+      let seq = idx + 1;
+      let timestamp = formatLaravelTimestamp(now, seq, padWidth);
+
+      // 3) Reuse existing migration if present
       const existingFile = readdirSync(baseOut).find(f =>
          f.endsWith(`_create_${mig.tableName}_table.php`)
       );
 
-      // 2) Reuse it if found, otherwise generate a new timestamped name
-      const fileName = existingFile
-         ? existingFile
-         : `${timestamp}_create_${mig.tableName}_table.php`;
+      // 4) If creating new, ensure uniqueness (in case of re-runs within same second)
+      let fileName = existingFile ?? `${timestamp}_create_${mig.tableName}_table.php`;
+      let filePath = path.join(baseOut, fileName);
 
-      const filePath = path.join(baseOut, fileName);
+      while (!existingFile && existsSync(filePath)) {
+         seq += 1;
+         timestamp = formatLaravelTimestamp(now, seq, padWidth);
+         fileName = `${timestamp}_create_${mig.tableName}_table.php`;
+         filePath = path.join(baseOut, fileName);
+      }
 
-      // 3) Extract full & generated parts from your printer
+      // 5) Generate and write
       const { fullContent: content } = printer.printMigration(mig);
-
-
-      // 4) Write with markers as before
-      !cfg.noEmit &&
-         writeWithMerge(
-            filePath,
-            content,
-            'migrator',
-            cfg.overwriteExisting ?? false
-         );
+      if (!cfg.noEmit) {
+         writeWithMerge(filePath, content, 'migrator', cfg.overwriteExisting ?? false);
+      }
    });
 
    return migrations;
 }
 
+
+
+function getOutDir(generator: GeneratorConfig): string {
+   return generator.output?.value ?? "database/migrations";
+}
+
+
+
 /**
  * Format a Date into Laravel‐style prefix: YYYY_MM_DD_HHMMSS,
  * with an index to ensure uniqueness.
  */
-function formatLaravelTimestamp(date: Date, index: number): string {
-   const pad = (n: number) => n.toString().padStart(2, "0");
-   const Y = date.getFullYear();
-   const M = pad(date.getMonth() + 1);
-   const D = pad(date.getDate());
-   const h = pad(date.getHours());
-   const m = pad(date.getMinutes());
-   const s = pad(date.getSeconds());
-   const idx = index > 0 ? `_${index}` : "";
-   return `${Y}_${M}_${D}_${h}${m}${s}${idx}`;
-}
 
-function getOutDir(generator: GeneratorConfig): string {
-   return generator.output?.value ?? "database/migrations";
+function formatLaravelTimestamp(date: Date, seq: number, width: number) {
+   const p2 = (n: number) => n.toString().padStart(2, '0');
+   const Y = date.getFullYear();
+   const M = p2(date.getMonth() + 1);
+   const D = p2(date.getDate());
+   const h = p2(date.getHours());
+   const m = p2(date.getMinutes());
+   const s = p2(date.getSeconds());
+   const base = `${Y}_${M}_${D}_${h}${m}${s}`;
+   const suffix = `_${String(seq).padStart(width, '0')}`;
+   return base + suffix;
 }
