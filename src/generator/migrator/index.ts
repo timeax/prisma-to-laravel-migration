@@ -62,7 +62,8 @@ export async function generateLaravelSchema(options: GeneratorOptions): Promise<
       tablePrefix: pick('tablePrefix', ''),
       tableSuffix: pick('tableSuffix', ''),
       noEmit: pick('noEmit', false),
-      defaultMaps: pick('defaultMaps', {})
+      defaultMaps: pick('defaultMaps', {}),
+      allowUnsigned: pick('allowUnsigned', false),
    };
 
    addToConfig('migrator', cfg);

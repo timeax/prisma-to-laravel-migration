@@ -97,6 +97,8 @@ export interface MigratorConfigOverride extends LaravelGeneratorConfig {
     */
    rules?: string | Rule[];
    stubPath?: string;
+   /** Allow unsinged on non int types */
+   allowUnsigned?: boolean;
    defaultMaps?: DefaultMaps
 }
 

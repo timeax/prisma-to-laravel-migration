@@ -7,7 +7,7 @@ import {
    RelationshipOptions,
    ColumnExtras,
 } from "../../types/column-definition-types.js";
-import { getType, stripDirectives } from "../../utils/utils.js";
+import { getConfig, getType, stripDirectives } from "../../utils/utils.js";
 
 
 /**
@@ -116,7 +116,7 @@ export class ColumnDefinitionGenerator {
       };
 
       // If it's not an integer-like column, UNSIGNED must be false (even if @unsigned or id)
-      if (!isIntegerLike(field)) return false;
+      if (!getConfig('migrator', 'allowUnsigned') && !isIntegerLike(field)) return false;
 
       // IDs / generated integer keys are unsigned by default
       if (field.isId || field.isGenerated) return true;
@@ -150,7 +150,7 @@ export class ColumnDefinitionGenerator {
 
       return false;
    }
-   
+
    private mapPrismaAction(
       action: DMMF.Field["relationOnDelete"] | undefined
    ): RelationshipOptions["onDelete"] {

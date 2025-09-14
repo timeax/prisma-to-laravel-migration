@@ -4,6 +4,8 @@ import { MigrationTypes } from "../generator/migrator/migrationTypes.js";
 import { StubGroupConfig } from "types/laravel-config";
 import { NativeToMigrationTypeMap, PrismaTypes } from "../generator/migrator/column-maps.js";
 import { DefaultMaps } from "generator/migrator/rules";
+import { ModelConfig } from "generator/modeler";
+import { MigratorConfig } from "generator/migrator";
 
 /**
  * Given a Prisma field default, return the PHP code fragment
@@ -159,5 +161,38 @@ export function addToConfig(key: 'model' | 'migrator', value: any) {
    global._config[key] = value;
 }
 
+
 export { resolveStub } from './stubResolver.js'
 export { stripDirectives } from './clean.js'
+
+
+
+type GlobalCfg = {
+   model?: ModelConfig;
+   migrator?: MigratorConfig;
+};
+
+
+
+// Impl
+// Overloads
+export function getConfig<K extends keyof GlobalCfg>(
+   key: K
+): GlobalCfg[K] | undefined;
+export function getConfig<
+   K extends keyof GlobalCfg,
+   P extends keyof NonNullable<GlobalCfg[K]>
+>(
+   key: K,
+   property: P
+): NonNullable<GlobalCfg[K]>[P] | undefined;
+
+// Impl
+export function getConfig(
+   key: keyof GlobalCfg,
+   property?: string
+) {
+   const cfg = (global._config ?? {}) as GlobalCfg;
+   const section = cfg[key];
+   return property ? (section as any)?.[property] : section;
+}
