@@ -108,6 +108,17 @@ export class ColumnDefinitionGenerator {
    }
 
    public isUnsigned(model: DMMF.Model, field: DMMF.Field): boolean {
+      const isIntegerLike = (f: DMMF.Field) => {
+         const t = String(f.type).toLowerCase();                    // Prisma scalar name
+         const native = (f.nativeType?.[0]?.toLowerCase() ?? '');   // e.g. "BigInt", "UnsignedBigInt"
+         // Allow only Int/BigInt (and native types that clearly end with int)
+         return t === 'int' || t === 'bigint' || /(^|[^a-z])int(eger)?$/.test(native);
+      };
+
+      // If it's not an integer-like column, UNSIGNED must be false (even if @unsigned or id)
+      if (!isIntegerLike(field)) return false;
+
+      // IDs / generated integer keys are unsigned by default
       if (field.isId || field.isGenerated) return true;
 
       const native = field.nativeType?.[0]?.toLowerCase() ?? '';
@@ -115,7 +126,7 @@ export class ColumnDefinitionGenerator {
 
       if (/^\s*@unsigned\b/m.test(field.documentation ?? '')) return true;
 
-      // Look for the relation object that includes this field as a fromField
+      // Check FK: infer unsignedness from referenced PK (recursive), but only for integer-like refs
       const relationField = model.fields.find(
          f =>
             f.kind === 'object' &&
@@ -124,20 +135,14 @@ export class ColumnDefinitionGenerator {
             f.type
       );
 
-      if (relationField && relationField.relationFromFields && relationField.relationToFields) {
-         const index = relationField.relationFromFields.indexOf(field.name);
+      if (relationField?.relationFromFields && relationField.relationToFields) {
+         const idx = relationField.relationFromFields.indexOf(field.name);
+         if (idx !== -1) {
+            const relatedModel = this.dmmf.datamodel.models.find(m => m.name === relationField.type);
+            const referencedFieldName = relationField.relationToFields[idx];
+            const referencedField = relatedModel?.fields.find(f => f.name === referencedFieldName);
 
-         if (index !== -1) {
-            const relatedModel = this.dmmf.datamodel.models.find(
-               m => m.name === relationField.type
-            );
-
-            const referencedFieldName = relationField.relationToFields[index];
-            const referencedField = relatedModel?.fields.find(
-               f => f.name === referencedFieldName
-            );
-
-            if (referencedField) {
+            if (referencedField && isIntegerLike(referencedField)) {
                return this.isUnsigned(relatedModel as any, referencedField); // recursive
             }
          }
@@ -145,6 +150,7 @@ export class ColumnDefinitionGenerator {
 
       return false;
    }
+   
    private mapPrismaAction(
       action: DMMF.Field["relationOnDelete"] | undefined
    ): RelationshipOptions["onDelete"] {
