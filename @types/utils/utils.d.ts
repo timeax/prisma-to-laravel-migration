@@ -2,6 +2,8 @@ import { DMMF } from "@prisma/generator-helper";
 import { MigrationType } from "../types/column-definition-types";
 import { StubGroupConfig } from "types/laravel-config";
 import { DefaultMaps } from "generator/migrator/rules";
+import { ModelConfig } from "generator/modeler";
+import { MigratorConfig } from "generator/migrator";
 /**
  * Given a Prisma field default, return the PHP code fragment
  * to append to your migration column definition.
@@ -33,3 +35,9 @@ export declare function decorate(name: string, opts: NameOpts): string;
 export declare function addToConfig(key: 'model' | 'migrator', value: any): void;
 export { resolveStub } from './stubResolver.js';
 export { stripDirectives } from './clean.js';
+type GlobalCfg = {
+    model?: ModelConfig;
+    migrator?: MigratorConfig;
+};
+export declare function getConfig<K extends keyof GlobalCfg>(key: K): GlobalCfg[K] | undefined;
+export declare function getConfig<K extends keyof GlobalCfg, P extends keyof NonNullable<GlobalCfg[K]>>(key: K, property: P): NonNullable<GlobalCfg[K]>[P] | undefined;
