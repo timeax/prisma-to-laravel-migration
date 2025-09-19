@@ -22,6 +22,8 @@ export interface RelationshipOptions {
    onUpdate?: 'cascade' | 'restrict' | 'set null' | 'no action' | 'set default';
    /**Ignore for migrations */
    ignore?: boolean;
+   //--
+   local?: boolean;
 }
 
 /**

@@ -11,7 +11,9 @@ import { Migration } from "../generator/migrator/PrismaToLaravelMigrationGenerat
 export function sortMigrations(migrations: Migration[]): Migration[] {
    // 1) Build a map: tableName → Migration
    const migMap = new Map<string, Migration>(
-      migrations.map(m => [m.tableName, m])
+      migrations
+         .filter(m => !m.local)   // skip ignored models
+         .map(m => [m.tableName, m])
    );
 
    // 2) Collect “true” FKs only (skip back‐relation object fields)
@@ -28,6 +30,7 @@ export function sortMigrations(migrations: Migration[]): Migration[] {
          //  - it's the owning side (relationFromFields non-empty)
          if (
             !def.relationship ||
+            !def.relationship.local ||
             !def.relationFromFields ||
             def.relationFromFields.length === 0
          ) {

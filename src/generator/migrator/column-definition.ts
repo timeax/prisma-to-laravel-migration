@@ -88,6 +88,7 @@ export class ColumnDefinitionGenerator {
             onDelete: this.mapPrismaAction(field.relationOnDelete),
             onUpdate: this.mapPrismaAction(field.relationOnUpdate),
             ignore: isForMigrator(parseLocalDirective(field.documentation)) || (field.relationFromFields?.length ?? 0) === 0,
+            local: isForMigrator(parseLocalDirective(field.documentation)),
             fields: (field.relationFromFields as any) ?? [],
          };
 

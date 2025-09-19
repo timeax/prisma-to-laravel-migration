@@ -16,6 +16,8 @@ export interface Migration {
    statements: string[];
    /** The ColumnDefinition objects used to produce those statements */
    definitions: ColumnDefinition[];
+   /** Marks this entire model as ignored */
+   local?: boolean;
 }
 
 export class PrismaToLaravelMigrationGenerator {
@@ -89,6 +91,7 @@ export class PrismaToLaravelMigrationGenerator {
          return {
             tableName,
             isIgnored: isSilent,
+            local: isSilent,
             definitions,
             statements: [...columns, ...utilities],
          };
