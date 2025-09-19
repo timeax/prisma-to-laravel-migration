@@ -41,3 +41,23 @@ type GlobalCfg = {
 };
 export declare function getConfig<K extends keyof GlobalCfg>(key: K): GlobalCfg[K] | undefined;
 export declare function getConfig<K extends keyof GlobalCfg, P extends keyof NonNullable<GlobalCfg[K]>>(key: K, property: P): NonNullable<GlobalCfg[K]>[P] | undefined;
+export declare enum GenTarget {
+    None = 0,
+    Model = 1,
+    Migrator = 2
+}
+export declare const isForModel: (t: GenTarget) => boolean;
+export declare const isForMigrator: (t: GenTarget) => boolean;
+/**
+ * Generic parser for @local / @silent
+ * Forms supported:
+ *   @<tag>                         → defaultFlags
+ *   @<tag>(model)                  → Model
+ *   @<tag>(migrator|migration)     → Migrator
+ *   @<tag>(both|all|*)             → Model|Migrator
+ *   @<tag>(model,migrator)         → Model|Migrator
+ * Last occurrence wins if multiple appear.
+ */
+export declare function parseTargetDirective(tag: 'local' | 'silent', doc?: string, defaultFlags?: GenTarget): GenTarget;
+export declare const parseLocalDirective: (doc?: string) => GenTarget;
+export declare const parseSilentDirective: (doc?: string) => GenTarget;
