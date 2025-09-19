@@ -13,7 +13,7 @@ import {
    PIVOT_SCALAR_WHITELIST,
 } from "./types.js";
 import { detectMorphToRelations, parseMorphOwnerDirectives } from "./morph.js";
-import { isForModel, parseLocalDirective } from "utils/utils.js";
+import { isForModel, parseLocalDirective } from "../../../utils/utils.js";
 
 /* ------------------ pivot relevance (explicit M:N) ----------------------- */
 const pivotOtherEndpointFor = (

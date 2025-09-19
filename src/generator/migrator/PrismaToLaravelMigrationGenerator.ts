@@ -3,7 +3,7 @@ import { ColumnDefinitionGenerator } from "./column-definition.js";
 import { RuleResolver } from "./rule-definition.js";
 import { ColumnDefinition } from "../../types/column-definition-types.js";
 import { DefaultMaps, Rule } from "./rules.js";
-import { isForMigrator, parseSilentDirective } from "utils/utils.js";
+import { isForMigrator, parseSilentDirective } from "../../utils/utils.js";
 
 /**
  * The shape returned by the generator—pure data, no rendering.
