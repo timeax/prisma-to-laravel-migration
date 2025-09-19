@@ -3,6 +3,7 @@ import { ColumnDefinitionGenerator } from "./column-definition.js";
 import { RuleResolver } from "./rule-definition.js";
 import { ColumnDefinition } from "../../types/column-definition-types.js";
 import { DefaultMaps, Rule } from "./rules.js";
+import { isForMigrator, parseSilentDirective } from "utils/utils.js";
 
 /**
  * The shape returned by the generator—pure data, no rendering.
@@ -84,10 +85,7 @@ export class PrismaToLaravelMigrationGenerator {
          // d) Build the table-level utilities and append them *after* the columns
          const utilities = this.buildTableUtilities(indexes);
          // e) Check for @silent tag in model docblock
-         const isSilent = model.documentation
-            ? /\B@silent\b/.test(model.documentation)
-            : false;
-
+         const isSilent = isForMigrator(parseSilentDirective(model.documentation ?? ""));
          return {
             tableName,
             isIgnored: isSilent,

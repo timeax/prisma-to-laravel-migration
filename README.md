@@ -588,6 +588,7 @@ https://github.com/prisma/prisma/blob/main/packages/prisma-schema-wasm/src/__tes
 
 
 ---
+
 # Comment Directives for `schema.prisma` (Prisma → Laravel)
 
 These inline **comment directives** let you shape what the generators emit from your Prisma schema — without changing runtime schema semantics.
@@ -603,52 +604,55 @@ You can attach them either:
 
 ## What’s New
 
-* **`@local`** — *replaces* the prior `@ignore` directive. Skips generating a single **relation method** on a model.
-* **`@silent`** — marks an entire **model or enum** to be parsed but **not emitted** (no model file, no migration, no enum class).
-* **`@morph(…)`** — declares **owner-side polymorphic relations** (`morphOne`, `morphMany`, `morphToMany`, `morphedByMany`) with optional chained calls. Child-side `morphTo` remains **auto-detected** from scalar pairs like `commentable_id` + `commentable_type`.
+* **`@local`** — *replaces* the prior `@ignore` directive. Skips generating a single **relation method** on a model. Supports **scoped arguments**.
+* **`@silent`** — marks an entire **model or enum** to be parsed but **not emitted** (no model file, no migration, no enum class). Supports **scoped arguments**.
+* **`@morph(...)`** — declares **owner-side polymorphic relations** (`morphOne`, `morphMany`, `morphToMany`, `morphedByMany`) with optional chained calls. Child-side `morphTo` remains **auto-detected** from scalar pairs like `commentable_id` + `commentable_type`.
 
 ---
 
 ## Summary of Directives
 
-| Directive                                                                                   | Scope                                  | Purpose                                                                              |
-| ------------------------------------------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------ |
-| `@fillable`                                                                                 | Field **or** `@fillable{...}` on model | Adds field(s) to `$fillable`.                                                        |
-| `@hidden`                                                                                   | Field **or** `@hidden{...}` on model   | Adds field(s) to `$hidden`.                                                          |
-| `@guarded`                                                                                  | Field **or** `@guarded{...}` on model  | Adds field(s) to `$guarded`.                                                         |
-| `@cast{…}`                                                                                  | Field                                  | Adds a cast to `$casts`.                                                             |
-| `@type{ import:'…', type:'…' }`                                                             | Field                                  | Exposes a PHP/interface type hint for downstream tooling.                            |
-| `@with` / `@with(a,b,…)`                                                                    | Field / Model                          | Eager-load relations via `$with`.                                                    |
-| `@trait:…` `@extend:…` `@implements:…` `@observer:…` `@factory:…` `@touch{…}` `@appends{…}` | Model                                  | Class customization & extras.                                                        |
-| **`@local` (new)**                                                                          | **Relation Field**                     | **Skip generating that specific relation method** on the model (replaces `@ignore`). |
-| **`@silent` (new)**                                                                         | **Model**                              | **Do not emit files** for this entity (model + migration / enum).                    |
-| **`@morph(…)` (new)**                                                                       | **Model**                              | Declare owner-side polymorphic relations; child-side `morphTo` is auto.              |
-> **Syntax options**  
- • Inline:  
-  `balance Decimal /// @fillable @cast{decimal:2}`  
- • Block above field:  
-  `/// @hidden`  
- • Model list:  
-  `/// @fillable{name,balance}`  
- • Model eager‑load:  
-  `/// @with(posts,roles)`
- • **Traits / implements**:  
-   `/// @trait:Illuminate\Auth\Authenticatable`  
-   `/// @implements:Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract`  
- • **Observers / factory**:  
-   `/// @observer:App\Observers\UserObserver`  
-   `/// @factory:UserFactory`  
- • **Touches / appends**:  
-   `/// @touch{company,profile}`  
-   `/// @appends{full_name,age}`
+| Directive                                                                                   | Scope                                  | Purpose                                                                             |
+| ------------------------------------------------------------------------------------------- | -------------------------------------- | ----------------------------------------------------------------------------------- |
+| `@fillable`                                                                                 | Field **or** `@fillable{...}` on model | Adds field(s) to `$fillable`.                                                       |
+| `@hidden`                                                                                   | Field **or** `@hidden{...}` on model   | Adds field(s) to `$hidden`.                                                         |
+| `@guarded`                                                                                  | Field **or** `@guarded{...}` on model  | Adds field(s) to `$guarded`.                                                        |
+| `@cast{…}`                                                                                  | Field                                  | Adds a cast to `$casts`.                                                            |
+| `@type{ import:'…', type:'…' }`                                                             | Field                                  | Exposes a PHP/interface type hint for downstream tooling.                           |
+| `@with` / `@with(a,b,…)`                                                                    | Field / Model                          | Eager-load relations via `$with`.                                                   |
+| `@trait:…` `@extend:…` `@implements:…` `@observer:…` `@factory:…` `@touch{…}` `@appends{…}` | Model                                  | Class customization & extras.                                                       |
+| **`@local` (new)**                                                                          | **Relation Field**                     | **Skip generating that specific relation method** on the model. Replaces `@ignore`. |
+| **`@silent` (new)**                                                                         | **Model / Enum**                       | **Do not emit files** for this entity (model + migration / enum).                   |
+| **`@morph(…)` (new)**                                                                       | **Model**                              | Declare owner-side polymorphic relations; child-side `morphTo` is auto.             |
 
-> **Tip:** `@local` is about **model code only**. It does *not* suppress columns or foreign keys in migrations. Use `@silent` to suppress an entire entity’s output.
+> **Syntax options**
+> • Inline: `balance Decimal /// @fillable @cast{decimal:2}`
+> • Block above field: `/// @hidden`
+> • Model list: `/// @fillable{name,balance}`
+> • Model eager‑load: `/// @with(posts,roles)`
+> • **Traits / implements**:
+> `/// @trait:Illuminate\Auth\Authenticatable`
+> `/// @implements:Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract`
+> • **Observers / factory**:
+> `/// @observer:App\Observers\UserObserver`
+> `/// @factory:UserFactory`
+> • **Touches / appends**:
+> `/// @touch{company,profile}`
+> `/// @appends{full_name,age}`
 
 ---
 
 ## `@local` — Skip a Single Relation Method (replaces `@ignore`)
 
-Use `@local` on a **relation field** to prevent generating that one PHP relation method in the model class. This directly replaces older docs/examples that used `@ignore`.
+Use `@local` on a **relation field** to prevent generating that one PHP relation method in the model class.
+
+**Forms:**
+
+* `@local` → **both Model + Migrator**
+* `@local(model)` → Model only
+* `@local(migrator)` or `@local(migration)` → Migrator only
+* `@local(both)` / `@local(all)` / `@local(*)` → Both
+* `@local(model,migrator)` → Both
 
 ```prisma
 model Account {
@@ -658,15 +662,21 @@ model Account {
 }
 ```
 
-**Effect:** the `user()` method is *not* written to `Account.php`. Other methods (and migrations) are unaffected.
-
-> If you previously wrote `/// @ignore` on relation fields, switch to `/// @local`.
+**Effect:** the `user()` method is *not* written to `Account.php`. If scope includes Migrator, the migration also skips generating the FK/constraint. Other methods remain unaffected.
 
 ---
 
 ## `@silent` — Ignore a Whole Model or Enum at Emission Time
 
-Apply `/// @silent` inside a **model or enum** docblock to mark it as **non-emitting**. The generator still parses it (so references/validations work), but **no files** are written for that entity.
+Apply `/// @silent` inside a **model or enum** docblock to mark it as **non-emitting**.
+
+**Forms:**
+
+* `@silent` → **both Model + Migrator**
+* `@silent(model)` → suppress only the model file
+* `@silent(migrator)` / `@silent(migration)` → suppress only the migration
+* `@silent(both)` / `@silent(all)` / `@silent(*)` → suppress both
+* `@silent(model,migrator)` → suppress both
 
 ```prisma
 /// @silent
@@ -676,9 +686,10 @@ model AuditTrail {
 }
 ```
 
-**Effect:** no Eloquent model and no migration file are emitted for `AuditTrail`. For enums, no PHP enum is emitted.
+**Effect:** no Eloquent model and/or no migration file are emitted for `AuditTrail` depending on the scope. For enums, no PHP enum is emitted.
 
 ---
+
 
 ## Polymorphic Relations
 

@@ -7,6 +7,7 @@ import {
 import { PrismaTypes } from "../migrator/column-maps.js";
 import { RelationDefinition } from "./relationship/types";
 import { buildRelationsForModel } from "./relationship/index.js";
+import { isForModel, parseSilentDirective } from "utils/utils";
 
 /**
  * Build ModelDefinition[] + EnumDefinition[] from your DMMF.
@@ -260,7 +261,7 @@ export class PrismaToLaravelModelGenerator {
             touches,
             traits,
             imports,
-            isIgnored: hasToken('silent', modelDoc),
+            isIgnored: isForModel(parseSilentDirective(modelDoc)),
             extends: parentClass !== 'Model' ? parentClass : undefined,
             docblockProps
          };

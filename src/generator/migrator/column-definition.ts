@@ -7,7 +7,7 @@ import {
    RelationshipOptions,
    ColumnExtras,
 } from "../../types/column-definition-types.js";
-import { getConfig, getType, stripDirectives } from "../../utils/utils.js";
+import { getConfig, getType, isForMigrator, parseLocalDirective, stripDirectives } from "../../utils/utils.js";
 
 
 /**
@@ -87,9 +87,11 @@ export class ColumnDefinitionGenerator {
             references: (field.relationToFields as any) ?? 'id',
             onDelete: this.mapPrismaAction(field.relationOnDelete),
             onUpdate: this.mapPrismaAction(field.relationOnUpdate),
-            ignore: (field.relationFromFields?.length ?? 0) === 0,
+            ignore: isForMigrator(parseLocalDirective(field.documentation)) || (field.relationFromFields?.length ?? 0) === 0,
             fields: (field.relationFromFields as any) ?? [],
          };
+
+         base.ignore = (base as ColumnExtras).relationship?.ignore;
       }
 
       // Discriminate default

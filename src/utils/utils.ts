@@ -196,3 +196,73 @@ export function getConfig(
    const section = cfg[key];
    return property ? (section as any)?.[property] : section;
 }
+
+
+// Shared flags for both directives
+export enum GenTarget {
+   None = 0,
+   Model = 1 << 0,
+   Migrator = 1 << 1,
+}
+
+export const isForModel = (t: GenTarget) => (t & GenTarget.Model) !== 0;
+export const isForMigrator = (t: GenTarget) => (t & GenTarget.Migrator) !== 0;
+
+/**
+ * Generic parser for @local / @silent
+ * Forms supported:
+ *   @<tag>                         → defaultFlags
+ *   @<tag>(model)                  → Model
+ *   @<tag>(migrator|migration)     → Migrator
+ *   @<tag>(both|all|*)             → Model|Migrator
+ *   @<tag>(model,migrator)         → Model|Migrator
+ * Last occurrence wins if multiple appear.
+ */
+export function parseTargetDirective(
+   tag: 'local' | 'silent',
+   doc?: string,
+   defaultFlags: GenTarget = GenTarget.Model
+): GenTarget {
+   if (!doc) return GenTarget.None;
+
+   const rx = new RegExp(`@${tag}(?:\\s*\\(([^)]*)\\))?`, 'gi');
+   let m: RegExpExecArray | null;
+   let lastArgs: string | undefined;
+   let saw = false;
+
+   while ((m = rx.exec(doc))) {
+      saw = true;
+      lastArgs = (m[1] ?? '').trim();
+   }
+   if (!saw) return GenTarget.None;
+
+   if (!lastArgs) return defaultFlags;
+
+   const parts = lastArgs
+      .split(/[,\s]+/)
+      .map(s => s.trim().toLowerCase())
+      .filter(Boolean);
+
+   let flags = GenTarget.None;
+
+   for (const p of parts) {
+      if (p === 'model' || p === 'models' || p === 'modeler') {
+         flags |= GenTarget.Model;
+      } else if (p === 'migrator' || p === 'migration' || p === 'migrations') {
+         flags |= GenTarget.Migrator;
+      } else if (p === 'both' || p === 'all' || p === '*') {
+         flags |= GenTarget.Model | GenTarget.Migrator;
+      }
+   }
+
+   return flags === GenTarget.None ? defaultFlags : flags;
+}
+
+// Convenience wrappers with their defaults:
+// @local           → Model
+// @silent          → Model|Migrator
+export const parseLocalDirective = (doc?: string) =>
+   parseTargetDirective('local', doc, GenTarget.Model);
+
+export const parseSilentDirective = (doc?: string) =>
+   parseTargetDirective('silent', doc, GenTarget.Model | GenTarget.Migrator);
