@@ -7,7 +7,7 @@ import {
 import { PrismaTypes } from "../migrator/column-maps.js";
 import { RelationDefinition } from "./relationship/types";
 import { buildRelationsForModel } from "./relationship/index.js";
-import { isForModel, parseSilentDirective } from "utils/utils";
+import { isForModel, parseSilentDirective } from "../../utils/utils.js";
 
 /**
  * Build ModelDefinition[] + EnumDefinition[] from your DMMF.
