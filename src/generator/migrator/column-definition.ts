@@ -81,16 +81,17 @@ export class ColumnDefinitionGenerator {
 
          base.ignore = (field.relationFromFields?.length ?? 0) === 0;
          base.migrationType = 'relation'; // special marker
+         base.local = isForMigrator(parseLocalDirective(field.documentation)),
 
-         (base as ColumnExtras).relationship = {
-            on: tableName,
-            references: (field.relationToFields as any) ?? 'id',
-            onDelete: this.mapPrismaAction(field.relationOnDelete),
-            onUpdate: this.mapPrismaAction(field.relationOnUpdate),
-            ignore: isForMigrator(parseLocalDirective(field.documentation)) || (field.relationFromFields?.length ?? 0) === 0,
-            local: isForMigrator(parseLocalDirective(field.documentation)),
-            fields: (field.relationFromFields as any) ?? [],
-         };
+            (base as ColumnExtras).relationship = {
+               on: tableName,
+               references: (field.relationToFields as any) ?? 'id',
+               onDelete: this.mapPrismaAction(field.relationOnDelete),
+               onUpdate: this.mapPrismaAction(field.relationOnUpdate),
+               ignore: isForMigrator(parseLocalDirective(field.documentation)) || (field.relationFromFields?.length ?? 0) === 0,
+               local: isForMigrator(parseLocalDirective(field.documentation)),
+               fields: (field.relationFromFields as any) ?? [],
+            };
 
          base.ignore = (base as ColumnExtras).relationship?.ignore;
       }

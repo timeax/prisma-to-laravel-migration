@@ -1,86 +1,63 @@
 import { Migration } from "../generator/migrator/PrismaToLaravelMigrationGenerator";
 
-enum GenTarget { None = 0, Model = 1 << 0, Migrator = 1 << 1 }
-
-// normalize anything like: true | 'migrator' | 'both' | flags | { migrator?: boolean }
-function isLocalForMigrator(x: any): boolean {
-   const v = x?.local;
-   if (!v) return false;
-   if (v === true) return true;                         // blanket local
-   if (typeof v === "string") {
-      const s = v.toLowerCase();
-      return s === "migrator" || s === "both" || s === "all" || s === "*";
-   }
-   if (typeof v === "number") return (v & GenTarget.Migrator) !== 0;
-   if (typeof v === "object") return !!v.migrator || !!v.both || !!v.all;
-   return false;
-}
-
 /**
- * Topologically sort migrations so FK parents come before children.
- * - Skips migrations marked local for migrator.
- * - Skips FK edges from defs marked local for migrator.
- * - Considers only owning-side FKs.
- * - Dedupes edges; throws on cycles.
+ * Reorders migrations so that any table with foreign‐key dependencies
+ * is always migrated *after* the tables it references.
  */
-export function sortMigrations(input: Migration[]): Migration[] {
-   // 0) keep only migrations that will actually emit for migrator
-   const migrations = (input || []).filter(m => !isLocalForMigrator(m));
+export function sortMigrations(migrations: Migration[]): Migration[] {
+   // ⬅️ NEW: drop migrations silenced for the migrator
+   migrations = migrations.filter(m => !m.local);
 
-   // 1) table -> migration
-   const migMap = new Map<string, Migration>(migrations.map(m => [m.tableName, m]));
+   // 1) Build a map: tableName → Migration
+   const migMap = new Map<string, Migration>(
+      migrations.map(m => [m.tableName, m])
+   );
 
-   // 2) child -> Set<parent>
+   // 2) Collect “true” FKs only (skip back‐relation object fields)
    const rawDeps = new Map<string, Set<string>>();
-   for (const { tableName } of migrations) rawDeps.set(tableName, new Set());
+   for (const { tableName } of migrations) {
+      rawDeps.set(tableName, new Set());
+   }
 
    for (const m of migrations) {
-      for (const def of (m as any).definitions ?? []) {
-         // skip defs silenced for migrator
-         if (isLocalForMigrator(def)) continue;
+      for (const def of m.definitions) {
+         // ⬅️ NEW: skip FK edges silenced at column level
+         if (def.local) continue;
 
-         const rel = (def as any).relationship;
-         if (!rel) continue;
+         // owning side: has relationFromFields
+         if (
+            !def.relationship ||
+            !def.relationFromFields ||
+            def.relationFromFields.length === 0
+         ) {
+            continue;
+         }
 
-         // Owning side? prefer relationship.fields; fallback to relationFromFields if carried through
-         const ownFields: readonly string[] =
-            Array.isArray(rel.fields) ? rel.fields :
-               Array.isArray((def as any).relationFromFields) ? (def as any).relationFromFields :
-                  [];
-
-         if (ownFields.length === 0) continue;
-
-         // Parent table: allow several keys to be safe
-         const parent: string | undefined = rel.on || rel.table || rel.target;
-         if (!parent) continue;
-         if (parent === m.tableName) continue;     // self-edge ignored
-         if (!migMap.has(parent)) continue;        // external table not in this batch
-
-         rawDeps.get(m.tableName)!.add(parent);    // Set dedupes edges
+         const parent = def.relationship.on;
+         if (!migMap.has(parent) || m.tableName === parent) continue; // skip external/self
+         rawDeps.get(m.tableName)!.add(parent);
       }
    }
 
-   // 3) Build adjacency & in-degree
-   const adj = new Map<string, Set<string>>();
+   // 3) Build adjacency (parent → dependents) and in-degree (table → count)
+   const adj = new Map<string, string[]>();
    const inDegree = new Map<string, number>();
+
    for (const tbl of migMap.keys()) {
-      adj.set(tbl, new Set());
+      adj.set(tbl, []);
       inDegree.set(tbl, 0);
    }
+
    for (const [child, parents] of rawDeps) {
       for (const parent of parents) {
-         if (parent === child) continue;
-         if (!adj.get(parent)!.has(child)) {
-            adj.get(parent)!.add(child);
-            inDegree.set(child, (inDegree.get(child) || 0) + 1);
-         }
+         if (parent !== child) adj.get(parent)!.push(child);
+         inDegree.set(child, inDegree.get(child)! + 1);
       }
    }
 
    // 4) Kahn’s algorithm
-   const queue = Array.from(inDegree.entries())
-      .filter(([, d]) => d === 0)
-      .map(([t]) => t);
+   const queue: string[] = [];
+   for (const [tbl, deg] of inDegree) if (deg === 0) queue.push(tbl);
 
    const sorted: Migration[] = [];
    while (queue.length) {
@@ -88,24 +65,26 @@ export function sortMigrations(input: Migration[]): Migration[] {
       sorted.push(migMap.get(tbl)!);
 
       for (const child of adj.get(tbl)!) {
-         const nd = (inDegree.get(child) || 0) - 1;
+         const nd = inDegree.get(child)! - 1;
          inDegree.set(child, nd);
          if (nd === 0) queue.push(child);
       }
    }
 
-   // 5) Cycle detection
+   // 5) Cycle check
    if (sorted.length !== migrations.length) {
-      const stuck = Array.from(inDegree.entries())
-         .filter(([, d]) => d > 0)
-         .map(([t]) => t);
-      const edgeDump = Array.from(rawDeps.entries())
-         .map(([c, ps]) => `${c} ← [${Array.from(ps).join(", ")}]`)
-         .join("; ");
+      const cycle = migrations
+         .map(m => m.tableName)
+         .filter(t => !sorted.some(s => s.tableName === t));
       throw new Error(
-         `Cycle detected in migration dependencies. Stuck: ${stuck.join(", ")}. Edges: ${edgeDump}`
+         `Cycle detected in migration dependencies: ${cycle.join(' → ')}`
       );
    }
 
+   console.log(
+      '\n📦 Sorted Migration Tables:\n' +
+      sorted.map((item, i) => ` ${i + 1}. ${item.tableName}`).join('\n') +
+      '\n'
+   );
    return sorted;
 }
