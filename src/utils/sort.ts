@@ -42,9 +42,6 @@ export function sortMigrations(input: Migration[]): Migration[] {
          const rel = (def as any).relationship;
          if (!rel) continue;
 
-         // ignore back-relations (your extras usually set: relationship.ignore = true)
-         if (rel.ignore === true) continue;
-
          // Owning side? prefer relationship.fields; fallback to relationFromFields if carried through
          const ownFields: readonly string[] =
             Array.isArray(rel.fields) ? rel.fields :

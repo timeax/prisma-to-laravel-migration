@@ -1,10 +1,9 @@
 import { Migration } from "../generator/migrator/PrismaToLaravelMigrationGenerator";
 /**
- * Reorders migrations so that any table with foreign‐key dependencies
- * is always migrated *after* the tables it references.
- *
- * @param migrations  Array of Migration objects (with tableName & definitions[])
- * @returns           New array sorted in dependency order
- * @throws            If there’s a cycle in the relationships
+ * Topologically sort migrations so FK parents come before children.
+ * - Skips migrations marked local for migrator.
+ * - Skips FK edges from defs marked local for migrator.
+ * - Considers only owning-side FKs.
+ * - Dedupes edges; throws on cycles.
  */
-export declare function sortMigrations(migrations: Migration[]): Migration[];
+export declare function sortMigrations(input: Migration[]): Migration[];
