@@ -226,7 +226,7 @@ export function defaultBuild(def: ColumnDefinition, defaultMaps: DefaultMaps): {
    def.ignore && (def.ignore = true); // leave ignore as set
    let snippet: string[] = [];
    if (!def.ignore) { // always render relations
-      if (def.migrationType === 'relation' && def.relationship && !def.relationship.ignore) {
+      if (!def.local && def.migrationType === 'relation' && def.relationship && !def.relationship.ignore) {
          const { on, references = "id", onDelete, onUpdate, fields } = def.relationship;
 
          let foreignKey: string;
