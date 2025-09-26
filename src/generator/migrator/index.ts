@@ -127,15 +127,15 @@ export async function generateLaravelSchema(options: GeneratorOptions): Promise<
       let seq = idx + 1;
       let timestamp = formatLaravelTimestamp(now, seq, padWidth);
 
-      // 3) Reuse existing migration if present
+      // 3) Check for an existing file (old path before sort/repath)
       const existingFile = readdirSync(baseOut).find(f =>
          f.endsWith(`_create_${mig.tableName}_table.php`)
       );
+      const existingPath = existingFile ? path.join(baseOut, existingFile) : undefined;
 
-      // 4) If creating new, ensure uniqueness (in case of re-runs within same second)
+      // 4) If creating new, ensure uniqueness (re-runs within same second)
       let fileName = existingFile ?? `${timestamp}_create_${mig.tableName}_table.php`;
       let filePath = path.join(baseOut, fileName);
-
       while (!existingFile && existsSync(filePath)) {
          seq += 1;
          timestamp = formatLaravelTimestamp(now, seq, padWidth);
@@ -143,10 +143,16 @@ export async function generateLaravelSchema(options: GeneratorOptions): Promise<
          filePath = path.join(baseOut, fileName);
       }
 
-      // 5) Generate and write
+      // 5) Generate and write (merge from old path, write to new path)
       const { fullContent: content } = printer.printMigration(mig);
       if (!cfg.noEmit) {
-         writeWithMerge(filePath, content, 'migrator', cfg.overwriteExisting ?? false);
+         writeWithMerge(
+            filePath,
+            content,
+            'migrator',
+            cfg.overwriteExisting ?? false,
+            existingPath // <-- pass old path here
+         );
       }
    });
 
