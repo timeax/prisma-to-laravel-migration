@@ -130,6 +130,7 @@ const rememberTokenRule: Rule = {
 /** Foreign ID shorthand, plus ignore its related back‐reference */
 const foreignIdRule: Rule = {
    test: (def, allDefs) =>
+      !def.local &&
       intTypes.includes(
          def.migrationType as any
       ) &&
