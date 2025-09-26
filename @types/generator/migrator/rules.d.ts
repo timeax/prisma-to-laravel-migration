@@ -11,7 +11,6 @@ export interface Render {
     column: string;
     snippet: string[];
 }
-/** combine/_merge is handled via the two morphs rules above, skip the merge rule */
 /**
  * Fallback renderer: respects def.ignore
  */

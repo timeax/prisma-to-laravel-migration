@@ -2,6 +2,7 @@ import { DMMF } from "@prisma/generator-helper";
 import { ColumnDefinition } from "../../types/column-definition-types";
 import { MigrationTypes } from "./migrationTypes.js";
 import { formatDefault } from "../../utils/utils.js";
+import { run } from "jest";
 
 export type DefaultMapFn = (field: DMMF.Field) => string;
 
@@ -129,17 +130,20 @@ const rememberTokenRule: Rule = {
 
 /** Foreign ID shorthand, plus ignore its related back‐reference */
 const foreignIdRule: Rule = {
-   test: (def, allDefs) =>
-      !def.local &&
-      intTypes.includes(
+   test: (def, allDefs) => {
+      if (def.local) return false;  // NEW: skip if silenced at column level
+      return intTypes.includes(
          def.migrationType as any
       ) &&
-      def.name.endsWith("_id") &&
-      allDefs.some(
-         item =>
-            item.relationFromFields?.length === 1 &&
-            item.relationFromFields.includes(def.name)
-      ),
+         def.name.endsWith("_id") &&
+         allDefs.some(
+            item =>
+               item.relationFromFields?.length === 1 &&
+               item.relationFromFields.includes(def.name)
+               && item.local !== true // NEW: skip if silenced at relation level
+         )
+   }
+   ,
    render: (def, allDefs, _d, defaultMaps) => {
       // Find the related field which contains the relationship metadata
       const ref = allDefs.find(
@@ -218,7 +222,18 @@ const nullableMorphsRule: Rule = {
 };
 
 /** combine/_merge is handled via the two morphs rules above, skip the merge rule */
-
+function runNormal(def: ColumnDefinition, defaultMaps: DefaultMaps, snippet: string[]): void {
+   const argsStr = def.args?.length
+      ? `, ${def.args.map(a => JSON.stringify(a)).join(", ")}`
+      : "";
+   let line = `$table->${def.migrationType}('${def.name}'${argsStr})`;
+   if (def.unsigned) line += "->unsigned()";
+   if (def.nullable) line += "->nullable()";
+   if (def.hasDefaultValue) line += formatDefault(def, defaultMaps);
+   if (def.comment) line += `->comment(${JSON.stringify(def.comment)})`;
+   line += ";";
+   snippet.push(line);
+}
 /**
  * Fallback renderer: respects def.ignore
  */
@@ -226,11 +241,11 @@ export function defaultBuild(def: ColumnDefinition, defaultMaps: DefaultMaps): {
    def.ignore && (def.ignore = true); // leave ignore as set
    let snippet: string[] = [];
    if (!def.ignore) { // always render relations
-      if (!def.local && def.migrationType === 'relation' && def.relationship && !def.relationship.ignore) {
+      if (def.local || def.relationship?.local) runNormal(def, defaultMaps, snippet);
+      else if (def.migrationType === 'relation' && def.relationship && !def.relationship.ignore) {
          const { on, references = "id", onDelete, onUpdate, fields } = def.relationship;
 
          let foreignKey: string;
-
          // Detect composite
          if (Array.isArray(fields) && fields.length > 1) {
             const cols = fields.map(f => `'${f}'`).join(', ');
@@ -252,18 +267,7 @@ export function defaultBuild(def: ColumnDefinition, defaultMaps: DefaultMaps): {
 
          foreignKey += ';';
          snippet.push(foreignKey);
-      } else {
-         const argsStr = def.args?.length
-            ? `, ${def.args.map(a => JSON.stringify(a)).join(", ")}`
-            : "";
-         let line = `$table->${def.migrationType}('${def.name}'${argsStr})`;
-         if (def.unsigned) line += "->unsigned()";
-         if (def.nullable) line += "->nullable()";
-         if (def.hasDefaultValue) line += formatDefault(def, defaultMaps);
-         if (def.comment) line += `->comment(${JSON.stringify(def.comment)})`;
-         line += ";";
-         snippet.push(line);
-      }
+      } else runNormal(def, defaultMaps, snippet);
    }
 
    return { column: def.name, snippet };
