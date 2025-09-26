@@ -7,12 +7,37 @@ import path from 'path';
 import { spawn } from "child_process";
 import * as dmf from '@prisma/internals';
 import { pathToFileURL } from "url";
+import { createRequire } from "module";
+import { extname } from "path";
 
 // helper once:
 export async function loadConfig(configPath: string) {
-  const url = pathToFileURL(configPath).href;      // ✅ file:///C:/...
-  const mod = await import(url);
-  return (mod.default ?? mod);                      // works for CJS or ESM
+   return await loadConfigUniversal(configPath);                // works for CJS or ESM
+}
+
+
+async function loadConfigUniversal(configPath: string) {
+   const ext = extname(configPath).toLowerCase();
+   const url = pathToFileURL(configPath).href;
+   const req = createRequire(import.meta.url);
+
+   if (ext === ".mjs") {
+      const mod = await import(url);
+      return mod.default ?? mod;
+   }
+   if (ext === ".cjs") {
+      const mod = req(configPath);
+      return (mod as any).default ?? mod;
+   }
+
+   // .js is ambiguous under "type":"module": try ESM import first, then CJS require
+   try {
+      const mod = await import(url);
+      return (mod as any).default ?? mod;
+   } catch {
+      const mod = req(configPath);
+      return (mod as any).default ?? mod;
+   }
 }
 
 // utility: load/merge ALL *.prisma files under prisma/ (schema first, then the rest)
