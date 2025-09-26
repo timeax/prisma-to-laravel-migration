@@ -6,8 +6,10 @@ import { fileURLToPath } from 'url';
 import * as dmf from '@prisma/internals';
 import { generateLaravelSchema } from '../generator/migrator/index.js';
 import { generateLaravelModels } from '../generator/modeler/index.js';
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readdirSync, readFileSync } from 'fs';
 import { spawn } from 'child_process';
+import { runGenerators } from './generate.js';
+import { sortMigrations } from 'utils/sort.js';
 
 type StubType = 'migration' | 'model' | 'enum';
 
@@ -39,6 +41,8 @@ generator ${name} {
 }
 `;
 }
+
+
 //
 // init
 //
@@ -205,84 +209,207 @@ cli
 //
 // proxy to Prisma generate
 //
-
-cli
-   .command('gen')
-   .description('Run Prisma generate, or skip it (--skipGenerate), then run Laravel generators')
-   .option('--config <path>', 'Path to prisma-laravel config file')
-   .option('--skipGenerate', 'Only run the Laravel generators (no Prisma generate)')
+cli.command("gen")
+   .description("Run Prisma generate, or skip it (--skipGenerate), then run Laravel generators")
+   .option("--config <path>", "Path to prisma-laravel config file")
+   .option("--skipGenerate", "Only run the Laravel generators (no Prisma generate)")
    .action(async (opts: { config?: string; skipGenerate?: boolean }) => {
       const configPath = opts.config
          ? path.resolve(process.cwd(), opts.config)
-         : path.resolve(process.cwd(), 'prisma-laravel.config.js');
+         : path.resolve(process.cwd(), "prisma-laravel.config.js");
 
       if (!existsSync(configPath)) {
          console.error(`❌ Config file not found: ${configPath}`);
          process.exit(1);
       }
 
-      const cfgMod = await import(configPath);
-      const cfg = cfgMod.default ?? cfgMod;
-
-      if (!cfg.generator?.config) {
-         console.error('❌ `generator.config` is required in your config.');
+      try {
+         await runGenerators(configPath, !!opts.skipGenerate);
+         console.log("✅ Generation complete.");
+      } catch (e: any) {
+         console.error("❌ Gen failed:", e?.message ?? e);
          process.exit(1);
-      }
-
-      const schemaPrismaPath = cfg.schemaPath
-         ? path.resolve(process.cwd(), cfg.schemaPath)
-         : path.resolve(process.cwd(), 'prisma/schema.prisma');
-
-      if (!existsSync(schemaPrismaPath)) {
-         console.error(`❌ Schema not found: ${schemaPrismaPath}`);
-         process.exit(1);
-      }
-
-      const run = async () => {
-         const datamodel = readFileSync(schemaPrismaPath, 'utf-8');
-         const sdk = (dmf as any).default ?? dmf;
-         const { dmmf } = await sdk.getDMMF({ datamodel });
-
-         await generateLaravelSchema({
-            dmmf,
-            //@ts-ignore
-            generator: { config: cfg.generator.config },
-            otherGenerators: [],
-            schemaPath: schemaPrismaPath,
-            datasources: [],
-            datamodel,
-            version: '',
-         });
-
-         await generateLaravelModels({
-            dmmf,
-            //@ts-ignore
-            generator: { config: cfg.generator.config },
-            otherGenerators: [],
-            schemaPath: schemaPrismaPath,
-            datasources: [],
-            datamodel,
-            version: '',
-         });
-      };
-
-      if (opts.skipGenerate) {
-         await run();
-      } else {
-         const prisma = spawn('npx', ['prisma', 'generate'], {
-            stdio: 'inherit',
-            shell: true,
-         });
-
-         prisma.on('exit', (code) => {
-            if (code !== 0) process.exit(code);
-            run().catch(e => {
-               console.error('❌ Gen failed:', e.message ?? e);
-               process.exit(1);
-            });
-         });
       }
    });
 
+function orderKey(fname: string): string {
+   // 1) numeric prefix: 001_, 0001_, 12_, etc.
+   const mNum = /^(\d{1,})_/.exec(fname);
+   if (mNum) {
+      // pad to fixed width so lexicographic sort works
+      return mNum[1].padStart(10, "0") + "_" + fname;
+   }
+
+   // 2) laravel timestamp: 2025_03_18_123456_create_...
+   const mTs = /^(\d{4}_\d{2}_\d{2}_\d{6})_/.exec(fname);
+   if (mTs) return mTs[1] + "_" + fname;
+
+   // 3) fallback to fname
+   return "zzz_" + fname;
+}
+
+function extractTable(fname: string): string {
+   // *_create_{table}_table.php
+   return (/_create_(.+?)_table\.php$/.exec(fname)?.[1]) ?? fname;
+}
+
+
+cli.command("list")
+   .description("List generated files. Use --migrations/--models/--enums and --sorted for migration DB order (uses backup baselines).")
+   .option("--config <path>", "Path to prisma-laravel config file")
+   .option("--migrations", "List migrations")
+   .option("--models", "List models")
+   .option("--enums", "List enums")
+   .option("--sorted", "For migrations: show tables in dependency order (requires backups present)")
+   .action(async (opts: { config?: string; migrations?: boolean; models?: boolean; enums?: boolean; sorted?: boolean }) => {
+      const configPath = opts.config
+         ? path.resolve(process.cwd(), opts.config)
+         : path.resolve(process.cwd(), "prisma-laravel.config.js");
+
+      if (!existsSync(configPath)) {
+         console.error(`❌ Config file not found: ${configPath}`);
+         process.exit(1);
+      }
+      const cfgMod = await import(configPath);
+      const cfg = cfgMod.default ?? cfgMod;
+
+      const out = {
+         migrations: path.resolve(process.cwd(), cfg.output?.migrations ?? "database/migrations"),
+         models: path.resolve(process.cwd(), cfg.output?.models ?? "app/Models"),
+         enums: path.resolve(process.cwd(), cfg.modeler?.outputEnumDir ?? cfg.output?.enums ?? "app/Enums"),
+         backups: path.resolve(process.cwd(), ".prisma-laravel/backups"),
+      };
+
+      const wantAll = !opts.migrations && !opts.models && !opts.enums;
+
+      const ls = (dir: string, pred: (f: string) => boolean = () => true) =>
+         existsSync(dir) ? readdirSync(dir).filter(pred) : [];
+
+      if (wantAll || opts.migrations) {
+         const files = ls(out.migrations, f => f.endsWith(".php"));
+         console.log("\n📦 Migrations:");
+         files.forEach(f => console.log(" -", f));
+
+         // inside your `list` command, replacing the old --sorted block:
+         if (opts.sorted) {
+            const bakDir = path.join(out.backups, path.relative(process.cwd(), out.migrations));
+            const bakFiles = existsSync(bakDir) ? readdirSync(bakDir).filter(f => f.endsWith(".php")) : [];
+            if (!bakFiles.length) {
+               console.log("   (no backups found — cannot show sorted list)");
+            } else {
+               const ordered = [...bakFiles].sort((a, b) => orderKey(a).localeCompare(orderKey(b)));
+               console.log("\n   🔢 Backup order (by filename):");
+               ordered.forEach((f, i) => console.log(`   ${i + 1}. ${extractTable(f)}  (${f})`));
+            }
+         }
+      }
+
+      if (wantAll || opts.models) {
+         const files = ls(out.models, f => f.endsWith(".php"));
+         console.log("\n📦 Models:");
+         files.forEach(f => console.log(" -", f));
+      }
+
+      if (wantAll || opts.enums) {
+         const files = ls(out.enums, f => f.endsWith(".php"));
+         console.log("\n📦 Enums:");
+         files.forEach(f => console.log(" -", f));
+      }
+
+      console.log("");
+   });
+
+
+cli.command("clean")
+   .description("Delete generated files & backups, then re-run generate. Filter by type or names.")
+   .option("--config <path>", "Path to prisma-laravel config file")
+   .option("--types <list>", "Comma-separated: migration,model,enum", (v: string) => v.split(",").map(s => s.trim().toLowerCase()))
+   .option("--names <list>", "Comma-separated base names (tables/models/enums)", (v: string) => v.split(",").map(s => s.trim()))
+   .option("--skipGenerate", "Do not re-run generation after cleanup")
+   .action(async (opts: { config?: string; types?: string[]; names?: string[]; skipGenerate?: boolean }) => {
+      const configPath = opts.config
+         ? path.resolve(process.cwd(), opts.config)
+         : path.resolve(process.cwd(), "prisma-laravel.config.js");
+
+      if (!existsSync(configPath)) {
+         console.error(`❌ Config file not found: ${configPath}`);
+         process.exit(1);
+      }
+      const cfgMod = await import(configPath);
+      const cfg = cfgMod.default ?? cfgMod;
+
+      const out = {
+         migrations: path.resolve(process.cwd(), cfg.output?.migrations ?? "database/migrations"),
+         models: path.resolve(process.cwd(), cfg.output?.models ?? "app/Models"),
+         enums: path.resolve(process.cwd(), cfg.modeler?.outputEnumDir ?? cfg.output?.enums ?? "app/Enums"),
+         backups: path.resolve(process.cwd(), ".prisma-laravel/backups"),
+      };
+
+      const want = new Set((opts.types?.length ? opts.types : ["migration", "model", "enum"]) as ("migration" | "model" | "enum")[]);
+      const names = new Set((opts.names ?? []).map(s => s.toLowerCase()));
+
+      const rm = async (p: string) => { try { await fs.unlink(p); } catch { } };
+      const list = (dir: string) => (existsSync(dir) ? readdirSync(dir) : []);
+
+      // helpers to match names
+      const matchMig = (fname: string) => {
+         if (!names.size) return true;
+         const m = /_create_(.+?)_table\.php$/.exec(fname);
+         const table = (m?.[1] ?? "").toLowerCase();
+         return table && names.has(table);
+      };
+      const matchModel = (fname: string) => {
+         if (!names.size) return true;
+         const base = fname.replace(/\.php$/, "").toLowerCase();
+         return names.has(base);
+      };
+      const matchEnum = matchModel;
+
+      // delete generated + backups
+      if (want.has("migration")) {
+         const files = list(out.migrations).filter(f => f.endsWith(".php") && matchMig(f));
+         for (const f of files) await rm(path.join(out.migrations, f));
+         // backups under .prisma-laravel/backups/<relPath>
+         const bakDir = path.join(out.backups, path.relative(process.cwd(), out.migrations));
+         if (existsSync(bakDir)) {
+            const bakFiles = readdirSync(bakDir).filter(f => f.endsWith(".php") && matchMig(f));
+            for (const f of bakFiles) await rm(path.join(bakDir, f));
+         }
+         console.log(`🧹 Removed ${files.length} migrations${names.size ? " (filtered)" : ""}`);
+      }
+
+      if (want.has("model")) {
+         const files = list(out.models).filter(f => f.endsWith(".php") && matchModel(f));
+         for (const f of files) await rm(path.join(out.models, f));
+         const bakDir = path.join(out.backups, path.relative(process.cwd(), out.models));
+         if (existsSync(bakDir)) {
+            const bakFiles = readdirSync(bakDir).filter(f => f.endsWith(".php") && matchModel(f));
+            for (const f of bakFiles) await rm(path.join(bakDir, f));
+         }
+         console.log(`🧹 Removed ${files.length} models${names.size ? " (filtered)" : ""}`);
+      }
+
+      if (want.has("enum")) {
+         const files = list(out.enums).filter(f => f.endsWith(".php") && matchEnum(f));
+         for (const f of files) await rm(path.join(out.enums, f));
+         const bakDir = path.join(out.backups, path.relative(process.cwd(), out.enums));
+         if (existsSync(bakDir)) {
+            const bakFiles = readdirSync(bakDir).filter(f => f.endsWith(".php") && matchEnum(f));
+            for (const f of bakFiles) await rm(path.join(bakDir, f));
+         }
+         console.log(`🧹 Removed ${files.length} enums${names.size ? " (filtered)" : ""}`);
+      }
+
+      // re-run generators (full) unless skipped
+      if (!opts.skipGenerate) {
+         try {
+            await runGenerators(configPath, false);
+            console.log("✅ Regenerated.");
+         } catch (e: any) {
+            console.error("❌ Regenerate failed:", e?.message ?? e);
+            process.exit(1);
+         }
+      }
+   });
 
 cli.parse(process.argv);
