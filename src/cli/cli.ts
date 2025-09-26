@@ -8,7 +8,7 @@ import { generateLaravelSchema } from '../generator/migrator/index.js';
 import { generateLaravelModels } from '../generator/modeler/index.js';
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import { spawn } from 'child_process';
-import { runGenerators } from './generate.js';
+import { loadConfig, runGenerators } from './generate.js';
 import { sortMigrations } from 'utils/sort.js';
 
 type StubType = 'migration' | 'model' | 'enum';
@@ -270,7 +270,7 @@ cli.command("list")
          console.error(`❌ Config file not found: ${configPath}`);
          process.exit(1);
       }
-      const cfgMod = await import(configPath);
+      const cfgMod = await loadConfig(configPath);
       const cfg = cfgMod.default ?? cfgMod;
 
       const out = {
@@ -335,7 +335,7 @@ cli.command("clean")
          console.error(`❌ Config file not found: ${configPath}`);
          process.exit(1);
       }
-      const cfgMod = await import(configPath);
+      const cfgMod = await loadConfig(configPath);
       const cfg = cfgMod.default ?? cfgMod;
 
       const out = {

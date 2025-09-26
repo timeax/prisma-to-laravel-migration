@@ -6,6 +6,14 @@ import fs from 'fs/promises';
 import path from 'path';
 import { spawn } from "child_process";
 import * as dmf from '@prisma/internals';
+import { pathToFileURL } from "url";
+
+// helper once:
+export async function loadConfig(configPath: string) {
+  const url = pathToFileURL(configPath).href;      // ✅ file:///C:/...
+  const mod = await import(url);
+  return (mod.default ?? mod);                      // works for CJS or ESM
+}
 
 // utility: load/merge ALL *.prisma files under prisma/ (schema first, then the rest)
 async function loadMergedDatamodel(schemaPrismaPath: string): Promise<string> {
@@ -23,7 +31,7 @@ async function loadMergedDatamodel(schemaPrismaPath: string): Promise<string> {
 
 // reusable runner
 export async function runGenerators(configPath: string, skipPrismaGenerate = false) {
-   const cfgMod = await import(configPath);
+   const cfgMod = await loadConfig(configPath);
    const cfg = cfgMod.default ?? cfgMod;
 
    if (!cfg.generator?.config) {
