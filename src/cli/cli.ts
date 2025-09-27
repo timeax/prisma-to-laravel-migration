@@ -316,13 +316,13 @@ cli.command("list")
    });
 
 cli.command("clean")
-   .description("Delete generated files & backups, then re-run generate. Filter by type or names.")
+   .description("Delete generated files & backups (driven by .bak), then re-run generate.")
    .option("--config <path>", "Path to prisma-laravel config file")
-   .option("--types <list>", "Comma-separated: migration,model,enum", (v: string) =>
-      v.split(",").map(s => s.trim().toLowerCase())
+   .option("--types <list>", "Comma-separated: migration,model,enum",
+      (v: string) => v.split(",").map(s => s.trim().toLowerCase())
    )
-   .option("--names <list>", "Comma-separated base names (tables/models/enums)", (v: string) =>
-      v.split(",").map(s => s.trim())
+   .option("--names <list>", "Comma-separated base names (tables/models/enums)",
+      (v: string) => v.split(",").map(s => s.trim())
    )
    .option("--skipGenerate", "Do not re-run generation after cleanup")
    .option("--dry-run", "Show what would be removed, but do not delete anything")
@@ -358,7 +358,11 @@ cli.command("clean")
       const names = new Set((opts.names ?? []).map(s => s.toLowerCase()));
       const dry = !!opts.dryRun;
 
-      const rm = async (p: string) => { try { await fs.unlink(p); } catch { } };
+      // ---------- helpers ----------
+      const rmIfExists = async (p: string): Promise<boolean> => {
+         if (!p || !existsSync(p)) return false;
+         try { await fs.unlink(p); return true; } catch { return false; }
+      };
 
       const listRecursive = async (dir: string): Promise<string[]> => {
          if (!existsSync(dir)) return [];
@@ -366,7 +370,7 @@ cli.command("clean")
          const stack: string[] = [dir];
          while (stack.length) {
             const d = stack.pop()!;
-            for (const entry of readdirSync(d, { withFileTypes: true })) {
+            for (const entry of readdirSync(d, { withFileTypes: true }) as any) {
                const full = path.join(d, entry.name);
                if (entry.isDirectory()) stack.push(full);
                else out.push(full);
@@ -375,14 +379,38 @@ cli.command("clean")
          return out;
       };
 
+      const pruneEmptyDirs = async (root: string) => {
+         if (!existsSync(root)) return;
+         // post-order DFS: remove dir if empty
+         const walk = async (dir: string): Promise<boolean> => {
+            const entries = readdirSync(dir, { withFileTypes: true }) as any[];
+            let allRemoved = true;
+            for (const e of entries) {
+               const full = path.join(dir, e.name);
+               if (e.isDirectory()) {
+                  const removed = await walk(full);
+                  if (!removed) allRemoved = false;
+               } else {
+                  allRemoved = false; // file still there
+               }
+            }
+            if (allRemoved) {
+               try { await fs.rmdir(dir); return true; } catch { return false; }
+            }
+            return false;
+         };
+         await walk(root);
+      };
+
       const isBak = (f: string) => f.endsWith(".bak");
       const stripBak = (p: string) => p.replace(/\.bak$/i, "");
 
+      // name filters operate on the GENERATED basename (without .bak)
       const matchMig = (basenameGenerated: string) => {
          if (!names.size) return true;
          const m = /_create_(.+?)_table\.php$/.exec(basenameGenerated);
          const table = (m?.[1] ?? "").toLowerCase();
-         return (table && names.has(table)) as boolean;
+         return !!table && names.has(table);
       };
       const matchModelOrEnum = (basenameGenerated: string) => {
          if (!names.size) return true;
@@ -405,7 +433,7 @@ cli.command("clean")
          const plan = bakFiles
             .map(bakPath => {
                const relWithBak = path.relative(bakDir, bakPath);
-               const relGen = stripBak(relWithBak);         // -> generated filename
+               const relGen = stripBak(relWithBak);
                const genPath = path.join(outDir, relGen);
                return { bakPath, genPath, baseGen: path.basename(relGen) };
             })
@@ -423,18 +451,23 @@ cli.command("clean")
                console.log(`[dry-run] rm ${bakPath}`);
                continue;
             }
-            await rm(genPath);
-            await rm(bakPath);
-            removed++;
+            const genRemoved = await rmIfExists(genPath);  // ✅ count only if generated file existed & got removed
+            await rmIfExists(bakPath);                     // always attempt to remove backup
+            if (genRemoved) removed++;
          }
 
          console.log(`🧹 Removed ${removed} ${kind}${removed === 1 ? "" : "s"}${names.size ? " (filtered)" : ""}`);
       }
 
+      // ---------- do the work ----------
       if (want.has("migration")) await cleanByType("migration", out.migrations, matchMig);
       if (want.has("model")) await cleanByType("model", out.models, matchModelOrEnum);
       if (want.has("enum")) await cleanByType("enum", out.enums, matchModelOrEnum);
 
+      // prune empty backup directories
+      if (!dry) await pruneEmptyDirs(out.backups);
+
+      // re-run generators unless skipped
       if (!opts.skipGenerate) {
          try {
             await runGenerators(configPath, false);
