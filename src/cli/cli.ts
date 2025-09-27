@@ -3,13 +3,9 @@ import { Command } from 'commander';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import * as dmf from '@prisma/internals';
-import { generateLaravelSchema } from '../generator/migrator/index.js';
-import { generateLaravelModels } from '../generator/modeler/index.js';
-import { existsSync, readdirSync, readFileSync } from 'fs';
-import { spawn } from 'child_process';
-import { loadConfig, runGenerators } from './generate.js';
-import { sortMigrations } from 'utils/sort.js';
+import { existsSync, readdirSync } from 'fs';
+import { loadConfig } from '../utils/config.js';
+import { runGenerators } from './generate.js';
 
 type StubType = 'migration' | 'model' | 'enum';
 

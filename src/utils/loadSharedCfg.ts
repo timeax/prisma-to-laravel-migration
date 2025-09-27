@@ -2,6 +2,7 @@
 import fs from "fs";
 import { LaravelSharedConfig } from "types/laravel-config";
 import path from "path";
+import { loadConfig } from "./config.js";
 /** ---------------- shared-config loader ---------------- */
 export async function loadSharedConfig(schemaDir: string): Promise<LaravelSharedConfig> {
   const envOverride = process.env.PRISMA_LARAVEL_CFG;
@@ -12,7 +13,7 @@ export async function loadSharedConfig(schemaDir: string): Promise<LaravelShared
 
   try {
     await fs.accessSync(cfgPath);
-    const mod = await import(cfgPath);
+    const mod = await loadConfig(cfgPath);
     return (mod.default ?? mod) as LaravelSharedConfig;
   } catch (err) {
     console.error((err as Error).message);
