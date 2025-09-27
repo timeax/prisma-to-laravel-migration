@@ -1,11 +1,10 @@
-// top of file
 import { readdirSync, existsSync } from "fs";
-import { generateLaravelSchema } from '../generator/migrator/index.js';
-import { generateLaravelModels } from '../generator/modeler/index.js';
-import fs from 'fs/promises';
-import path from 'path';
+import { generateLaravelSchema } from "../generator/migrator/index.js";
+import { generateLaravelModels } from "../generator/modeler/index.js";
+import fs from "fs/promises";
+import path from "path";
 import { spawn } from "child_process";
-import * as dmf from '@prisma/internals';
+import * as dmf from "@prisma/internals";
 import { loadConfig } from "../utils/config.js";
 
 // utility: load/merge ALL *.prisma files under prisma/ (schema first, then the rest)
@@ -16,40 +15,57 @@ async function loadMergedDatamodel(schemaPrismaPath: string): Promise<string> {
       ...entries.filter(f => f === "schema.prisma"),
       ...entries.filter(f => f !== "schema.prisma").sort(),
    ];
-   const chunks = await Promise.all(
-      order.map(f => fs.readFile(path.join(schemaDir, f), "utf-8"))
-   );
+   const chunks = await Promise.all(order.map(f => fs.readFile(path.join(schemaDir, f), "utf-8")));
    return chunks.join("\n\n");
+}
+
+/** extract our generator blocks' configs right from the datamodel */
+async function getLaravelGeneratorConfigs(datamodel: string) {
+   const sdk = (dmf as any).default ?? dmf;
+   const { generators } = await sdk.getConfig({ datamodel });
+
+   const findCfg = (provider: string) =>
+      (generators ?? []).find((g: any) => (g.provider?.value ?? "") === provider)?.config ?? {};
+
+   const migCfg = findCfg("prisma-laravel-migrations") as Record<string, string>;
+   const modCfg = findCfg("prisma-laravel-models") as Record<string, string>;
+
+   return { migCfg, modCfg };
 }
 
 // reusable runner
 export async function runGenerators(configPath: string, skipPrismaGenerate = false) {
-   const cfgMod = await loadConfig(configPath);
-   const cfg = cfgMod.default ?? cfgMod;
-
-   if (!cfg.generator?.config) {
-      throw new Error("`generator.config` is required in your config.");
+   // Optional config file ONLY to override schemaPath
+   let schemaPrismaPath = path.resolve(process.cwd(), "prisma/schema.prisma");
+   if (existsSync(configPath)) {
+      const cfgMod = await loadConfig(configPath);
+      const cfg = (cfgMod as any).default ?? cfgMod;
+      if (cfg?.schemaPath) {
+         schemaPrismaPath = path.resolve(process.cwd(), cfg.schemaPath);
+      }
    }
-
-   const schemaPrismaPath = cfg.schemaPath
-      ? path.resolve(process.cwd(), cfg.schemaPath)
-      : path.resolve(process.cwd(), "prisma/schema.prisma");
 
    if (!existsSync(schemaPrismaPath)) {
       throw new Error(`Schema not found: ${schemaPrismaPath}`);
    }
 
    const doRun = async () => {
-      // 👇 merge *.prisma files in prisma/ (schema first)
+      // 1) merge *.prisma into one datamodel
       const datamodel = await loadMergedDatamodel(schemaPrismaPath);
-      const sdk = (dmf as any).default ?? dmf;
-      const { dmmf } = await sdk.getDMMF({ datamodel });
 
-      // Laravel migrations
+      // 2) read generator *configs* from the schema itself
+      const { migCfg, modCfg } = await getLaravelGeneratorConfigs(datamodel);
+
+      // 3) build DMMF once
+      const sdk = (dmf as any).default ?? dmf;
+      const dmmf = await sdk.getDMMF({ datamodel });
+
+      // 4) run Laravel migrations generator
       await generateLaravelSchema({
          dmmf,
-         //@ts-ignore
-         generator: { config: cfg.generator.config },
+         // pass the migrations block config directly
+         // @ts-ignore
+         generator: { config: migCfg },
          otherGenerators: [],
          schemaPath: schemaPrismaPath,
          datasources: [],
@@ -57,11 +73,12 @@ export async function runGenerators(configPath: string, skipPrismaGenerate = fal
          version: "",
       });
 
-      // Laravel models/enums
+      // 5) run Laravel models/enums generator
       await generateLaravelModels({
          dmmf,
-         //@ts-ignore
-         generator: { config: cfg.generator.config },
+         // pass the models block config directly
+         // @ts-ignore
+         generator: { config: modCfg },
          otherGenerators: [],
          schemaPath: schemaPrismaPath,
          datasources: [],
@@ -78,7 +95,7 @@ export async function runGenerators(configPath: string, skipPrismaGenerate = fal
             stdio: "inherit",
             shell: true,
          });
-         prisma.on("exit", (code) => (code !== 0 ? reject(new Error(`prisma generate exited ${code}`)) : resolve()));
+         prisma.on("exit", code => (code !== 0 ? reject(new Error(`prisma generate exited ${code}`)) : resolve()));
       });
       await doRun();
    }

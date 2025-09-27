@@ -14,7 +14,7 @@ import { buildModelContent } from "../dist/utils/build.js";
 
    // 2) Build the DMMF
    const dmmf = await dmf.default.getDMMF({ datamodel });
-   console.log(dmmf.datamodel);
+   console.log(dmmf.datamodel, await dmf.default.getConfig({ datamodel }));
 
    // 3) Generate migrations (doesn't write files)
    await gg.generateLaravelSchema({
