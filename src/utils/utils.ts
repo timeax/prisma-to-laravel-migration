@@ -266,3 +266,27 @@ export const parseLocalDirective = (doc?: string) =>
 
 export const parseSilentDirective = (doc?: string) =>
    parseTargetDirective('silent', doc, GenTarget.Model | GenTarget.Migrator);
+
+export const listFrom = (doc: string, tag: string): string[] => {
+  const out: string[] = [];
+
+  // @tag{ ... }
+  const braceRe = new RegExp(`@${tag}\\{([\\s\\S]*?)\\}`, "gi");
+  for (let m; (m = braceRe.exec(doc)); ) out.push(...m[1].split(","));
+
+  // @tag( ... )
+  const parenRe = new RegExp(`@${tag}\\(([^)]*)\\)`, "gi");
+  for (let m; (m = parenRe.exec(doc)); ) out.push(...m[1].split(","));
+
+  // @tag: a,b,c   (until newline)
+  const colonRe = new RegExp(`@${tag}\\s*:\\s*([^\\r\\n]+)`, "gi");
+  for (let m; (m = colonRe.exec(doc)); ) out.push(...m[1].split(","));
+
+  // normalize
+  const seen = new Set<string>();
+  const cleaned: string[] = [];
+  for (const s of out.map(x => x.trim()).filter(Boolean)) {
+    if (!seen.has(s)) { seen.add(s); cleaned.push(s); }
+  }
+  return cleaned;
+};

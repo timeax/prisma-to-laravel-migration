@@ -640,6 +640,10 @@ You can attach them either:
 > `/// @touch{company,profile}`
 > `/// @appends{full_name,age}`
 
+> **Note:** Directives like `@fillable`, `@hidden`, `@guarded`, `@with`, `@touch`, and `@appends` now support **all of the following syntaxes**:
+> - `/// @fillable{name,balance}`  
+> - `/// @fillable(name,balance)`  
+> - `/// @fillable: name,balance`
 ---
 
 ## `@local` — Skip a Single Relation Method (replaces `@ignore`)
