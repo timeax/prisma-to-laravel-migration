@@ -8,7 +8,7 @@ import * as dmf from "@prisma/internals";
 import { loadConfig } from "../utils/config.js";
 
 // utility: load/merge ALL *.prisma files under prisma/ (schema first, then the rest)
-async function loadMergedDatamodel(schemaPrismaPath: string): Promise<string> {
+export async function loadMergedDatamodel(schemaPrismaPath: string): Promise<string> {
    const schemaDir = path.dirname(schemaPrismaPath);
    const entries = readdirSync(schemaDir).filter(f => f.endsWith(".prisma"));
    const order = [
@@ -20,7 +20,7 @@ async function loadMergedDatamodel(schemaPrismaPath: string): Promise<string> {
 }
 
 /** extract our generator blocks' configs right from the datamodel */
-async function getLaravelGeneratorConfigs(datamodel: string) {
+export async function getLaravelGeneratorConfigs(datamodel: string) {
    const sdk = (dmf as any).default ?? dmf;
    const { generators } = await sdk.getConfig({ datamodel });
 
