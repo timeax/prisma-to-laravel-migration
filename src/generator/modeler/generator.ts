@@ -7,7 +7,7 @@ import {
 import { PrismaTypes } from "../migrator/column-maps.js";
 import { RelationDefinition } from "./relationship/types";
 import { buildRelationsForModel } from "./relationship/index.js";
-import { isForModel, listFrom, parseSilentDirective } from "../../utils/utils.js";
+import { getConfig, isForModel, listFrom, parseSilentDirective } from "../../utils/utils.js";
 
 /**
  * Build ModelDefinition[] + EnumDefinition[] from your DMMF.
@@ -22,6 +22,7 @@ export class PrismaToLaravelModelGenerator {
       // 1) Extract all Prisma enums into EnumDefinition[]
       const enums: EnumDefinition[] = this.dmmf.datamodel.enums.map((e) => ({
          name: e.name,
+         namespace: getConfig('model')?.namespace ?? 'App', // filled in by printer
          values: e.values.map((v) => v.name),
       }));
 
@@ -198,6 +199,7 @@ export class PrismaToLaravelModelGenerator {
             tableName: model.dbName ?? model.name,
             guarded,
             properties,
+            namespace: getConfig('model')?.namespace ?? 'App', // filled in by printer
             relations,
             enums,
             interfaces,

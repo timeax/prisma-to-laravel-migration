@@ -4,6 +4,7 @@ import { RelationDefinition } from "./relationship/types";
 export interface EnumDefinition {
    name: string;
    values: string[];
+   namespace: string; // for imported types
 }
 
 export interface PropertyDefinition {
@@ -26,35 +27,36 @@ export interface PropertyDefinition {
 }
 
 export interface ModelDefinition {
-  isIgnored: boolean;
-  /* Core identity */
-  className : string;
-  tableName : string;
+   isIgnored: boolean;
+   /* Core identity */
+   className: string;
+   tableName: string;
 
-  /* Columns & relations */
-  properties : PropertyDefinition[];
-  relations  : RelationDefinition[];
+   /* Columns & relations */
+   properties: PropertyDefinition[];
+   relations: RelationDefinition[];
 
-  /* Enum metadata referenced by fields */
-  enums : EnumDefinition[];
+   /* Enum metadata referenced by fields */
+   enums: EnumDefinition[];
 
-  /* Type-hint interfaces for fumeapp/modeltyper, etc. */
-  interfaces : Record<string, { import?: string; type: string }>;
+   /* Type-hint interfaces for fumeapp/modeltyper, etc. */
+   interfaces: Record<string, { import?: string; type: string }>;
 
-  /* Mass-assignment & eager-loading */
-  guarded?: string[];    //  $guarded
-  with?   : string[];    //  $with
+   /* Mass-assignment & eager-loading */
+   guarded?: string[];    //  $guarded
+   with?: string[];    //  $with
 
-  /* Generated PHP imports (filled by printer) */
-  imports?: string[];
+   /* Generated PHP imports (filled by printer) */
+   imports?: string[];
 
-  /* ── NEW model-level helpers ─────────────────────── */
-  extends?    : string
-  traits?     : string[];                           // use TraitA, TraitB
-  implements? : string[];// implements Interface as Alias
-  observer?   : string;                             // boot() -> observe(...)
-  factory?    : string;                             // static $factory = FooFactory::class
-  touches?    : string[];                           // protected $touches = [...]
-  appends?    : string[];                           // protected $appends = [...]
-  docblockProps?: string[]
+   /* ── NEW model-level helpers ─────────────────────── */
+   extends?: string
+   traits?: string[];                           // use TraitA, TraitB
+   implements?: string[];// implements Interface as Alias
+   observer?: string;                             // boot() -> observe(...)
+   factory?: string;                             // static $factory = FooFactory::class
+   touches?: string[];                           // protected $touches = [...]
+   appends?: string[];                           // protected $appends = [...]
+   docblockProps?: string[];
+   namespace: string;                            // namespace App\Models;
 }

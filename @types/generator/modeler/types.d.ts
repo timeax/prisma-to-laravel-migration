@@ -3,6 +3,7 @@ import { RelationDefinition } from "./relationship/types";
 export interface EnumDefinition {
     name: string;
     values: string[];
+    namespace: string;
 }
 export interface PropertyDefinition {
     name: string;
@@ -44,4 +45,5 @@ export interface ModelDefinition {
     touches?: string[];
     appends?: string[];
     docblockProps?: string[];
+    namespace: string;
 }
