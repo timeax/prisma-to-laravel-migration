@@ -58,7 +58,7 @@ export declare const isForMigrator: (t: GenTarget) => boolean;
  *   @<tag>(model,migrator)         → Model|Migrator
  * Last occurrence wins if multiple appear.
  */
-export declare function parseTargetDirective(tag: 'local' | 'silent', doc?: string, defaultFlags?: GenTarget): GenTarget;
+export declare function parseTargetDirective(tag: "local" | "silent", doc?: string, defaultFlags?: GenTarget): GenTarget;
 export declare const parseLocalDirective: (doc?: string) => GenTarget;
 export declare const parseSilentDirective: (doc?: string) => GenTarget;
 export declare const listFrom: (doc: string, tag: string) => string[];
