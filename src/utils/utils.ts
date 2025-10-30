@@ -219,44 +219,39 @@ export const isForMigrator = (t: GenTarget) => (t & GenTarget.Migrator) !== 0;
  * Last occurrence wins if multiple appear.
  */
 export function parseTargetDirective(
-   tag: 'local' | 'silent',
+   tag: "local" | "silent",
    doc?: string,
    defaultFlags: GenTarget = GenTarget.Model
 ): GenTarget {
    if (!doc) return GenTarget.None;
 
-   const rx = new RegExp(`@${tag}(?:\\s*\\(([^)]*)\\))?`, 'gi');
-   let m: RegExpExecArray | null;
-   let lastArgs: string | undefined;
-   let saw = false;
+   // Did we see the directive at all? (handles bare "@tag" too)
+   const sawTag = new RegExp(`@${tag}(?![\\w])`, "i").test(doc);
+   if (!sawTag) return GenTarget.None;
 
-   while ((m = rx.exec(doc))) {
-      saw = true;
-      lastArgs = (m[1] ?? '').trim();
-   }
-   if (!saw) return GenTarget.None;
-
-   if (!lastArgs) return defaultFlags;
-
-   const parts = lastArgs
-      .split(/[,\s]+/)
+   // Pull possible arguments via listFrom (supports @(...), @{...}, and @: ...)
+   const parts = listFrom(doc, tag)
       .map(s => s.trim().toLowerCase())
       .filter(Boolean);
 
-   let flags = GenTarget.None;
+   // Bare "@tag" → use defaultFlags
+   if (parts.length === 0) return defaultFlags;
 
+   // Map args → flags
+   let flags = GenTarget.None;
    for (const p of parts) {
-      if (p === 'model' || p === 'models' || p === 'modeler') {
+      if (p === "model" || p === "models" || p === "modeler") {
          flags |= GenTarget.Model;
-      } else if (p === 'migrator' || p === 'migration' || p === 'migrations') {
+      } else if (p === "migrator" || p === "migration" || p === "migrations") {
          flags |= GenTarget.Migrator;
-      } else if (p === 'both' || p === 'all' || p === '*') {
+      } else if (p === "both" || p === "all" || p === "*") {
          flags |= GenTarget.Model | GenTarget.Migrator;
       }
    }
 
    return flags === GenTarget.None ? defaultFlags : flags;
 }
+
 
 // Convenience wrappers with their defaults:
 // @local           → Model
@@ -268,25 +263,25 @@ export const parseSilentDirective = (doc?: string) =>
    parseTargetDirective('silent', doc, GenTarget.Model | GenTarget.Migrator);
 
 export const listFrom = (doc: string, tag: string): string[] => {
-  const out: string[] = [];
+   const out: string[] = [];
 
-  // @tag{ ... }
-  const braceRe = new RegExp(`@${tag}\\{([\\s\\S]*?)\\}`, "gi");
-  for (let m; (m = braceRe.exec(doc)); ) out.push(...m[1].split(","));
+   // @tag{ ... }
+   const braceRe = new RegExp(`@${tag}\\{([\\s\\S]*?)\\}`, "gi");
+   for (let m; (m = braceRe.exec(doc));) out.push(...m[1].split(","));
 
-  // @tag( ... )
-  const parenRe = new RegExp(`@${tag}\\(([^)]*)\\)`, "gi");
-  for (let m; (m = parenRe.exec(doc)); ) out.push(...m[1].split(","));
+   // @tag( ... )
+   const parenRe = new RegExp(`@${tag}\\(([^)]*)\\)`, "gi");
+   for (let m; (m = parenRe.exec(doc));) out.push(...m[1].split(","));
 
-  // @tag: a,b,c   (until newline)
-  const colonRe = new RegExp(`@${tag}\\s*:\\s*([^\\r\\n]+)`, "gi");
-  for (let m; (m = colonRe.exec(doc)); ) out.push(...m[1].split(","));
+   // @tag: a,b,c   (until newline)
+   const colonRe = new RegExp(`@${tag}\\s*:\\s*([^\\r\\n]+)`, "gi");
+   for (let m; (m = colonRe.exec(doc));) out.push(...m[1].split(","));
 
-  // normalize
-  const seen = new Set<string>();
-  const cleaned: string[] = [];
-  for (const s of out.map(x => x.trim()).filter(Boolean)) {
-    if (!seen.has(s)) { seen.add(s); cleaned.push(s); }
-  }
-  return cleaned;
+   // normalize
+   const seen = new Set<string>();
+   const cleaned: string[] = [];
+   for (const s of out.map(x => x.trim()).filter(Boolean)) {
+      if (!seen.has(s)) { seen.add(s); cleaned.push(s); }
+   }
+   return cleaned;
 };

@@ -35,7 +35,7 @@ export async function writeWithMerge(
 
    theirs = (await doFormat(theirs)) as string;
    const base = await doFormat(existsSync(bakOld) ? readFileSync(bakOld, "utf-8") : null);
-   const mine = await doFormat(existsSync(readPath) ? readFileSync(readPath, "utf-8") : null) ?? "";
+   const mine = await doFormat(existsSync(readPath) ? readFileSync(readPath, "utf-8") : null);
 
    const moved = readPath !== filePath;
 
@@ -46,12 +46,14 @@ export async function writeWithMerge(
    };
 
    // 1) First run: no existing file
-   if (mine === null) {
+   // 1b) now this branch is reachable and handles true first-run (no current file)
+   if (mine == null) {
       writeFileSync(filePath, theirs, "utf-8");
       writeFileSync(bakNew, theirs, "utf-8");
       cleanupOld();
       return;
    }
+
 
    // 2) Up-to-date
    if (mine === theirs) {
@@ -62,10 +64,11 @@ export async function writeWithMerge(
       return;
    }
 
-   // 3) Generator unchanged, user edited
+   // 3) Generator unchanged, user edited (or file missing but backup exists)
    if (theirs === base) {
-      // keep user edits; move file if needed; refresh baseline
-      if (moved) writeFileSync(filePath, mine, "utf-8");
+      const destMissing = !existsSync(filePath);
+      // keep user edits if present; otherwise rehydrate from theirs
+      if (moved || destMissing) writeFileSync(filePath, (mine ?? theirs), "utf-8");
       writeFileSync(bakNew, theirs, "utf-8");
       cleanupOld();
       return;
@@ -79,13 +82,14 @@ export async function writeWithMerge(
       return;
    }
 
-   // 5) Real divergence: diff3 merge
+   // 5) Real divergence: diff3 merge (be null-safe on mine/base)
    const mergedLines = diff3.merge(
-      mine.split(/\r?\n/),
+      (mine ?? "").split(/\r?\n/),
       (base ?? "").split(/\r?\n/),
       theirs.split(/\r?\n/),
       { stringSeparator: "\n" }
    ).result;
+
    const mergedText = mergedLines.join("\n");
 
    if (/^(<{7}|={7}|>{7})/m.test(mergedText)) {

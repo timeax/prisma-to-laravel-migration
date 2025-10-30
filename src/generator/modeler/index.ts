@@ -122,7 +122,7 @@ export async function generateLaravelModels(options: GeneratorOptions) {
             enumFile,
             enumPhp,
             'model',
-            cfg.overwriteExisting ?? false
+            cfg.overwriteExisting ?? true
          );
    }
 
@@ -145,7 +145,7 @@ export async function generateLaravelModels(options: GeneratorOptions) {
             modelFile,
             modelPhp,
             'model',
-            cfg.overwriteExisting ?? false
+            cfg.overwriteExisting ?? true
          );
    }
 

@@ -150,7 +150,7 @@ export async function generateLaravelSchema(options: GeneratorOptions): Promise<
             filePath,
             content,
             'migrator',
-            cfg.overwriteExisting ?? false,
+            cfg.overwriteExisting ?? true,
             existingPath // <-- pass old path here
          );
       }

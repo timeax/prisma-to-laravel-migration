@@ -24,7 +24,6 @@ export function resolveStub(
    /* ---------- required root dir ---------- */
    if (!cfg?.stubDir) return;                                    // <— no stubDir? abort
    const root = path.resolve(process.cwd(), cfg.stubDir, type);
-
    /* ---------- A) direct per-table override ---------- */
    const direct = path.join(root, `${table}.stub`);
    if (existsSync(direct)) return direct;
