@@ -36,7 +36,7 @@ model Account {
     email          String? /// @fillable  // now doubles as the FK to EmailOwner.email
     user_id        BigInt /// @fillable
     type           AccountType /// @fillable
-    password       String /// @hidden @fillable
+    password       String @unique /// @hidden @fillable
     remember_token String? /// @hidden
 
     // 2-factor
@@ -151,9 +151,9 @@ model Account {
 
     labComments LabComment[]
 
-    @@unique([user_id, type]) // keep: one account per type per user
+    @@unique([user_id, type], map: "uniquw") // keep: one account per type per user
     @@index([user_id, email]) // keep: fast guard-scoped lookups
-    @@index([type])
+    @@index([lang_id, email])
     @@map("accounts")
 }
 

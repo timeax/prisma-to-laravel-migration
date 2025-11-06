@@ -16,7 +16,7 @@ import { getConfig, getType, isForMigrator, parseLocalDirective, stripDirectives
 export class ColumnDefinitionGenerator {
    // private storage for each model’s column definitions
    #columns: Record<string, ColumnDefinition[]> = {};
-
+   #indexes: Record<string, string[]> = {};
    // build a mapping from tableName → ColumnDefinition[]
    #build(): Record<string, ColumnDefinition[]> {
       return this.dmmf.datamodel.models.reduce((map, model) => {

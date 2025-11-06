@@ -2,7 +2,6 @@ import { DMMF } from "@prisma/generator-helper";
 import { ColumnDefinition } from "../../types/column-definition-types";
 import { MigrationTypes } from "./migrationTypes.js";
 import { formatDefault } from "../../utils/utils.js";
-import { run } from "jest";
 
 export type DefaultMapFn = (field: DMMF.Field) => string;
 
@@ -227,6 +226,8 @@ function runNormal(def: ColumnDefinition, defaultMaps: DefaultMaps, snippet: str
       ? `, ${def.args.map(a => JSON.stringify(a)).join(", ")}`
       : "";
    let line = `$table->${def.migrationType}('${def.name}'${argsStr})`;
+   if(def.isUnique) line += "->unique()";
+   if (def.isIndexed) line += "->index()";
    if (def.unsigned) line += "->unsigned()";
    if (def.nullable) line += "->nullable()";
    if (def.hasDefaultValue) line += formatDefault(def, defaultMaps);
