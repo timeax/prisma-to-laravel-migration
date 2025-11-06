@@ -77,7 +77,8 @@ export class ColumnDefinitionGenerator {
       if (field.kind === 'object' && field.relationName) {
          const modelName = field.type;  // target model
          const relatedModel = this.dmmf.datamodel.models.find(m => m.name === modelName);
-         const tableName = relatedModel?.dbName ?? modelName;
+         const { tablePrefix: prefix = '', tableSuffix: suffix = '' } = getConfig('migrator') || {};
+         const tableName = prefix + (relatedModel?.dbName ?? modelName) + suffix;
 
          base.ignore = (field.relationFromFields?.length ?? 0) === 0;
          base.migrationType = 'relation'; // special marker

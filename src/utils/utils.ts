@@ -178,7 +178,8 @@ type GlobalCfg = {
 // Overloads
 export function getConfig<K extends keyof GlobalCfg>(
    key: K
-): GlobalCfg[K] | undefined;
+): GlobalCfg[K];
+
 export function getConfig<
    K extends keyof GlobalCfg,
    P extends keyof NonNullable<GlobalCfg[K]>
