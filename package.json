@@ -1,6 +1,6 @@
 {
   "name": "prisma-laravel-migrate",
-  "version": "0.2.11",
+  "version": "3.0",
   "description": "Generate laravel migrations and/or models using prisma files",
   "bin": {
     "prisma-laravel-migrations": "./dist/cli/migrator.index.js",
@@ -33,7 +33,7 @@
     "gen:laravel": "node scripts/gen-laravel.js",
     "build": "rm -rf dist @types && tsc",
     "commit-if-needed": "git diff --quiet || git add . && git commit -m \"Release commit before publish\"",
-    "release": "npm run build && npm run commit-if-needed && npm version patch && npm publish",
+    "release": "npm run build && npm run commit-if-needed && npm publish && npm version patch",
     "dev": "tsc --watch",
     "install:dev": "npm run build && npm link",
     "uninstall:dev": "npm unlink"

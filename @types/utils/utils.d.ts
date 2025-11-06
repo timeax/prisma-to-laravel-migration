@@ -39,7 +39,7 @@ type GlobalCfg = {
     model?: ModelConfig;
     migrator?: MigratorConfig;
 };
-export declare function getConfig<K extends keyof GlobalCfg>(key: K): GlobalCfg[K] | undefined;
+export declare function getConfig<K extends keyof GlobalCfg>(key: K): GlobalCfg[K];
 export declare function getConfig<K extends keyof GlobalCfg, P extends keyof NonNullable<GlobalCfg[K]>>(key: K, property: P): NonNullable<GlobalCfg[K]>[P] | undefined;
 export declare enum GenTarget {
     None = 0,
