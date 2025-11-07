@@ -1,3387 +1,714 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// ─────────────────────────────────────────────────────────
+// FortiPlugin (userless) + Authors + Plugin Issues wired in
+// ─────────────────────────────────────────────────────────
 
 datasource db {
   provider = "mysql"
-  url      = "url"
+  url      = "pat"
 }
 
 generator migrations {
-  provider = "prisma-laravel-migrations"
-  stubDir  = "./prisma/stubs"
-  outputDir = "database/migrations"
+  provider    = "prisma-laravel-migrations"
+  outputDir   = "./database/migrations"
+  tablePrefix = "scpl_"
 }
 
 generator models {
-  provider = "prisma-laravel-models"
-  stubDir  = "./prisma/stubs"
-  outputDir     = "app/Models"
-  outputEnumDir = "app/Enums"
+  provider      = "prisma-laravel-models"
+  outputDir     = "src/Models"
+  outputEnumDir = "src/Enums"
+  namespace     = "Timeax\\FortiPlugin"
+  stubDir       = "prisma/stubs"
+  tablePrefix   = "scpl_"
 }
-/// @extend:Illuminate\Foundation\Auth\User
-/// @trait:App\Lib\Notifications\Concerns\Notifiable
-/// @trait:App\Traits\HasTeamRolesAndPermissions
-/// @trait:App\Traits\FileAccessChecks
-/// @trait:App\Traits\HasRouteAccess
-/// @trait:App\Traits\DetectsGuard
-/// @trait:Laravel\Sanctum\HasApiTokens
-/// @appemds:{e_mail, alias}
-model Account {
-    id BigInt @id @default(autoincrement())
 
-    name           String? /// @fillable
-    email          String? /// @fillable  // now doubles as the FK to EmailOwner.email
-    user_id        BigInt /// @fillable
-    type           AccountType /// @fillable
-    password       String @unique /// @hidden @fillable
-    remember_token String? /// @hidden
-
-    // 2-factor
-    twofa_secret     String? /// @hidden
-    twofa_enabled_at DateTime? /// @fillable
-    twofa_enabled    Boolean?  @default(false) /// @fillable
-
-    // localisation / prefs
-    lang_id     BigInt? /// @fillable
-    currency_id BigInt? /// @fillable
-    country_id  BigInt? /// @fillable
-    state_id    BigInt? /// @fillable
-
-    status ModelStatus @default(inactive) /// @fillable
-
-    // finance
-    balance Decimal? @db.Decimal(12, 2) /// @fillable
-    phones  Phone[]
-
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt
-
-    // ─ relations
-    user     User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
-    lang     Language?       @relation(fields: [lang_id], references: [id])
-    currency Currency?       @relation(fields: [currency_id], references: [id])
-    country  Country?        @relation(fields: [country_id], references: [id])
-    state    State?          @relation(fields: [state_id], references: [id])
-    settings AccountSetting?
-
-    // Email ownership: Account.email -> EmailOwner.email (unique)
-    owner EmailOwner? @relation("email_ownership", fields: [email], references: [email], onDelete: Restrict)
-
-    discountCodes DiscountCode[]
-
-    addresses   Address[]
-    orders      Order[]
-    services    ServiceUser[]
-    transaction Transaction[]
-    discounts   UserDiscount[]
-    carts       Cart[]
-    cartLogs    CartBagLog[]
-
-    auditLogs     AuditLog[]
-    auditArchives AuditLogArchive[]
-
-    /// Lab-task directives
-    labAssignedTasks LabTaskDirective[] @relation("lab_directive_assigner")
-
-    /// Lab-version tasks
-    labAssignedVersionTasks LabVersionTask[] @relation("lab_task_assigner")
-    labReceivedVersionTasks LabVersionTask[] @relation("lab_task_assignee")
-
-    labVersionsReviewed     ServiceLabVersion[]  @relation("lab_reviewed_by")
-    labVersionsApproved     ServiceLabVersion[]  @relation("lab_approved_by")
-    labVersionsOwned        ServiceLabVersion[]  @relation("lab_owner_admin")
-    labs                    ServiceLab[]
-    labHelpRequestsSent     LabTaskHelpRequest[] @relation("lab_help_requester")
-    labHelpRequestsReceived LabTaskHelpRequest[] @relation("lab_help_receiver")
-    labReviewTasksClaimed   LabReviewTask[]      @relation("lab_review_claimed_by")
-    labBranchesCreated      LabBranch[]
-    serviceLabels           ServiceLabel[]
-    loginLogs               LoginLog[]
-    blockedRoutes           RouteListAccount[]
-    blockRouteGroups        RouteGroupAccount[]
-    reviews                 Review[]
-    reviewVotes             ReviewVote[]
-    kycList                 KycSubmission[]
-    virtualAccounts         VirtualAccount[]
-    cards                   SavedCard[]
-    teams                   UserHasTeam[]
-
-    firebaseIdentities FirebaseIdentity[]
-    pushTokens         PushToken[]
-    trustedDevice      TrustedDevice[]
-    twoFaBackupCode    TwoFaBackupCode[]
-
-    leads           Team[]
-    departments     TeamScope[]   @relation("team_scope_head")
-    // Tickets
-    tickets_created Ticket[]
-    ticket_replies  TicketReply[]
-
-    // Chat
-    chat_rooms_created ChatRoom[]       @relation("chatroom_creator")
-    chat_rooms_target  ChatRoom[]       @relation("chatroom_target")
-    chat_memberships   ChatRoomMember[]
-    chat_messages      ChatMessage[]
-
-    moderationContracts OrderContract[]
-
-    referral_attributions_sent       ReferralAttribution[]        @relation("referrer_account")
-    referral_attributions_received   ReferralAttribution[]        @relation("referred_account")
-    contractOverride                 ContractOverride[]
-    supportRoom                      ChatRoom[]                   @relation("chatroom_accepted_by")
-    contractOverrideApproval         ContractOverrideApproval[]
-    contractOverrideAttachments      ContractOverrideAttachment[] @relation("coa_added_by")
-    revokedContractOverrideEvidences ContractOverrideAttachment[] @relation("coa_revoked_by")
-    gatewayPreferences               GatewayPreference[]
-    orderSummaries                   OrderSummary[]
-    checkouts                        CheckoutSession[]
-    sessionArchives                  CheckoutSessionArchive[]
-    Invoice                          Invoice[]
-    /// Version-level memberships where this account participates (via account_id)
-    versionMemberships               LabVersionMember[]
-    /// Version-level membership invites sent by this account (via invited_by_id)
-    versionMemberInvites             LabVersionMember[]           @relation("lab_version_member_inviter")
-    /// Branch-level memberships where this account participates (via account_id)
-    branchMemberships                LabBranchMember[]
-    /// Branch-level membership invites sent by this account (via invited_by_id)
-    branchMemberInvites              LabBranchMember[]            @relation("lab_branch_member_inviter")
-
-    labComments LabComment[]
-
-    @@unique([user_id, type], map: "uniquw") // keep: one account per type per user
-    @@index([user_id, email]) // keep: fast guard-scoped lookups
-    @@index([lang_id, email])
-    @@map("accounts")
-}
-
-// Email ownership enforces: an email belongs to exactly one user.
-// Multiple accounts under the same user can reuse that email freely.
-model EmailOwner {
-    id      BigInt @id @default(autoincrement())
-    email   String ///@fillable
-    user_id BigInt ///@fillable
-
-    user     User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
-    accounts Account[] @relation("email_ownership")
-
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt
-
-    @@unique([email]) // keeps global uniqueness
-    @@map("email_owners")
-}
-
-model AccountSetting {
-    id         BigInt   @id @default(autoincrement())
-    account_id BigInt   @unique ///@fillable
-    settings   Json ///@fillable
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt
-
-    account Account @relation(fields: [account_id], references: [id], onDelete: Cascade)
-
-    @@map("account_settings")
-}
-// ─── ENUMS ─────────────────────────────────────────────────────────────────────
-enum AuditAction {
-    create
-    modify
-    erase
-    login
-    logout
-    other
-}
-
-enum AuditStatus {
-    active
-    archived
-}
-
-enum AuditArchiveStatus {
-    archived
-    pruned
-}
-
-// ─── MODELS ────────────────────────────────────────────────────────────────────
-///@guarded
-model AuditLog {
-    id BigInt @id @default(autoincrement()) @db.BigInt
-
-    /// who did it ─
-    account_id BigInt @db.BigInt // FK → Account.id
-
-    /// what was affected (polymorphic target) ─
-    auditable_id   BigInt?
-    auditable_type String?
-
-    /// change data ─
-    action       AuditAction @default(other)
-    old_values   Json? // diff (before)
-    new_values   Json? // diff (after)
-    row_snapshot Json? // full record
-
-    /// extras ─
-    event      String?
-    details    Json?
-    status     AuditStatus @default(active)
-    ip_address String?     @db.VarChar(45)
-    user_agent String?
-    created_at DateTime    @default(now())
-    updated_at DateTime    @updatedAt
-
-    /// relations ─
-    account  Account           @relation(fields: [account_id], references: [id], onDelete: Cascade)
-    archives AuditLogArchive[]
-
-    /// indexes ─
-    @@index([account_id])
-    @@index([created_at])
-    @@map("audit_logs")
-}
-
-///@guarded
-model AuditLogArchive {
-    id BigInt @id @default(autoincrement()) @db.BigInt
-
-    /// optional pointer back to live log
-    audit_id BigInt?
-
-    /// who triggered
-    account_id BigInt @db.BigInt
-
-    /// target object
-    auditable_id   BigInt?
-    auditable_type String?
-
-    /// change data
-    action       AuditAction
-    old_values   Json?
-    new_values   Json?
-    row_snapshot Json?
-
-    /// archive meta
-    status      AuditArchiveStatus @default(archived)
-    ip_address  String?            @db.VarChar(45)
-    user_agent  String?
-    archived_at DateTime
-    created_at  DateTime           @default(now())
-
-    /// relations
-    account  Account   @relation(fields: [account_id], references: [id])
-    auditLog AuditLog? @relation(fields: [audit_id], references: [id], onDelete: SetNull)
-
-    /// indexes
-    @@index([archived_at])
-    @@index([account_id])
-    @@map("audit_log_archives")
-}
-
-/// ─── LOGIN LOGS ────────────────────────────────────────────────────────────────
-///@guarded
-model LoginLog {
-    id         BigInt @id @default(autoincrement()) // pk
-    account_id BigInt // fk → accounts.id
-
-    country String // your existing field (kept)
-    city    String // your existing field (kept)
-    device  String // your existing field (kept)
-
-    method               AuthMethod? // how this login happened (optional to avoid backfill)
-    ip_address           String? // captured client IP
-    user_agent           String? // browser/agent string
-    provider_id          String? // cached providerId for convenience (e.g. google.com)
-    firebase_identity_id BigInt? // optional link to the FirebaseIdentity used
-    logged_at            DateTime    @default(now()) // event timestamp
-
-    account          Account           @relation(fields: [account_id], references: [id], onDelete: Cascade) // relation
-    firebaseIdentity FirebaseIdentity? @relation(fields: [firebase_identity_id], references: [id]) // optional relation
-
-    @@index([account_id, logged_at]) // query latest logs per account
-    @@index([firebase_identity_id]) // query by specific identity
-    @@map("login_logs") // table name
-}
-/// Authentication method snapshots for login logs
-enum AuthMethod {
-    password // classic email+password (Account.password)
-    firebase_google // Firebase Google OAuth
-    firebase_phone // Firebase phone auth (OTP)
-    firebase_email_link // Firebase email link / magic link
-}
-
-enum ReferralEventType {
-    visit // landed with a referral (cookie/attribution created)
-    register // account created and attributed
-    login // first login attributed (if not already converted at register)
-    purchase // later monetization events you may log
-}
-
-enum DevicePlatform {
-    web
-    android
-    ios
-}
-
-/// Individual FCM/WebPush tokens per device/session
-model PushToken {
-    id           BigInt         @id @default(autoincrement())
-    account_id   BigInt
-    token        String         @unique // FCM/WebPush token
-    platform     DevicePlatform // web/android/ios
-    device_id    String? // vendor device id or generated fingerprint
-    user_agent   String? // snapshot of UA (web) or app version (mobile)
-    last_seen_at DateTime? // last time we saw this token alive
-    revoked_at   DateTime? // soft revoke date
-    created_at   DateTime       @default(now())
-    updated_at   DateTime       @updatedAt
-    meta         Json? // any extra (ip, locale, model, etc.)
-
-    account Account @relation(fields: [account_id], references: [id], onDelete: Cascade)
-
-    @@index([account_id])
-    @@index([platform])
-    @@map("push_tokens")
-}
-
-/// Links an Account to a Firebase user (UID) for a specific provider
-///@guarded{}
-model FirebaseIdentity {
-    id             BigInt    @id @default(autoincrement()) // pk
-    account_id     BigInt // fk → accounts.id
-    uid            String    @unique // Firebase UID (unique across Firebase project)
-    provider_id    String    @default("google.com") // e.g. google.com, phone, emailLink, password
-    email          String? // last known email
-    phone          String? // last known phone
-    display_name   String? // last known display name
-    photo_url      String? // last known photo URL
-    email_verified Boolean? // emailVerified flag
-    disabled       Boolean? // disabled flag snapshot
-    provider_info  Json? // providerData snapshot (JSON)
-    last_login_at  DateTime? // last successful login via this provider
-    created_at     DateTime  @default(now()) // created timestamp
-    updated_at     DateTime  @updatedAt // updated timestamp
-
-    account   Account    @relation(fields: [account_id], references: [id], onDelete: Cascade) // relation to accounts
-    loginLogs LoginLog[] /// @ignore reverse relation to login logs
-
-    @@unique([account_id, provider_id]) // one row per provider per account
-    @@index([account_id]) // lookups by account
-    @@index([provider_id]) // filter by provider
-    @@map("firebase_identities") // table name
-}
-
-///@guarded Server-side remembered devices for 2FA bypass
-model TrustedDevice {
-    id           BigInt         @id @default(autoincrement())
-    account_id   BigInt
-    device_hash  String // random token or fingerprint hash
-    platform     DevicePlatform // web/android/ios
-    user_agent   String?
-    last_ip      String?
-    created_at   DateTime       @default(now())
-    last_used_at DateTime?
-    expires_at   DateTime? // hard expiry (e.g., +30 days)
-    revoked_at   DateTime?
-    meta         Json?
-
-    account Account @relation(fields: [account_id], references: [id], onDelete: Cascade)
-
-    @@unique([account_id, device_hash])
-    @@index([account_id])
-    @@map("trusted_devices")
-}
-
-/// One-time backup codes (store hash only)
-model TwoFaBackupCode {
-    id         BigInt    @id @default(autoincrement())
-    account_id BigInt
-    code_hash  String
-    used_at    DateTime?
-    created_at DateTime  @default(now())
-
-    account Account @relation(fields: [account_id], references: [id], onDelete: Cascade)
-
-    @@index([account_id])
-    @@map("twofa_backup_codes")
-}
-/// @trait:Illuminate\Database\Eloquent\Factories\HasFactory
-model User {
-    id                BigInt      @id @default(autoincrement())
-    name              String /// @fillable
-    email             String      @unique /// @fillable
-    email_verified_at DateTime? /// @fillable
-    status            ModelStatus @default(inactive) /// @fillable
-    undeletable       Boolean     @default(false)
-
-    // relations
-    accounts Account[]
-    emails   EmailOwner[]
-
-    // referrals (user-centric)
-    referrals_sent    Referral[] @relation("referrer_user")
-    referral_received Referral?  @relation("referred_user")
-
-    // rewards
-    rewards_earned ReferralReward[] @relation("reward_referrer")
-    rewards_caused ReferralReward[] @relation("reward_referee")
-
-    // code
-    referral_codes ReferralCode[]
-
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt
-
-    @@map("users")
-}
-
-model Address {
-    id BigInt @id @default(autoincrement())
-
-    account_id     BigInt /// @fillable
-    role           AddressRole /// @fillable
-    country_id     BigInt
-    state_id       BigInt?
-    city           String? /// @fillable
-    postal_code    String? /// @fillable
-    street_line1   String? /// @fillable
-    street_line2   String? /// @fillable
-    phone          String? /// @fillable
-    verified_at    DateTime?
-    is_default     Boolean     @default(false) /// @fillable
-    effective_from DateTime?
-    effective_to   DateTime?
-    deleted_at     DateTime?
-    created_at     DateTime    @default(now())
-    updated_at     DateTime    @updatedAt
-
-    account Account @relation(fields: [account_id], references: [id], onDelete: Cascade)
-    country Country @relation(fields: [country_id], references: [id])
-    state   State?  @relation(fields: [state_id], references: [id], onDelete: Cascade)
-
-    @@index([account_id])
-    @@index([country_id])
-    @@map("addresses")
-}
-
-model Country {
-    id             BigInt      @id @default(autoincrement())
-    code           String      @unique @db.Char(2) /// @fillable
-    name           String /// @fillable
-    dial_code      String /// @fillable
-    flag           String /// @fillable
-    currency_id    BigInt
-    status         ModelStatus @default(active) /// @fillable
-    soft_delete_at DateTime?
-    created_at     DateTime    @default(now())
-    updated_at     DateTime    @updatedAt
-
-    currency  Currency                @relation(fields: [currency_id], references: [id])
-    states    State[]
-    addresses Address[]
-    accounts  Account[]
-    phones    Phone[]
-    gateways  PaymentGatewayCountry[]
-
-    @@index([currency_id])
-    @@map("countries")
-}
-
-model State {
-    id             BigInt    @id @default(autoincrement())
-    country_id     BigInt
-    code           String? /// @fillable
-    name           String /// @fillable
-    soft_delete_at DateTime?
-
-    country   Country   @relation(fields: [country_id], references: [id], onDelete: Cascade)
-    addresses Address[]
-    accounts  Account[]
-
-    @@index([country_id])
-    @@map("states")
-}
-
-model Language {
-    id             BigInt      @id @default(autoincrement())
-    code           String      @unique /// @fillable
-    name           String /// @fillable
-    file           String /// @fillable
-    status         ModelStatus @default(active) /// @fillable
-    soft_delete_at DateTime?
-    accounts       Account[]
-
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt
-
-    @@map("languages")
-}
-
-/// @guarded
-model Phone {
-    id             BigInt    @id @default(autoincrement())
-    account_id     BigInt
-    phone          String
-    country_id     BigInt?
-    verified_at    DateTime?
-    soft_delete_at DateTime?
-    created_at     DateTime  @default(now())
-    updated_at     DateTime  @updatedAt
-
-    account Account  @relation(fields: [account_id], references: [id], onDelete: Cascade)
-    country Country? @relation(fields: [country_id], references: [id], onDelete: Restrict)
-
-    @@unique([account_id, phone])
-    @@index([account_id])
-    @@map("phones")
-}
-/// ─────────────────────────────────────────────────────────────────────────────
-/// ENUMS (new flow)
-/// ─────────────────────────────────────────────────────────────────────────────
-
-enum CheckoutSessionStatus {
-    drafting
-    pending
-    paying
-    paid
-    failed
-    expired
-}
-
-enum OrderSummaryStatus {
-    pending
-    success
-    failed
-    abandoned
-}
-
-/// keep/extend these if you still reference cart states elsewhere
-enum CartStatus {
-    active
-    expired
-    checked_out
-}
-
-enum CartBagLogStatus {
-    created
-    updated
-    removed
-}
-
-enum CartArchiveStatus {
-    archived
-    pruned
-}
-
-/// ─────────────────────────────────────────────────────────────────────────────
-/// CHECKOUT SESSION (fresh tables, Laravel-friendly names)
-/// ─────────────────────────────────────────────────────────────────────────────
-
-model CheckoutSession {
-    id              BigInt                @id @default(autoincrement()) @db.BigInt // PK
-    account_id      BigInt                @db.BigInt // FK → accounts.id
-    status          CheckoutSessionStatus @default(pending) // session state
-    transaction_ref String                @unique // glue across payment models
-
-    price_usd          Decimal @db.Decimal(18, 8) // frozen total in USD
-    payment_amount_usd Decimal @db.Decimal(18, 8) // amount expected to be paid in USD
-
-    display_code   String   @db.Char(3) // e.g. "NGN"
-    rate_to_usd_at Decimal  @db.Decimal(18, 8) // 1 display_code → USD at checkout time
-    amount_display Decimal? @db.Decimal(18, 8) // cached UI display amount
-
-    discount   Json? // discount details snapshot
-    meta       Json? // arbitrary metadata (vouchers/flags)
-    expires_at DateTime? // TTL for pending/paying
-    created_at DateTime  @default(now())
-    updated_at DateTime  @updatedAt
-
-    account      Account                 @relation(fields: [account_id], references: [id], onDelete: Cascade)
-    carts        CheckoutSessionCart[] // link to carts captured in this session
-    bagLogs      CartBagLog[] // logs tied to this session
-    archive      CheckoutSessionArchive?
-    invoices     Invoice[] // invoices issued for this session
-    orderSummary OrderSummary?
-    cart         Cart[] ///@local
-
-    @@index([account_id, status])
-    @@index([expires_at])
-    @@map("checkout_sessions") // new table name
-}
-
-model CheckoutSessionCart {
-    checkout_session_id BigInt @db.BigInt // FK → checkout_sessions.id
-    cart_id             BigInt @db.BigInt // FK → carts.id
-
-    checkoutSession CheckoutSession @relation(fields: [checkout_session_id], references: [id], onDelete: Cascade)
-    cart            Cart            @relation(fields: [cart_id], references: [id], onDelete: Cascade)
-
-    @@id([checkout_session_id, cart_id])
-    @@map("checkout_session_carts") // new table name
-}
-
-/// Minimal cart header (free to extend with your item/bag model)
-model Cart {
-    id                  BigInt     @id @default(autoincrement()) @db.BigInt // PK
-    account_id          BigInt     @db.BigInt // FK → accounts.id
-    checkout_session_id BigInt?    @db.BigInt // FK → checkout_sessions.id
-    status              CartStatus @default(active) // cart state
-    meta                Json? // arbitrary metadata
-    service_id          BigInt    @db.BigInt // optional FK → services.id
-    quantity            Int        @default(1) // item count (for quick ref)
-    created_at          DateTime   @default(now())
-    updated_at          DateTime   @updatedAt
-
-    account         Account               @relation(fields: [account_id], references: [id], onDelete: Cascade)
-    service         Service               @relation(fields: [service_id], references: [id], onDelete: Cascade)
-    checkoutSession CheckoutSession?      @relation(fields: [checkout_session_id], references: [id])
-    summaries       CheckoutSessionCart[]
-
-    @@index([status])
-    @@map("carts") // new table name is fine as-is
-}
-
-/// Bag log tied to a checkout session
-model CartBagLog {
-    id                  BigInt           @id @default(autoincrement()) @db.BigInt // PK
-    account_id          BigInt           @db.BigInt // FK → accounts.id
-    order_id            BigInt           @db.BigInt // FK → orders.id (optional at log time)
-    checkout_session_id BigInt           @db.BigInt // FK → checkout_sessions.id
-    snapshot            Json // cart/bag snapshot
-    status              CartBagLogStatus // event type
-    logged_at           DateTime         @default(now())
-
-    account         Account         @relation(fields: [account_id], references: [id], onDelete: Cascade)
-    order           Order?          @relation(fields: [order_id], references: [id])
-    checkoutSession CheckoutSession @relation(fields: [checkout_session_id], references: [id])
-
-    @@index([account_id])
-    @@index([order_id])
-    @@map("checkout_bag_logs") // new table name
-}
-
-model CheckoutSessionArchive {
-    id                  BigInt            @id @default(autoincrement()) @db.BigInt // PK
-    checkout_session_id BigInt            @unique @db.BigInt // FK → checkout_sessions.id
-    account_id          BigInt            @db.BigInt // FK → accounts.id
-    status              CartArchiveStatus @default(archived) // archive state
-    amount              Decimal           @db.Decimal(13, 4) // archived amount snapshot (currency of your choice)
-    snapshot            Json // full session snapshot at archive time
-    archived_at         DateTime
-    created_at          DateTime          @default(now())
-
-    checkoutSession CheckoutSession @relation(fields: [checkout_session_id], references: [id], onDelete: Cascade)
-    account         Account         @relation(fields: [account_id], references: [id])
-
-    @@index([archived_at])
-    @@map("checkout_session_archives") // new table name
-}
-
-/// ─────────────────────────────────────────────────────────────────────────────
-/// ORDER SUMMARY (fresh tables) + pivot to existing orders
-/// ─────────────────────────────────────────────────────────────────────────────
-
-/// @appends{display_amount, display_amount_formatted}
-/// @trait:App\Traits\HasDisplayAmount
-model OrderSummary {
-    id                  BigInt             @id @default(autoincrement()) @db.BigInt // PK
-    account_id          BigInt             @db.BigInt // FK → accounts.id
-    checkout_session_id BigInt?            @unique @db.BigInt // nullable if created post-hoc
-    invoice_id          BigInt?            @unique @db.BigInt // invoice that settled this summary
-    transaction_ref     String             @unique // glue value
-    status              OrderSummaryStatus @default(pending) // summary lifecycle
-
-    amount         Decimal  @db.Decimal(18, 8) // canonical USD
-    display_code   String   @db.Char(3) // display currency code
-    rate_to_usd_at Decimal  @db.Decimal(18, 8) // fx snapshot
-    amount_display Decimal? @db.Decimal(18, 8) // UI cached amount
-
-    discount    Json? // copied from session if any
-    wallet_used Boolean  @default(false) // whether wallet covered any part
-    meta        Json? // extra flags, retry markers
-    created_at  DateTime @default(now())
-    updated_at  DateTime @updatedAt
-
-    account         Account             @relation(fields: [account_id], references: [id], onDelete: Cascade)
-    checkoutSession CheckoutSession?    @relation(fields: [checkout_session_id], references: [id])
-    invoice         Invoice?            @relation(fields: [invoice_id], references: [id])
-    orders          OrderSummaryOrder[] // pivot linkage to existing orders
-
-    @@index([account_id, status])
-    @@map("order_summaries") // new table name
-}
-
-model OrderSummaryOrder {
-    order_summary_id BigInt @db.BigInt // FK → order_summaries.id
-    order_id         BigInt @db.BigInt // FK → orders.id
-
-    orderSummary OrderSummary @relation(fields: [order_summary_id], references: [id], onDelete: Cascade)
-    order        Order        @relation(fields: [order_id], references: [id], onDelete: Cascade)
-
-    @@id([order_summary_id, order_id])
-    @@map("order_summary_orders") // new table name
-}
-enum ContractStatus {
-    drafting
-    under_review
-    active
-    completed
-    cancelled
-    disputed
-}
-
-model OrderContract {
-    id               BigInt  @id @default(autoincrement())
-    moderator_id     BigInt? // Account.id of assigned moderator
-    project_team_id  BigInt? // Account.id of assigned moderator
-    order_id         BigInt  @unique
-    ticket_id        BigInt? @unique // Optional FK to support ticket system
-    file_url         String? // Or use contract_text: String for inline text
-    signed_by_client Boolean @default(false)
-    signed_by_team   Boolean @default(false)
-
-    status     ContractStatus @default(drafting)
-    created_at DateTime       @default(now())
-    updated_at DateTime       @updatedAt
-
-    // — Relations —
-    order            Order              @relation(fields: [order_id], references: [id], onDelete: Cascade)
-    moderator        Account?           @relation(fields: [moderator_id], references: [id], onDelete: SetNull)
-    manager          Team?              @relation(fields: [project_team_id], references: [id], onDelete: SetNull)
-    contractTeams    ContractTeam[] /// pivot table
-    // Optional: define ticket and chat relations if models exist
-    ticket           Ticket?            @relation(fields: [ticket_id], references: [id], onDelete: SetNull)
-    rooms            ChatRoom[]
-    contractOverride ContractOverride[]
-
-    @@map("order_contracts")
-}
-
-/// @trait:Illuminate\Database\Eloquent\Factories\HasFactory
-model ContractTeam {
-    id          BigInt @id @default(autoincrement())
-    contract_id BigInt
-    team_id     BigInt
-
-    /// relations
-    contract OrderContract @relation(fields: [contract_id], references: [id], onDelete: Cascade)
-    team     Team          @relation(fields: [team_id], references: [id], onDelete: Cascade)
-
-    @@unique([contract_id, team_id]) /// a team should appear once per contract
-    @@index([team_id])
-    @@index([contract_id])
-    @@map("contract_teams")
-}
-
-// ─────────────────────────────────────────────
-//  OVERRIDES (reassignment-only: exec team / moderator)
-// ─────────────────────────────────────────────
-enum OverrideAction {
-    replace_execution_team
-    replace_moderator
-}
-
-enum OverrideStatus {
-    pending
-    approved
-    rejected
-    cancelled
-}
-
-// REMOVE this from ContractOverride:
-// evidence         Json? /// @cast{array} @fillable
-///@with(contract, room, requester, evidences, approvals)
-/// @trait:Illuminate\Database\Eloquent\Factories\HasFactory
-model ContractOverride {
-    id               BigInt         @id @default(autoincrement())
-    contract_id      BigInt
-    room_id          BigInt?
-    channel          String?
-    action           OverrideAction
-    replacement_id   BigInt?
-    replacement_type String?
-    reason           String
-    requested_by     BigInt
-    decided_by       BigInt?
-    status           OverrideStatus @default(pending)
-    decided_at       DateTime?
-    created_at       DateTime       @default(now())
-    updated_at       DateTime       @updatedAt
-
-    /// relations
-    contract  OrderContract                @relation(fields: [contract_id], references: [id], onDelete: Cascade) ///@with
-    room      ChatRoom?                    @relation(fields: [room_id], references: [id], onDelete: SetNull)
-    requester Account                      @relation(fields: [requested_by], references: [id])
-    evidences ContractOverrideAttachment[] /// pivot to Attachment
-    approvals ContractOverrideApproval[]
-
-    @@index([contract_id])
-    @@index([room_id])
-    @@index([status, created_at])
-    @@map("contract_overrides")
-}
-
-// ─────────────────────────────────────────────
-//  OVERRIDE EVIDENCE STATE
-// ─────────────────────────────────────────────
-enum OverrideEvidenceState {
-    active /// link is visible/usable
-    withdrawn /// link removed from view (kept for audit)
-    redacted /// link suppressed due to legal/PII takedown
-}
-
-/// @trait:Illuminate\Database\Eloquent\Factories\HasFactory
-/// @guarded
-///@with(override, attachment, adder, revoker)
-model ContractOverrideAttachment {
-    override_id   BigInt
-    attachment_id BigInt
-    added_by      BigInt? /// Account.id who linked the evidence
-    role          String? /// optional: 'requester' | 'board' | 'moderator'
-    state         OverrideEvidenceState @default(active) /// pivot lifecycle
-    revoked_by    BigInt? /// who withdrew/redacted
-    revoked_at    DateTime? /// when withdrawn/redacted
-    revoke_reason String? /// why withdrawn/redacted
-    created_at    DateTime              @default(now())
-
-    /// relations
-    override   ContractOverride @relation(fields: [override_id], references: [id], onDelete: Cascade)
-    attachment Attachment       @relation(fields: [attachment_id], references: [id], onDelete: Cascade)
-    adder      Account?         @relation("coa_added_by", fields: [added_by], references: [id], onDelete: SetNull)
-    revoker    Account?         @relation("coa_revoked_by", fields: [revoked_by], references: [id], onDelete: SetNull)
-
-    @@id([override_id, attachment_id])
-    @@index([attachment_id])
-    @@index([added_by])
-    @@index([state, created_at])
-    @@index([revoked_by, revoked_at])
-    @@map("contract_override_attachments")
-}
-
-// ─────────────────────────────────────────────
-//  OVERRIDE APPROVALS (one vote per scope key)
-// ─────────────────────────────────────────────
-enum OverrideVote {
-    approve
-    reject
-}
-
-/// @trait:Illuminate\Database\Eloquent\Factories\HasFactory
-/// @guarded
-///@with(override, voter, team)
-model ContractOverrideApproval {
-    override_id     BigInt
-    account_id      BigInt
-    team_id         BigInt? /// optional: team the voter represents
-    board_scope_key String /// e.g. 'contract development' | 'finance' | 'hr' | 'super'
-    decision        OverrideVote
-    note            String?
-    created_at      DateTime     @default(now())
-
-    /// relations
-    override ContractOverride @relation(fields: [override_id], references: [id], onDelete: Cascade)
-    voter    Account          @relation(fields: [account_id], references: [id], onDelete: Cascade)
-    team     Team?            @relation(fields: [team_id], references: [id], onDelete: SetNull)
-
-    @@id([override_id, account_id]) /// one vote per user per override
-    @@unique([override_id, board_scope_key]) /// one ballot per scope per override
-    @@index([team_id])
-    @@index([decision, created_at])
-    @@map("contract_override_approvals")
-}
-model Platform {
-    id                BigInt             @id @default(autoincrement()) @db.BigInt
-    name              String
-    url               String?            @default("*") @db.Text
-    aliases           Json? // e.g insta, IG and so on
-    image             String?            @db.Text
-    icon              String?            @db.Text
-    color             String?
-    status            ModelStatus        @default(active)
-    created_at        DateTime           @default(now())
-    updated_at        DateTime           @updatedAt
-    labTaskDirectives LabTaskDirective[]
-
-    // relations
-    services Service[]
-
-    @@map("platforms")
-}
-
-model Category {
-    id          BigInt      @id @default(autoincrement()) @db.BigInt
-    name        String      @unique
-    category_id BigInt?     @db.BigInt // self-reference
-    status      ModelStatus @default(active)
-    created_at  DateTime    @default(now())
-    updated_at  DateTime    @updatedAt
-
-    // self-relation
-    parent   Category?  @relation("CategoryParent", fields: [category_id], references: [id], onDelete: Cascade)
-    children Category[] @relation("CategoryParent")
-
-    // relations
-    services Service[]
-
-    @@map("categories")
-}
-
-model DgpHandler {
-    id           BigInt      @id @default(autoincrement())
-    name         String      @unique
-    image        String?     @db.Text
-    display_name String
-    description  String?     @db.Text
-    alias        String?
-    plugin_id    BigInt?     @db.BigInt // external – left un-related here
-    status       ModelStatus @default(inactive)
-    created_at   DateTime    @default(now())
-    updated_at   DateTime    @updatedAt
-
-    // relations
-    dgp_services        DgpService[]
-    services            Service[]
-    orders              Order[]
-    activeStubs         ActiveOrderStub[]
-    labTaskDirectives   LabTaskDirective[]
-    problematicServices ProblematicService[]
-
-    @@map("dgp_handlers")
-}
-
-model DgpService {
-    id             BigInt  @id @default(autoincrement())
-    service        BigInt? @db.BigInt // remote/provider id
-    key            String
-    name           String
-    type           String
-    is_contract    Boolean @default(false)
-    rate           Float
-    min            Int
-    max            Int
-    dripfeed       Boolean @default(false)
-    refill         Boolean @default(false)
-    sync_version   BigInt  @db.BigInt /// @unsigned
-    cancel         Boolean @default(false)
-    category       String
-    dgp_handler_id BigInt  @db.BigInt
-
-    meta       Json?
-    originals  Json?
-    status     ModelStatus @default(active)
-    created_at DateTime    @default(now())
-    updated_at DateTime    @updatedAt
-
-    // relations
-    handler     DgpHandler        @relation(fields: [dgp_handler_id], references: [id], onDelete: Cascade)
-    tags        DgpServiceTag[]
-    activeStubs ActiveOrderStub[]
-
-    @@unique([dgp_handler_id, key])
-    @@map("dgp_services")
-}
-
-model Service {
-    id                BigInt      @id @default(autoincrement()) @db.BigInt
-    dgp_handler_id    BigInt      @db.BigInt
-    platform_id       BigInt      @db.BigInt
-    name              String
-    category_id       BigInt      @db.BigInt
-    props             Json?
-    image             String?
-    meta              Json?
-    type              ServiceType @default(preset)
-    requires_contract Boolean     @default(false)
-    status            ModelStatus @default(inactive)
-    created_at        DateTime    @default(now())
-    updated_at        DateTime    @updatedAt
-
-    // relations
-    handler  DgpHandler @relation(fields: [dgp_handler_id], references: [id])
-    platform Platform   @relation(fields: [platform_id], references: [id])
-    category Category   @relation(fields: [category_id], references: [id])
-
-    users         ServiceUser[]
-    userDiscounts UserDiscount[]
-    discounts     DiscountService[]
-    lab           ServiceLab?
-    serviceLabels ServiceLabel[]
-    orders        Order[]
-    cart          Cart[]
-
-    @@unique([dgp_handler_id, name])
-    @@map("services")
-}
-
-model ServiceUser {
-    id         BigInt    @id @default(autoincrement()) @db.BigInt
-    service_id BigInt    @db.BigInt
-    account_id BigInt    @db.BigInt
-    expire_at  DateTime? // access ends at this moment (null = never expires)
-    created_at DateTime  @default(now())
-    updated_at DateTime  @updatedAt
-
-    // ───── relations ────────────────────────────────────────────────────────────
-    service Service @relation(fields: [service_id], references: [id])
-    account Account @relation(fields: [account_id], references: [id])
-
-    @@unique([service_id, account_id]) // one record per user-service pair
-    @@map("service_users") // DB table name
-}
-
-/// ─── SERVICE LABELS ────────────────────────────────────────────────────────────
-model ServiceLabel {
-    id         BigInt  @id @default(autoincrement())
-    name       String
-    slug       String
-    immutable  Boolean @default(false)
-    priority   Int
-    active     Boolean @default(true)
-    service_id BigInt
-    account_id BigInt?
-
-    // ─ relations ─
-    service Service  @relation(fields: [service_id], references: [id], onDelete: Cascade)
-    account Account? @relation(fields: [account_id], references: [id])
-
-    @@index([service_id])
-    @@map("service_labels")
-}
-/// @guarded
-model Currency {
-    id              BigInt      @id @default(autoincrement())
-    code            String      @unique @db.Char(3) /// ISO 4217 code e.g. USD
-    numeric_code    String?     @db.Char(3) /// ISO 4217 numeric e.g. 840
-    name            String /// US Dollar
-    symbol          String? /// $, ₦, €, etc.
-    minor_units     Int         @default(2) /// Decimal places used (USD=2, JPY=0)
-    rate_to_usd     Decimal     @db.Decimal(18, 8) /// 1 unit of this currency → USD
-    rate_updated_at DateTime    @default(now()) /// Last time rate_to_usd was refreshed
-    deleted_at      DateTime? /// Soft-deletes (Laravel-friendly)
-    status          ModelStatus @default(active)
-
-    /// Relations (ensure matching FKs in related models)
-    countries Country[]
-    accounts  Account[]
-    history   CurrencyRate[]
-
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt
-
-    @@index([status])
-    @@map("currencies")
-}
-
-/// ─────────────────────────────────────────────
-///  CURRENCY RATE HISTORY (currency → USD)
-/// ─────────────────────────────────────────────
-/// @guarded
-model CurrencyRate {
-    id           BigInt   @id @default(autoincrement())
-    currency_id  BigInt
-    base_code    String   @default("USD") @db.Char(3) /// Base is always USD
-    rate_to_usd  Decimal  @db.Decimal(18, 8) /// 1 unit of currency → USD at effective_at
-    effective_at DateTime /// When this rate became valid
-    source       String? /// Optional: provider id/name
-    created_at   DateTime @default(now())
-    updated_at   DateTime @updatedAt
-
-    currency    Currency      @relation(fields: [currency_id], references: [id], onDelete: Cascade)
-    orders      Order[]
-    transaction Transaction[]
-
-    @@index([currency_id, effective_at])
-    @@map("currency_rates")
-}
-/// ─────────────────────────────────────────────────────────────
-///  DISCOUNTS  (supports “all services” AND per‑service syncing)
-/// ─────────────────────────────────────────────────────────────
-
-enum DiscountStatus {
-    expired
-    active
-    inactive
-}
-
-enum DiscountBy {
-    percentage
-    amount
-}
-
-enum DiscountScope {
-    all // apply to every service (equivalent to “*”)
-    include // apply only to services in discount_services
-    exclude // apply to all services EXCEPT those in discount_services
-}
-
-///@trait:App\Traits\HasExpiryWindow
-model Discount {
-    id               BigInt         @id @default(autoincrement())
-    name             String /// @fillable
-    by               DiscountBy /// @fillable
-    value            Decimal        @db.Decimal(10, 2) /// @fillable
-    status           DiscountStatus @default(active) /// @fillable
-    scope            DiscountScope  @default(all) /// @fillable  // controls “*” vs selective services
-    stackable        Boolean        @default(false) /// @fillable
-    min_order_amount Decimal?       @db.Decimal(10, 2) /// @fillable
-    per_user_limit   BigInt? /// @fillable
-    max_use          BigInt? /// @fillable
-    starts_at        DateTime? /// @fillable
-    expires_at       DateTime? /// @fillable
-
-    /// @guarded
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt
-
-    // relations
-    services      DiscountService[] // pivot; honors scope (include/exclude)
-    codes         DiscountCode[]
-    userDiscounts UserDiscount[]
-
-    @@index([status])
-    @@index([scope])
-    @@index([starts_at, expires_at])
-    @@map("discounts")
-}
-
-/// Pivot table to “sync” specific services to a discount
-model DiscountService {
-    id          BigInt @id @default(autoincrement())
-    discount_id BigInt
-    service_id  BigInt
-
-    discount Discount @relation(fields: [discount_id], references: [id], onDelete: Cascade)
-    service  Service  @relation(fields: [service_id], references: [id], onDelete: Cascade)
-
-    @@unique([discount_id, service_id]) // each service only once per discount
-    @@index([service_id])
-    @@map("discount_services")
-}
-
-/// Per‑user (account) redemption log
-enum UserDiscountStatus {
-    reserved // on hold (awaiting payment)
-    used // finalized (consumed)
-    cancelled // explicitly rolled back
-}
-
-enum CodeScope {
-    public // anyone can use (shared)
-    private // restricted (you can enforce externally)
-}
-
-///@trait:App\Traits\HasExpiryWindow
-model DiscountCode {
-    id             BigInt         @id @default(autoincrement())
-    discount_id    BigInt /// @fillable
-    code           String         @unique /// @fillable
-    scope          CodeScope      @default(public) /// @fillable
-    status         DiscountStatus @default(active) /// @fillable
-    max_use        BigInt? /// @fillable         // total redemptions allowed across all users (null = unlimited)
-    per_user_limit BigInt? /// @fillable         // times a single account can use the code
-    starts_at      DateTime? /// @fillable
-    expires_at     DateTime? /// @fillable
-
-    // OPTIONAL stored‑value behavior (gift card style):
-    by_override      DiscountBy? /// @fillable      // override Discount.by (e.g. amount only)
-    value_override   Decimal?    @db.Decimal(10, 2) /// @fillable // override Discount.value
-    balance_total    Decimal?    @db.Decimal(10, 2) /// @fillable // initial balance for gift card codes
-    balance_left     Decimal?    @db.Decimal(10, 2) /// @fillable // current remaining balance
-    owner_account_id BigInt? /// @fillable // owner when scope=private & it's a gift card
-    transferable     Boolean     @default(true) /// @fillable // allow transfer/gifting?
-
-    /// @guarded
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt
-
-    // relation
-    owner       Account?       @relation(fields: [owner_account_id], references: [id], onDelete: SetNull)
-    discount    Discount       @relation(fields: [discount_id], references: [id], onDelete: Cascade)
-    redemptions UserDiscount[]
-
-    @@index([owner_account_id])
-    @@index([discount_id])
-    @@index([status, scope])
-    @@index([starts_at, expires_at])
-    @@map("discount_codes")
-}
-
-// Per-account discount tracking (redemptions, reservations, history)
-model UserDiscount {
-    id               BigInt  @id @default(autoincrement())
-    discount_id      BigInt? /// @fillable
-    discount_code_id BigInt? /// @fillable
-    account_id       BigInt /// @fillable
-    order_id         BigInt? /// @fillable
-    service_id       BigInt? /// @fillable
-
-    used_at    DateTime? /// @fillable
-    hold_till  DateTime? /// @fillable
-    status     UserDiscountStatus @default(reserved) /// @fillable
-    hold_token String?            @unique /// @fillable
-
-    // amount actually applied (critical for gift cards / proration)
-    applied_amount Decimal? @db.Decimal(10, 2) /// @fillable
-
-    /// @guarded
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt
-
-    discount Discount?     @relation(fields: [discount_id], references: [id], onDelete: Cascade)
-    code     DiscountCode? @relation(fields: [discount_code_id], references: [id], onDelete: Cascade)
-    account  Account       @relation(fields: [account_id], references: [id], onDelete: Cascade)
-    order    Order?        @relation(fields: [order_id], references: [id], onDelete: SetNull)
-    service  Service?      @relation(fields: [service_id], references: [id], onDelete: SetNull)
-
-    @@unique([account_id, service_id, discount_id])
-    @@unique([account_id, service_id, discount_code_id])
-    @@index([status])
-    @@index([hold_till])
-    @@index([used_at])
-    @@map("user_discounts")
-}
-enum ModelStatus {
-    active
-    inactive
-    disabled
-}
-
-enum AccountType {
-    user
-    admin
-    shareholder
-}
-
-enum AddressRole {
-    primary
-    billing
-    registered
-    correspondence
-}
-
-enum TransactionType {
-    in
-    out
-}
-
-enum ServiceType {
-    custom
-    preset
-}
-
-enum OrderStatus {
-    pending
-    processing
-    partial
-    inactive
-    failed
-    completed
-}
-/// ─────────────────────────────────────────────────────────────────────────────
-/// ENUMS
-/// ─────────────────────────────────────────────────────────────────────────────
-
-enum TransactionStatus {
-    pending
-    processing
-    completed
-    failed
-    refunded
-}
-
-enum EscrowStatus {
-    hold
-    partial_released
-    released
-    expired
-}
-
-enum TransactionEventType {
-    state_change /// status transitioned
-    webhook /// gateway callback
-    manual_override /// admin intervention
-    note /// informational / comment
-}
-
-/// Geo policy for gateways → how to interpret the country rules list
-enum GatewayGeoPolicy {
-    global /// no country restriction (available everywhere)
-    allowlist /// only countries listed are allowed
-    blocklist /// all countries allowed except those listed
-}
-
-/// NOTE: Assuming PluginStatus is defined elsewhere in your schema/package
-// enum PluginStatus { inactive active archived } // ← keep external if already defined
-
-/// ─────────────────────────────────────────────────────────────────────────────
-/// CORE MODELS
-/// ─────────────────────────────────────────────────────────────────────────────
-
-/// @guarded
-/// @trait:App\Traits\HasDisplayAmount
-/// @appends{display_amount, display_amount_formatted}
-model Transaction {
-    id                 BigInt @id @default(autoincrement())
-    account_id         BigInt
-    invoice_receipt_id BigInt @unique
-    gateway_id         BigInt /// FK → payment_gateways.id
-    type               String /// "in" | "out"
-
-    /// Canonical amount in USD (source of truth for all money ops)
-    amount Decimal @db.Decimal(18, 8)
-
-    /// Snapshot of the display currency context at txn time
-    display_code     String        @default("USD") @db.Char(3) /// e.g. "NGN", "EUR"
-    rate_to_usd_at   Decimal       @db.Decimal(18, 8) /// 1 display_code → USD at txn time
-    currency_rate_id BigInt?
-    currency_rate    CurrencyRate? @relation(fields: [currency_rate_id], references: [id], onDelete: SetNull)
-
-    /// Optional cached UI value shown at txn time (for parity/speed)
-    amount_display Decimal? @db.Decimal(18, 8)
-
-    status          TransactionStatus @default(pending)
-    transaction_ref String            @unique
-    meta            Json?
-    created_at      DateTime          @default(now())
-    updated_at      DateTime          @updatedAt
-
-    // relations
-    account        Account          @relation(fields: [account_id], references: [id], onDelete: Cascade)
-    invoiceReceipt InvoiceReceipt   @relation(fields: [invoice_receipt_id], references: [id], onDelete: Cascade)
-    escrow         Escrow?
-    logs           TransactionLog[]
-    gateway        PaymentGateway   @relation(fields: [gateway_id], references: [id])
-
-    @@index([display_code])
-    @@map("transactions")
-}
-
-/// @guarded
-model TransactionLog {
-    id              BigInt               @id @default(autoincrement())
-    transaction_id  BigInt
-    event_type      TransactionEventType
-    previous_status TransactionStatus? /// null if not a state change
-    status          TransactionStatus
-    note            String?
-    meta            Json?
-    created_at      DateTime             @default(now())
-
-    // relations
-    transaction Transaction @relation(fields: [transaction_id], references: [id], onDelete: Cascade)
-
-    @@index([transaction_id])
-    @@map("transaction_logs")
-}
-
-/// Amount fields are canonical USD (align with Transaction.amount)
-/// @guarded
-model Escrow {
-    id              BigInt       @id @default(autoincrement())
-    transaction_id  BigInt       @unique
-    status          EscrowStatus @default(hold)
-    hold_amount     Decimal      @db.Decimal(12, 2) /// USD
-    released_amount Decimal      @default(0) @db.Decimal(12, 2) /// USD
-    expires_at      DateTime?
-    created_at      DateTime     @default(now())
-    updated_at      DateTime     @updatedAt
-
-    // relations
-    transaction Transaction     @relation(fields: [transaction_id], references: [id], onDelete: Cascade)
-    releases    EscrowRelease[]
-
-    @@map("escrows")
-}
-
-/// @guarded
-model EscrowRelease {
-    id         BigInt   @id @default(autoincrement())
-    escrow_id  BigInt
-    amount     Decimal  @db.Decimal(12, 2) /// USD
-    note       String?
-    created_at DateTime @default(now())
-
-    escrow Escrow @relation(fields: [escrow_id], references: [id], onDelete: Cascade)
-
-    @@map("escrow_releases")
-}
-
-/// ─────────────────────────────────────────────────────────────────────────────
-/// PAYMENT GATEWAY + GEO RESTRICTIONS + USER PREFERENCES
-/// ─────────────────────────────────────────────────────────────────────────────
-
-/// @guarded
-model PaymentGateway {
-    id           BigInt           @id @default(autoincrement())
-    name         String
-    is_wallet    Boolean          @default(false)
-    plugin_id    String
-    status       PluginStatus     @default(inactive)
-    geo_policy   GatewayGeoPolicy @default(global) /// how to interpret country rules
-    meta         Json?
-    geo_enforced Boolean          @default(false) /// whether to enforce geo_policy (for testing)
-
-    // relations
-    transactions   Transaction[]
-    virtualAccount VirtualAccount[]
-    countries      PaymentGatewayCountry[] /// explicit pivot rows (allow/block depending on geo_policy)
-    preferences    GatewayPreference[] /// per-account customisation
-
-    @@map("payment_gateways")
-}
-
-/// Explicit pivot for gateway↔country rules
-/// Meaning controlled by PaymentGateway.geo_policy
-/// @guarded
-model PaymentGatewayCountry {
-    gateway_id BigInt
-    country_id BigInt
-    created_at DateTime @default(now())
-
-    gateway PaymentGateway @relation(fields: [gateway_id], references: [id], onDelete: Cascade)
-    country Country        @relation(fields: [country_id], references: [id])
-
-    @@id([gateway_id, country_id])
-    @@index([country_id])
-    @@map("payment_gateway_countries")
-}
-
-/// Per-account gateway enable/disable and ordering
-/// @guarded
-model GatewayPreference {
-    id           BigInt   @id @default(autoincrement())
-    account_id   BigInt
-    gateway_id   BigInt
-    is_enabled   Boolean  @default(true) /// user can hide a gateway they don't want
-    is_preferred Boolean  @default(false) /// quick flag for top pick
-    sort_order   Int? /// lower appears first
-    meta         Json?
-    created_at   DateTime @default(now())
-    updated_at   DateTime @updatedAt
-
-    account Account        @relation(fields: [account_id], references: [id], onDelete: Cascade)
-    gateway PaymentGateway @relation(fields: [gateway_id], references: [id], onDelete: Cascade)
-
-    @@unique([account_id, gateway_id])
-    @@index([gateway_id])
-    @@map("gateway_preferences")
-}
-
-/// ─────────────────────────────────────────────────────────────────────────────
-/// PAYMENT METHODS (VIRTUAL ACCOUNTS, SAVED CARDS)
-/// ─────────────────────────────────────────────────────────────────────────────
-
-/// @guarded
-model VirtualAccount {
-    id                  BigInt   @id @default(autoincrement()) @db.BigInt
-    account_id          BigInt   @db.BigInt /// FK to accounts table
-    gateway_id          BigInt   @db.BigInt /// FK to payment_gateways
-    provider_account_id String /// account ID from provider
-    account_number      String /// visible account number
-    bank_code           String /// code of bank
-    bank_name           String /// name of bank
-    currency            String /// currency (e.g., NGN)
-    status              String   @default("inactive") /// status of account
-    created_at          DateTime @default(now())
-    updated_at          DateTime @updatedAt
-
-    account Account        @relation(fields: [account_id], references: [id])
-    gateway PaymentGateway @relation(fields: [gateway_id], references: [id])
-
-    @@map("virtual_accounts")
-}
-
-/// @guarded
-model SavedCard {
-    id          BigInt   @id @default(autoincrement()) @db.BigInt
-    account_id  BigInt   @db.BigInt /// FK to accounts table
-    token       String /// tokenized card identifier
-    fingerprint String /// unique card fingerprint
-    brand       String /// card brand (e.g., Visa)
-    last4       String /// last four digits
-    exp_month   Int /// expiration month
-    exp_year    Int /// expiration year
-    is_default  Boolean  @default(false)
-    created_at  DateTime @default(now())
-    updated_at  DateTime @updatedAt
-
-    account Account @relation(fields: [account_id], references: [id])
-
-    @@map("saved_cards")
-}
-
-/// ─────────────────────────────────────────────────────────────────────────────
-/// INVOICE + RECEIPT (fresh tables)
-/// ─────────────────────────────────────────────────────────────────────────────
-
-///---
-enum InvoiceStatus {
-    issued
-    paid
-    voided
-    expired
-}
-
-enum InvoiceType {
-    standard // regular invoice
-    refund // refund invoice
-    adjustment // manual adjustment
-}
-
-/// @appends{display_amount, display_amount_formatted}
-/// @trait:App\Traits\HasDisplayAmount
-model Invoice {
-    id                  BigInt        @id @default(autoincrement()) @db.BigInt // PK
-    account_id          BigInt        @db.BigInt // FK → accounts.id
-    checkout_session_id BigInt?       @db.BigInt // optional if reissued outside session
-    status              InvoiceStatus @default(issued) // invoice lifecycle
-    number              String        @unique // human-readable invoice number
-    transaction_ref     String // same glue as session
-    type                InvoiceType   @default(standard) // standard | proforma | credit_note
-
-    amount         Decimal  @db.Decimal(18, 8) // billed canonical USD
-    display_code   String   @db.Char(3) // e.g. "NGN"
-    rate_to_usd_at Decimal  @db.Decimal(18, 8) // 1 display_code → USD when issued
-    amount_display Decimal? @db.Decimal(18, 8) // cached UI
-    meta           Json? // gateway hints, retry info
-    created_at     DateTime @default(now())
-    updated_at     DateTime @updatedAt
-
-    account         Account          @relation(fields: [account_id], references: [id], onDelete: Cascade)
-    checkoutSession CheckoutSession? @relation(fields: [checkout_session_id], references: [id])
-    receipt         InvoiceReceipt? // 1:1
-    orderSummaries  OrderSummary[]
-
-    @@index([transaction_ref])
-    @@map("invoices") // new table name
-}
-
-model InvoiceReceipt {
-    id         BigInt   @id @default(autoincrement()) @db.BigInt // PK
-    invoice_id BigInt   @unique @db.BigInt // 1:1 with invoice
-    status     String // "paid" (receipt is created only when paid)
-    meta       Json? // gateway payload snapshot
-    created_at DateTime @default(now())
-
-    invoice     Invoice      @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
-    transaction Transaction? // optional back-link if your Transaction keeps invoice_receipt_id
-
-    @@map("invoice_receipts") // new table name
-}
-model KycForm {
-   id         BigInt          @id @default(autoincrement())
-   label      String
-   template   Json
-   is_default Boolean         @default(false) @map("default")
-   status     ModelStatus     @default(active)
-   created_at DateTime        @default(now())
-   updated_at DateTime        @updatedAt
-   forms      KycSubmission[]
-
-   @@map("kyc_forms")
-}
-
-enum KycStatus {
-   pending
-   approved
-   rejected
-}
-
-model KycSubmission {
-   id            BigInt    @id @default(autoincrement())
-   account_id    BigInt
-   kyc_form_id   BigInt
-   data          Json
-   status        KycStatus @default(pending)
-   reject_reason String?
-   submitted_at  DateTime  @default(now())
-   reviewed_at   DateTime?
-
-   // ─ relations ─
-   account Account @relation(fields: [account_id], references: [id], onDelete: Cascade)
-   kycForm KycForm @relation(fields: [kyc_form_id], references: [id], onDelete: Cascade)
-
-   @@index([account_id])
-   @@index([kyc_form_id])
-   @@map("kyc_submissions")
-}
-// ─── ENUMS ─────────────────────────────────────────────────────────────────────
-enum LabStatus {
-    active
-    inactive
-    archived
-}
-
-enum LabStage {
-    draft
-    review
-    approved
-    rejected
-}
-
-enum LabTaskStatus {
-    pending
-    in_progress
-    done
-}
-
-enum HelpRequestType {
-    help
-    collaboration
-}
-
-enum HelpRequestStatus {
-    pending
-    accepted
-    rejected
-    cancelled
-}
-
-enum ReviewTaskType {
-    review
-    approval
-}
-
-enum LabBranchStatus {
-    open
-    private
-    merged
-    closed
-}
-
-// ==========================================================================
-// SERVICE LABS – top-level record
-// ==========================================================================
-///@guarded
-model ServiceLab {
-    id                BigInt    @id @default(autoincrement()) @db.BigInt
-    account_id        BigInt?   @db.BigInt // FK → Account.id  (owner / creator)
-    service_id        BigInt    @unique @db.BigInt // FK → Service.id
-    verison_id        BigInt?   @db.BigInt // FK → ServiceLabVersion.id (current version)
-    task_directive_id BigInt?   @db.BigInt /// Optional FK → LabTaskDirective.id (if originated from a directive)
-    title             String
-    ///@type{import: '@/types/lab', type: 'LabMeta'}
-    meta              Json?
-    status            LabStatus @default(active)
-    created_at        DateTime  @default(now())
-    updated_at        DateTime  @updatedAt
-
-    // relations
-    account        Account?            @relation(fields: [account_id], references: [id], onDelete: SetNull)
-    service        Service             @relation(fields: [service_id], references: [id], onDelete: Cascade)
-    versions       ServiceLabVersion[] @relation("service_lab")
-    directive      LabTaskDirective?   @relation(fields: [task_directive_id], references: [id])
-    currentVersion ServiceLabVersion?  @relation(fields: [verison_id], references: [id]) /// @local(migrator)
-
-    @@index([account_id])
-    @@index([service_id])
-    @@map("service_labs")
-}
-
-// ==========================================================================
-// SERVICE LAB VERSIONS – history
-// ==========================================================================
-///@guarded
-model ServiceLabVersion {
-    id                BigInt    @id @default(autoincrement()) @db.BigInt
-    service_lab_id    BigInt    @db.BigInt
-    version           Int
-    snapshot          Json
-    meta              Json?
-    notes             String?   @db.Text
-    stage             LabStage  @default(draft)
-    reviewed_at       DateTime?
-    approved_at       DateTime?
-    parent_version_id BigInt?
-    reviewed_by_id    BigInt?
-    approved_by_id    BigInt?
-    account_id        BigInt? // original “admin_id”
-    created_at        DateTime  @default(now())
-    updated_at        DateTime  @updatedAt
-
-    // relations
-    serviceLab    ServiceLab           @relation("service_lab", fields: [service_lab_id], references: [id], onDelete: Cascade)
-    parentVersion ServiceLabVersion?   @relation("lab_parent", fields: [parent_version_id], references: [id])
-    childVersions ServiceLabVersion[]  @relation("lab_parent")
-    reviewedBy    Account?             @relation("lab_reviewed_by", fields: [reviewed_by_id], references: [id])
-    approvedBy    Account?             @relation("lab_approved_by", fields: [approved_by_id], references: [id])
-    account       Account?             @relation("lab_owner_admin", fields: [account_id], references: [id])
-    tasks         LabVersionTask[]
-    helpRequests  LabTaskHelpRequest[]
-    reviewTasks   LabReviewTask[]
-    branches      LabBranch[]
-
-    members    LabVersionMember[] /// Version-level collaborators
-    comments   LabComment[]
-    ServiceLab ServiceLab[] ///@ignore @local
-
-    @@index([service_lab_id])
-    @@index([stage])
-    @@map("service_lab_versions")
-}
-
-// ==========================================================================
-// LAB VERSION TASKS – per-version, person-assigned tasks
-// Link (optional) to the team-owned directive they originate from
-// ==========================================================================
-///@guarded
-model LabVersionTask {
-    id             BigInt        @id @default(autoincrement()) @db.BigInt
-    version_id     BigInt        @db.BigInt
-    assigned_by_id BigInt        @db.BigInt
-    assigned_to_id BigInt        @db.BigInt
-    directive_id   BigInt?       @db.BigInt /// FK → LabTaskDirective.id (optional source)
-    note           String?       @db.Text
-    status         LabTaskStatus @default(pending)
-    created_at     DateTime      @default(now())
-
-    /// relations
-    version    ServiceLabVersion @relation(fields: [version_id], references: [id], onDelete: Cascade)
-    assignedBy Account           @relation("lab_task_assigner", fields: [assigned_by_id], references: [id])
-    assignedTo Account           @relation("lab_task_assignee", fields: [assigned_to_id], references: [id])
-    directive  LabTaskDirective? @relation(fields: [directive_id], references: [id])
-
-    @@index([version_id])
-    @@index([directive_id])
-    @@map("lab_version_tasks")
-}
-
-// ==========================================================================
-// LAB TASK DIRECTIVES – team-assigned briefs (platform/handler/category level)
-// ==========================================================================
-///@guarded
-model LabTaskDirective {
-    id             BigInt        @id @default(autoincrement()) @db.BigInt
-    title          String
-    description    String?       @db.Text
-    ///@type{import: '@/types/lab', type: 'LabDirectiveMeta'}
-    meta           Json?
-    handler_id     BigInt        @db.BigInt /// FK → DgpHandler.id
-    platform_id    BigInt        @db.BigInt /// FK → Platform.id
-    assigned_by_id BigInt        @db.BigInt /// FK → Account.id (who created the directive)
-    team_id        BigInt        @db.BigInt /// FK → Team.id (directive is owned by a team)
-    status         LabTaskStatus @default(pending)
-    due_at         DateTime?
-    created_at     DateTime      @default(now())
-
-    /// relations
-    handler      DgpHandler       @relation(fields: [handler_id], references: [id])
-    platform     Platform         @relation(fields: [platform_id], references: [id])
-    assignedBy   Account          @relation("lab_directive_assigner", fields: [assigned_by_id], references: [id])
-    team         Team             @relation(fields: [team_id], references: [id])
-    versionTasks LabVersionTask[] /// optional back-ref if you add directive_id on tasks
-    accountId    BigInt?
-    labs         ServiceLab[]
-
-    @@index([handler_id])
-    @@index([platform_id])
-    @@index([team_id])
-    @@map("lab_task_directives")
-}
-
-// ==========================================================================
-// LAB TASK HELP REQUESTS – help / collaboration invitations
-// ==========================================================================
-///@guarded
-model LabTaskHelpRequest {
-    id               BigInt            @id @default(autoincrement()) @db.BigInt
-    version_id       BigInt            @db.BigInt
-    branch_id        BigInt?           @db.BigInt
-    requester_id     BigInt            @db.BigInt
-    receiver_id      BigInt?           @db.BigInt
-    message          String?           @db.Text
-    type             HelpRequestType
-    response_message String?           @db.Text
-    status           HelpRequestStatus @default(pending)
-    accepted_at      DateTime?
-    created_at       DateTime          @default(now())
-
-    // relations
-    version        ServiceLabVersion  @relation(fields: [version_id], references: [id], onDelete: Cascade)
-    branch         LabBranch?         @relation(fields: [branch_id], references: [id], onDelete: Cascade)
-    requester      Account            @relation("lab_help_requester", fields: [requester_id], references: [id])
-    receiver       Account?           @relation("lab_help_receiver", fields: [receiver_id], references: [id])
-    versionMembers LabVersionMember[] @relation("help_to_version_members")
-    branchMembers  LabBranchMember[]  @relation("help_to_branch_members")
-
-    @@index([version_id])
-    @@map("lab_task_help_requests")
-}
-
-// ==========================================================================
-// LAB REVIEW TASKS – one per version & role
-// ==========================================================================
-///@guarded
-model LabReviewTask {
-    id            BigInt         @id @default(autoincrement()) @db.BigInt
-    version_id    BigInt         @db.BigInt
-    type          ReviewTaskType
-    claimed_by_id BigInt?
-    status        LabTaskStatus
-    created_at    DateTime       @default(now())
-
-    // relations
-    version   ServiceLabVersion @relation(fields: [version_id], references: [id], onDelete: Cascade)
-    claimedBy Account?          @relation("lab_review_claimed_by", fields: [claimed_by_id], references: [id])
-
-    @@index([version_id])
-    @@map("lab_review_tasks")
-}
-
-// ==========================================================================
-// LAB BRANCHES – branch-style snapshots
-// ==========================================================================
-///@guarded
-model LabBranch {
-    id            BigInt          @id @default(autoincrement()) @db.BigInt
-    version_id    BigInt          @db.BigInt
-    created_by_id BigInt          @db.BigInt
-    parent_id     BigInt?         @db.BigInt
-    title         String
-    meta          Json?
-    snapshot      Json
-    status        LabBranchStatus @default(open)
-    is_main       Boolean         @default(false)
-    created_at    DateTime        @default(now())
-
-    // relations
-    version      ServiceLabVersion    @relation(fields: [version_id], references: [id], onDelete: Cascade)
-    createdBy    Account              @relation(fields: [created_by_id], references: [id])
-    members      LabBranchMember[] /// Branch-level collaborators
-    comments     LabComment[]
-    parent       LabBranch?           @relation("branch_parent", fields: [parent_id], references: [id])
-    helpRequests LabTaskHelpRequest[]
-    children     LabBranch[]          @relation("branch_parent")
-
-    @@index([version_id])
-    @@map("lab_branches")
-}
-
-// ─────────────────────────────────────────────
-// Membership
-// ─────────────────────────────────────────────
-/// ==========================================================================
-/// LAB MEMBER ROLES
-/// ==========================================================================
-enum LabMemberRole {
-    owner
-    worker
-    collaborator
-    reviewer
-    approver
-    supervisor
-}
-
-// ==========================================================================
-// LAB VERSION MEMBERS – collaborators / participants at the version level
-// ==========================================================================
-///@guarded
-model LabVersionMember {
-    id                     BigInt        @id @default(autoincrement()) @db.BigInt
-    version_id             BigInt        @db.BigInt /// FK → ServiceLabVersion.id
-    account_id             BigInt        @db.BigInt /// FK → Account.id
-    role                   LabMemberRole @default(collaborator) /// Member role on the version
-    invited_by_id          BigInt?       @db.BigInt /// FK → Account.id (who invited/added)
-    source_help_request_id BigInt?       @db.BigInt /// Optional FK → LabTaskHelpRequest.id
-    note                   String?       @db.Text /// Optional admin note/context
-    accepted_at            DateTime? /// When invite was accepted
-    removed_at             DateTime? /// Soft removal timestamp
-    created_at             DateTime      @default(now())
-
-    /// relations
-    version       ServiceLabVersion   @relation(fields: [version_id], references: [id], onDelete: Cascade)
-    account       Account             @relation(fields: [account_id], references: [id])
-    invitedBy     Account?            @relation("lab_version_member_inviter", fields: [invited_by_id], references: [id])
-    sourceRequest LabTaskHelpRequest? @relation("help_to_version_members", fields: [source_help_request_id], references: [id])
-
-    @@unique([version_id, account_id, role]) /// Prevent duplicate role memberships for same user+version
-    @@index([version_id])
-    @@index([account_id])
-    @@index([role])
-    @@map("lab_version_members")
-}
-
-// ==========================================================================
-// LAB BRANCH MEMBERS – collaborators / participants at the branch level
-// ==========================================================================
-///@guarded
-model LabBranchMember {
-    id                     BigInt        @id @default(autoincrement()) @db.BigInt
-    branch_id              BigInt        @db.BigInt /// FK → LabBranch.id
-    account_id             BigInt        @db.BigInt /// FK → Account.id
-    role                   LabMemberRole @default(collaborator) /// Member role on the branch
-    invited_by_id          BigInt?       @db.BigInt /// FK → Account.id (who invited/added)
-    source_help_request_id BigInt?       @db.BigInt /// Optional FK → LabTaskHelpRequest.id
-    note                   String?       @db.Text /// Optional admin note/context
-    accepted_at            DateTime? /// When invite was accepted
-    removed_at             DateTime? /// Soft removal timestamp
-    created_at             DateTime      @default(now())
-
-    /// relations
-    branch        LabBranch           @relation(fields: [branch_id], references: [id], onDelete: Cascade)
-    account       Account             @relation(fields: [account_id], references: [id])
-    invitedBy     Account?            @relation("lab_branch_member_inviter", fields: [invited_by_id], references: [id])
-    sourceRequest LabTaskHelpRequest? @relation("help_to_branch_members", fields: [source_help_request_id], references: [id])
-
-    @@unique([branch_id, account_id, role]) /// Prevent duplicate role memberships for same user+branch
-    @@index([branch_id])
-    @@index([account_id])
-    @@index([role])
-    @@map("lab_branch_members")
-}
-
-// ==========================================================================
-// LAB COMMENTS – threaded or flat comments on branches or versions
-// ==========================================================================
-///@guarded
-model LabComment {
-    id         BigInt   @id @default(autoincrement()) @db.BigInt
-    branch_id  BigInt?  @db.BigInt /// FK → LabBranch.id (optional if attached to branch)
-    version_id BigInt?  @db.BigInt /// FK → ServiceLabVersion.id (optional if attached to version)
-    account_id BigInt   @db.BigInt /// FK → Account.id (author)
-    parent_id  BigInt?  @db.BigInt /// For threaded replies
-    content    String   @db.Text /// The comment body
-    meta       Json? /// Optional (attachments, mentions, reactions, etc.)
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt
-
-    // relations
-    branch  LabBranch?         @relation(fields: [branch_id], references: [id], onDelete: Cascade)
-    version ServiceLabVersion? @relation(fields: [version_id], references: [id], onDelete: Cascade)
-    account Account            @relation(fields: [account_id], references: [id])
-    parent  LabComment?        @relation("comment_parent", fields: [parent_id], references: [id])
-    replies LabComment[]       @relation("comment_parent")
-
-    @@index([branch_id])
-    @@index([version_id])
-    @@index([account_id])
-    @@map("lab_comments")
-}
-// ─────────────────────────────────────────────
-//  ENUM
-// ─────────────────────────────────────────────
-enum ChatLockMode {
-    read_only
-    hard
-}
-
-// ─────────────────────────────────────────────
-//  CHAT
-// ─────────────────────────────────────────────
-/// @trait:Illuminate\Database\Eloquent\Factories\HasFactory
-/// @with(members, messages, creator, target, contract) // requires enum ChatRoomType
-model ChatRoom {
-    id          BigInt       @id @default(autoincrement())
-    code        String       @unique /// human/ref code to invite/locate room (system-set; not fillable)
-    title       String? /// @fillable
-    type        ChatRoomType @default(support) /// @fillable // workspace|contract_qa|admin_lounge|moderator_case|support
-    is_active   Boolean      @default(true) /// @fillable
-    is_locked   Boolean      @default(false) /// @fillable // lock: restrict entry/post
-    lock_mode   ChatLockMode @default(read_only) /// @fillable // read_only|hard
-    lock_reason String? /// @fillable
-    lock_until  DateTime? /// @fillable
-    created_by  BigInt /// Account.id (system-set; not fillable)
-    created_for BigInt? /// @fillable // Account.id (target user)
-    contract_id BigInt? /// link to OrderContract; null for non-contract chats
-    accepted_by BigInt? /// Account.id (CSR who accepted a support chat)
-    created_at  DateTime     @default(now())
-    updated_at  DateTime     @updatedAt
-    meta        Json? /// @fillable // optional extra data
-
-    // relations
-    messages      ChatMessage[]
-    members       ChatRoomMember[]
-    creator       Account            @relation("chatroom_creator", fields: [created_by], references: [id])
-    target        Account?           @relation("chatroom_target", fields: [created_for], references: [id])
-    contract      OrderContract?     @relation(fields: [contract_id], references: [id], onDelete: SetNull)
-    acceptedAgent Account?           @relation("chatroom_accepted_by", fields: [accepted_by], references: [id])
-    overide       ContractOverride[] /// @local
-    sequences     ChatRoomSequence[]
-
-    @@index([created_by])
-    @@index([created_for])
-    @@index([contract_id])
-    @@index([accepted_by])
-    @@map("chat_rooms")
-}
-
-enum ChatRoomType {
-    workspace
-    contract_qa
-    admin_lounge
-    moderator_case
-    support
-}
-
-/// @trait:Illuminate\Database\Eloquent\Factories\HasFactory
-///@with(account, room)
-model ChatRoomMember {
-    id                   BigInt    @id @default(autoincrement())
-    chat_room_id         BigInt /// @fillable
-    account_id           BigInt /// @fillable
-    role                 ChatRole  @default(member) /// @fillable
-    is_muted             Boolean   @default(false) /// @fillable
-    mute_until           DateTime? /// @fillable
-    is_banned            Boolean   @default(false) /// @fillable
-    joined_at            DateTime  @default(now())
-    left_at              DateTime? /// @fillable
-    last_read_message_id BigInt? /// @fillable // for read tracking
-    last_read_at         BigInt? /// @fillable // timestamp of last read action
-    ///@type{import:'@/types/database', type:'ChatRoomMemberMeta'}
-    meta                 Json? /// @fillable optional user-specific data deprecated: use attachments
-
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt
-    // relations
-    room       ChatRoom @relation(fields: [chat_room_id], references: [id], onDelete: Cascade)
-    account    Account  @relation(fields: [account_id], references: [id])
-
-    @@unique([chat_room_id, account_id]) // one membership per user per room
-    @@index([account_id])
-    @@map("chat_room_members")
-}
-
-// ─────────────────────────────────────────────
-//  ENUMS
-// ─────────────────────────────────────────────
-enum HideScope {
-    member /// hidden from a specific account
-    team /// hidden from an entire team
-}
-
-enum RevealStatus {
-    pending
-    approved
-    rejected
-    cancelled
-}
-
-enum RevealVote {
-    approve
-    reject
-}
-
-// ─────────────────────────────────────────────
-//  MESSAGES (add visibility fields)
-// ─────────────────────────────────────────────
-/// @trait:Illuminate\Database\Eloquent\Factories\HasFactory
-/// @with(attachments, account, chatRoom)
-/// @morph(name: message, type: many, model: Attachment, as: attachments)
-model ChatMessage {
-    id              BigInt  @id @default(autoincrement())
-    chat_room_id    BigInt /// @fillable
-    account_id      BigInt /// @fillable
-    idempotency_key String? @unique /// @fillable
-    message         String? /// @fillable
-    reply_to_id     BigInt? /// @fillable
-
-    /// visibility controls
-    is_soft_deleted    Boolean   @default(false) /// when true: hidden from everyone until unhidden via policy
-    soft_deleted_by    BigInt? /// Account.id who soft-deleted
-    soft_deleted_at    DateTime?
-    soft_delete_reason String?
-
-    first_seen_by_client_at DateTime? /// set when client first sees it (guards hard delete)
-
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt
-
-    // relations
-    chatRoom       ChatRoom                   @relation(fields: [chat_room_id], references: [id], onDelete: Cascade)
-    account        Account                    @relation(fields: [account_id], references: [id])
-    hides          ChatMessageHide[]
-    revealRequests ChatMessageRevealRequest[]
-
-    @@index([chat_room_id])
-    @@index([account_id])
-    @@index([is_soft_deleted])
-    @@map("chat_messages")
-}
-
-// ─────────────────────────────────────────────
-//  HIDES (per member or per team)
-// ─────────────────────────────────────────────
-/// @trait:Illuminate\Database\Eloquent\Factories\HasFactory
-/// @guarded
-model ChatMessageHide {
-    id             BigInt    @id @default(autoincrement())
-    message_id     BigInt
-    scope          HideScope /// member|team
-    target_account BigInt? /// required when scope=member
-    target_team    BigInt? /// required when scope=team
-    reason         String? /// why it was hidden
-    hidden_by      BigInt /// Account.id who hid the message
-    created_at     DateTime  @default(now())
-    lifted_at      DateTime? /// when un-hidden (only the triggerer can lift, except system)
-
-    // relations
-    message ChatMessage @relation(fields: [message_id], references: [id], onDelete: Cascade)
-    /// NB: target_account / target_team are pure ids (no FK to keep flexibility); enforce in app if you prefer
-
-    @@index([message_id])
-    @@index([scope, target_account])
-    @@index([scope, target_team])
-    @@map("chat_message_hides")
-}
-
-// ─────────────────────────────────────────────
-//  REVEAL WORKFLOW (board voting)
-// ─────────────────────────────────────────────
-/// @trait:Illuminate\Database\Eloquent\Factories\HasFactory
-/// @guarded
-model ChatMessageRevealRequest {
-    id                BigInt       @id @default(autoincrement())
-    message_id        BigInt
-    requested_by      BigInt /// Account.id (must be super admin or a scope HOD)
-    reason            String /// why access is needed
-    require_unanimous Boolean      @default(false) /// client-hidden/soft-deleted by client ⇒ true
-    status            RevealStatus @default(pending)
-    decided_at        DateTime?
-    created_at        DateTime     @default(now())
-    updated_at        DateTime     @updatedAt
-
-    // relations
-    message ChatMessage             @relation(fields: [message_id], references: [id], onDelete: Cascade)
-    votes   ChatMessageRevealVote[]
-
-    @@index([message_id])
-    @@index([status, created_at])
-    @@map("chat_message_reveal_requests")
-}
-
-/// @trait:Illuminate\Database\Eloquent\Factories\HasFactory
-/// @guarded
-model ChatMessageRevealVote {
-    id            BigInt     @id @default(autoincrement())
-    request_id    BigInt
-    voter_id      BigInt /// Account.id
-    team_scope_id BigInt? /// Optional: link the voter to a scope row if you keep scopes in a table
-    decision      RevealVote /// approve|reject
-    reason        String?
-    created_at    DateTime   @default(now())
-
-    // relations
-    request ChatMessageRevealRequest @relation(fields: [request_id], references: [id], onDelete: Cascade)
-
-    @@unique([request_id, voter_id]) /// one vote per voter per request
-    @@index([team_scope_id])
-    @@map("chat_message_reveal_votes")
-}
-
-/// @trait:Illuminate\Database\Eloquent\Factories\HasFactory
-/// @guarded
-model ChatRoomSequence {
-    room_id    BigInt   @id /// PK (references ChatRoom.id)
-    last_seq   BigInt   @default(0) /// per-room monotonic counter
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt
-
-    /// relations
-    room ChatRoom @relation(fields: [room_id], references: [id], onDelete: Cascade)
-
-    @@map("chat_room_sequences")
-}
-
-enum ChatRole {
-    owner
-    admin
-    member
-}
-/// ─── PROBLEMATIC SERVICES ─────────────────────────────────────────────────────
-model ProblematicService {
-   id         BigInt @id @default(autoincrement())
-   key        String // external service key
-   handler_id BigInt
-
-   failure_count  Int       @default(0)
-   last_failed_at DateTime?
-
-   // relations
-   handler DgpHandler @relation(fields: [handler_id], references: [id], onDelete: Cascade)
-
-   @@unique([handler_id, key])
-   @@map("problematic_services")
-}
-
-/// ─── SYNC TRACKERS ─────────────────────────────────────────────────────────────
-model SyncTracker {
-   tag            String    @id // service alias or tag
-   version        Int
-   last_synced_at DateTime?
-
-   @@map("sync_trackers")
-}
-
-model DgpServiceTag {
-   id             BigInt   @id @default(autoincrement()) @db.BigInt
-   dgp_service_id BigInt   @db.BigInt
-   tag            String
-   severity       String
-   meta           Json?
-   created_at     DateTime @default(now())
-   updated_at     DateTime @updatedAt
-
-   // relations
-   dgp_service DgpService @relation(fields: [dgp_service_id], references: [id])
-
-   @@map("dgp_service_tags")
-}
-/// NOTIFICATION CATEGORIES
-model NotificationCategory {
-    id                 BigInt      @id @default(autoincrement()) @db.BigInt
-    name               String
-    parent_category_id BigInt?     @db.BigInt
-    can_be_silenced    Boolean
-    status             ModelStatus @default(active)
-
-    // self-relation (parent ⇄ children)
-    parentCategory  NotificationCategory?  @relation("category_parent", fields: [parent_category_id], references: [id])
-    childCategories NotificationCategory[] @relation("category_parent")
-
-    // other relations
-    notifications Notification[]
-    templates     NotificationTemplate[]
-    created_at    DateTime               @default(now())
-    updated_at    DateTime               @updatedAt
-
-    @@index([parent_category_id])
-    @@map("notification_categories")
-}
-
-/// NOTIFICATIONS
-model Notification {
-    id              String    @id @db.Char(36)
-    type            String
-    notifiable_type String
-    notifiable_id   BigInt    @db.BigInt
-    data            String    @db.Text
-    category_id     BigInt    @db.BigInt
-    read_at         DateTime?
-
-    // relation
-    category NotificationCategory @relation(fields: [category_id], references: [id])
-
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt
-
-    @@map("notifications")
-}
-
-/// NOTIFICATION TEMPLATES
-model NotificationTemplate {
-    key           String @id
-    subject       String
-    codes         Json
-    default_codes Json   @map("default_codes")
-    email_status  Int    @map("email_status")
-    log_status    Int    @map("log_status")
-    push_status   Int    @map("push_status")
-    sms_status    Int    @map("sms_status")
-    flash_status  Int    @map("flash_status")
-    admin_status  Int    @map("admin_status")
-    email         Json
-    log           Json
-    push          Json
-    flash         Json
-    sms           Json
-    admin         Json
-
-    /// New: alias ⇒ ModelName, e.g. { "order": "Order", "user": "User" }
-    associated_models Json? @map("associated_models")
-
-    /// New: code ⇒ "alias.field", e.g. { "phishing_code": "order.id" }
-    code_mappings Json? @map("code_mappings")
-
-    category_id BigInt
-    status      ModelStatus @default(active)
-
-    // relations
-    category NotificationCategory @relation(fields: [category_id], references: [id])
-
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt
-
-    @@index([category_id])
-    @@map("notification_templates")
-}
-
-model NotificationPluginChannel {
-    id          BigInt   @id @default(autoincrement()) @db.BigInt
-    name        String   @unique /// e.g., "discord", "telegram"
-    plugin_name String /// name of the installed plugin providing this channel
-    class_path  String /// full class path to the channel class (e.g., "MyPlugin\\Channels\\Discord")
-    config      Json? /// any default or global config (e.g., API keys, templates)
-    enabled     Boolean  @default(true) // whether this channel is active globally
-    created_at  DateTime @default(now())
-    updated_at  DateTime @updatedAt
-
-    @@map("notification_plugin_channels")
-}
-
-model FlashMessage {
-    id              BigInt    @id @default(autoincrement()) @db.BigInt // primary key
-    notifiable_type String // morph type (e.g. "App\\Models\\User")
-    notifiable_id   BigInt // morph id
-    messages        Json // array of flash messages
-    icon            Json? // icon object {icon,size}
-    close           Json? // close config {show,action}
-    actions         Json? // actions config {direction,action1,action2}
-    expires_at      DateTime? // when to auto-purge (nullable)
-    created_at      DateTime  @default(now()) // created timestamp
-    updated_at      DateTime  @updatedAt // updated timestamp
-
-    @@map("flash_messages") // table name
-}
-/// @guarded
-/// @appends{display_amount, display_amount_formatted}
-model Order {
-    id BigInt @id @default(autoincrement())
-
-    account_id     BigInt
-    service_id     BigInt
-    dgp_handler_id BigInt?
-
-    label String
-
-    /// Canonical amount in USD (source of truth)
-    amount Decimal @db.Decimal(18, 8)
-
-    token          String      @unique
-    ref            String      @unique
-    transaction_id BigInt
-    status         OrderStatus @default(pending)
-
-    /// Snapshot of display currency context at the time of order
-    display_code     String        @db.Char(3) /// e.g. "NGN", "EUR"
-    rate_to_usd_at   Decimal       @db.Decimal(18, 8) /// 1 display_code → USD at order time
-    currency_rate_id BigInt?
-    currency_rate    CurrencyRate? @relation(fields: [currency_rate_id], references: [id], onDelete: SetNull)
-
-    /// Optional cached UI value shown to the user at order time
-    amount_display Decimal? @db.Decimal(18, 8)
-
-    snapshot Json
-    meta     Json?
-
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt
-
-    // relations
-    handler   DgpHandler?    @relation(fields: [dgp_handler_id], references: [id], onDelete: SetNull)
-    account   Account        @relation(fields: [account_id], references: [id])
-    service   Service        @relation(fields: [service_id], references: [id])
-    discounts UserDiscount[]
-
-    dripfeeds     OrderDripfeed[]
-    failedStubs   FailedOrderStub[]
-    activeStubs   ActiveOrderStub[]
-    contract      OrderContract?
-    activeRefills ActiveRefill[]
-    cartLogs      CartBagLog[]
-    summaries     OrderSummaryOrder[]
-
-    @@index([display_code])
-    @@map("orders")
-}
-
-/// ──────────────────────────────────────────────
-///  ORDER-RELATED TRACKING TABLES
-/// ──────────────────────────────────────────────
-
-model OrderDripfeed {
-    id          BigInt      @id @default(autoincrement())
-    order_id    BigInt
-    quantity    BigInt // unsignedBigInteger
-    max         BigInt // unsignedBigInteger
-    interval_id BigInt // FK → intervals.id  (relation optional; see note)
-    status      OrderStatus @default(processing)
-    created_at  DateTime    @default(now())
-    updated_at  DateTime    @updatedAt
-    // — Relations —
-    data        Order       @relation(fields: [order_id], references: [id], onDelete: Cascade)
-    interval    Interval    @relation(fields: [interval_id], references: [id])
-
-    // one status row per order
-    @@unique([order_id])
-    @@map("order_dripfeed")
-}
-
-model FailedOrderStub {
-    id       BigInt    @id @default(autoincrement())
-    order_id BigInt
-    status   String
-    error    String? // text
-    attempts Int // unsignedInteger
-    retry_at DateTime?
-    data     Json?
-
-    // — Relations —
-    order Order @relation(fields: [order_id], references: [id], onDelete: Cascade)
-
-    @@map("failed_order_stubs")
-}
-
-// ─────────────────────────────────────────────
-//  ActiveOrderStub  (composite FK ⇒ DgpService)
-// ─────────────────────────────────────────────
-model ActiveOrderStub {
-    id              BigInt    @id @default(autoincrement())
-    order_id        BigInt
-    dgp_handler_id  BigInt // NEW: must match the service’s handler
-    service         String // the service “key”
-    expected_amount BigInt
-    amount_done     BigInt
-    charge          Decimal?  @db.Decimal(10, 2)
-    status          String
-    stale_at        DateTime?
-
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt
-    // ── Relations ─────────────────────────────
-    order      Order    @relation(fields: [order_id], references: [id], onDelete: Cascade)
-
-    dgpService DgpService @relation(fields: [dgp_handler_id, service], references: [dgp_handler_id, key], onDelete: Cascade)
-
-    // optional, if you need to traverse to the handler directly
-    handler DgpHandler @relation(fields: [dgp_handler_id], references: [id], onDelete: Cascade)
-
-    @@map("active_order_stubs")
-}
-
-model SavedOrder {
-    id         BigInt @id @default(autoincrement())
-    order_id   BigInt
-    account_id BigInt
-
-    @@map("saved_orders")
-}
-
-model Interval {
-    id     BigInt          @id @default(autoincrement())
-    name   String          @unique
-    time   BigInt // time in seconds
-    orders OrderDripfeed[]
-
-    @@map("intervals")
-}
-
-model ActiveRefill {
-    id              BigInt    @id @default(autoincrement())
-    order_id        BigInt
-    token           String    @unique
-    dgp_service_key String
-    start_count     Int
-    refilled_count  Int       @default(0)
-    completed_at    DateTime?
-
-    order  Order       @relation(fields: [order_id], references: [id])
-    status ModelStatus
-
-    @@map("active_refills")
-}
-/// ROUTE LIST (individual routes) 
-model RouteList {
-   id         BigInt      @id @default(autoincrement())
-   name       String      @unique
-   route      String      @unique
-   desc       String
-   status     ModelStatus @default(active)
-   created_at DateTime    @default(now())
-   updated_at DateTime    @updatedAt
-
-   // route-level blocking
-   blockedAccounts RouteListAccount[]
-   blockedRoles    RouteListRole[]
-
-   // group membership
-   groups RouteGroupRouteList[]
-
-   @@map("route_lists")
-}
-
-/// ROUTE GROUP (logical groups of routes) 
-model RouteGroup {
-   id         BigInt      @id @default(autoincrement())
-   name       String      @unique
-   status     ModelStatus @default(active)
-   created_at DateTime    @default(now())
-   updated_at DateTime    @updatedAt
-
-   // group-level blocking
-   blockedAccounts RouteGroupAccount[]
-   blockedRoles    RouteGroupRole[]
-
-   // membership of routes
-   routes RouteGroupRouteList[]
-
-   @@map("route_groups")
-}
-
-///  PIVOT: assign routes to groups 
-model RouteGroupRouteList {
-   route_group_id BigInt @db.BigInt
-   route_list_id  BigInt @db.BigInt
-
-   routeGroup RouteGroup @relation(fields: [route_group_id], references: [id], onDelete: Cascade)
-   routeList  RouteList  @relation(fields: [route_list_id], references: [id], onDelete: Cascade)
-
-   @@id([route_group_id, route_list_id])
-   @@map("route_group_route_lists")
-}
-
-/// PIVOT: block accounts on a group 
-model RouteGroupAccount {
-   route_group_id BigInt @db.BigInt
-   account_id     BigInt @db.BigInt
-
-   routeGroup RouteGroup @relation(fields: [route_group_id], references: [id], onDelete: Cascade)
-   account    Account    @relation(fields: [account_id], references: [id], onDelete: Cascade)
-
-   @@id([route_group_id, account_id])
-   @@map("route_group_accounts")
-}
-
-/// PIVOT: block roles on a group 
-model RouteGroupRole {
-   route_group_id BigInt @db.BigInt
-   role           String
-
-   routeGroup RouteGroup @relation(fields: [route_group_id], references: [id], onDelete: Cascade)
-
-   @@id([route_group_id, role])
-   @@map("route_group_roles")
-}
-
-/// PIVOT: block accounts on a route 
-model RouteListAccount {
-   route_list_id BigInt @db.BigInt
-   account_id    BigInt @db.BigInt
-
-   routeList RouteList @relation(fields: [route_list_id], references: [id], onDelete: Cascade)
-   account   Account   @relation(fields: [account_id], references: [id], onDelete: Cascade)
-
-   @@id([route_list_id, account_id])
-   @@map("route_list_accounts")
-}
-
-///  PIVOT: block roles on a route 
-model RouteListRole {
-   route_list_id BigInt @db.BigInt
-   role          String
-
-   routeList RouteList @relation(fields: [route_list_id], references: [id], onDelete: Cascade)
-
-   @@id([route_list_id, role])
-   @@map("route_list_roles")
-}
-
-/// PAGE ACTIONS 
-model PageAction {
-   id          BigInt      @id @default(autoincrement())
-   name        String      @unique
-   description String      @map("desc")
-   props       Json
-   status      ModelStatus @default(active)
-   created_at  DateTime    @default(now())
-   updated_at  DateTime    @updatedAt
-
-   @@map("page_actions")
-}
-
-///@guarded
-model PermissionCategory {
-    id         BigInt      @id @default(autoincrement())
-    name       String      @unique
-    status     ModelStatus @default(active)
-    created_at DateTime    @default(now())
-    updated_at DateTime
-
-    @@map("permission_categories")
-}
-
-enum Scope {
-    admin
-    role
-    team
-    permission
-}
-
-enum AccessType {
-    read
-    write
-    delete
-    list
-}
-
-///@guarded
-model FileAccessRule {
-    id           BigInt     @id @default(autoincrement())
-    path         String
-    type         AccessType
-    access_scope Scope // renamed in DB to avoid conflict with morphs('scope') in Laravel
-    scope_id     BigInt
-    scope_type   String
-    is_allowed   Boolean    @default(true)
-
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt
-
-    @@index([access_scope, scope_id, type])
-    @@map("file_access_rules")
-}
-
-
-/// @silent
-model Role {
-    id   BigInt @id @default(autoincrement())
-    name String @unique
-
-    created_at  DateTime      @default(now())
-    updated_at  DateTime      @updatedAt
-    TeamHasRole TeamHasRole[]
-
-    @@map("roles")
-}
-
-/// @silent
-model Permission {
-    id   BigInt @id @default(autoincrement())
-    name String @unique
-
-    created_at        DateTime            @default(now())
-    updated_at        DateTime            @updatedAt
-    TeamHasPermission TeamHasPermission[]
-
-    @@map("permissions")
-}
-
-enum RouteMethod {
-    post
-    get
-    put
-    delete
-    update
-    other
-}
-
-///@guarded
-model RouteAccessRule {
-    id         BigInt      @id @default(autoincrement())
-    route      String
-    method     RouteMethod @default(get)
-    access_scope      Scope
-    scope_id   BigInt
-    scope_type String
-    is_allowed Boolean
-    starts_at  DateTime? // ⏳ Optional start time
-    ends_at    DateTime? // ⌛ Optional end time
-
-    created_at     DateTime  @default(now())
-    updated_at     DateTime  @updatedAt
-    will_delete_at DateTime?
-
-    @@map("route_access_rules")
-}
 // ─── ENUMS ────────────────────────────────────────────────
+
 enum PluginStatus {
-    active
-    inactive
-    archived
-    disabled
+  active
+  inactive
+  archived
 }
-// =========================
+
+enum ValidationStatus {
+  valid
+  unchecked
+  unverified
+  failed
+  pending
+}
+
+enum AuthorStatus {
+  pending
+  active
+  inactive
+  blocked
+}
+
+enum PluginSettingValueType {
+  string
+  number
+  boolean
+  json
+  file
+  blob
+}
+
+enum AuthorRole {
+  owner
+  maintainer
+  contributor
+}
+
+enum IssueStatus {
+  open
+  triage
+  in_progress
+  resolved
+  rejected
+  closed
+}
+
+// ─── MODELS ───────────────────────────────────────────────
+
+// AUTHORS (new)
+///@hidden:password
+///@guarded:id
+///@fillable:slug,name,handle,email,avatar_url,org,website,meta,verified,password,status
+model Author {
+  id         BigInt       @id @default(autoincrement()) @db.BigInt
+  slug       String       @unique
+  name       String
+  handle     String?      @unique
+  email      String?      @unique
+  password   String
+  avatar_url String?
+  org        String?
+  website    String?
+  meta       Json?
+  status     AuthorStatus @default(pending)
+  verified   Boolean      @default(false)
+  created_at DateTime     @default(now())
+  updated_at DateTime     @updatedAt
+
+  // relations
+  pluginLinks       PluginAuthor[]
+  reportedIssues    PluginIssue[]        @relation("IssueReporter")
+  issueMessages     PluginIssueMessage[]
+  uploadedZips      PluginZip[]
+  pluginTokens      PluginToken[]
+  tokens            AuthorToken[] /// author-level tokens (for login sessions etc.)
+  pluginAuditActors PluginAuditLog[]     @relation("PluginAuditActor")
+  auditActors       AuditLog[]           @relation("AuditActor")
+
+  @@map("authors")
+}
+
+///@guarded:id
+///@fillable:author_id,token_hash,expires_at,last_used,revoked,meta
+model AuthorToken {
+  id         BigInt    @id @default(autoincrement()) @db.BigInt
+  author_id  BigInt
+  token_hash String    @unique
+  expires_at DateTime
+  last_used  DateTime?
+  revoked    Boolean   @default(false)
+  meta       Json? /// e.g. { "scopes": ["forti-packager-fetch-policy"] }
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+
+  author Author @relation(fields: [author_id], references: [id])
+
+  @@index([author_id])
+  @@map("author_tokens")
+}
+
+// PLUGIN↔AUTHOR (pivot)
+///@guarded:plugin_id,author_id
+///@fillable:plugin_id,author_id,role
+model PluginAuthor {
+  plugin_id  BigInt
+  author_id  BigInt
+  role       AuthorRole @default(contributor)
+  created_at DateTime   @default(now())
+
+  plugin Plugin @relation(fields: [plugin_id], references: [id])
+  author Author @relation(fields: [author_id], references: [id])
+
+  @@id([plugin_id, author_id])
+  @@index([author_id])
+  @@map("plugin_author")
+}
+
+// PLUGIN SETTINGS (unchanged)
+///@guarded:id
+///@fillable:plugin_id,key,value,type
+model PluginSetting {
+  id         BigInt                 @id @default(autoincrement()) @db.BigInt
+  plugin_id  BigInt                 @db.BigInt
+  key        String
+  value      String                 @db.LongText
+  type       PluginSettingValueType @default(string)
+  created_at DateTime               @default(now())
+  updated_at DateTime               @updatedAt
+
+  plugin Plugin @relation(fields: [plugin_id], references: [id], onDelete: Cascade)
+
+  @@unique([plugin_id, key])
+  @@index([plugin_id])
+  @@map("plugin_settings")
+}
+
+// PLUGIN VERSIONS (unchanged structure; authors are on Plugin/Zip)
+///@guarded:id
+///@fillable:plugin_id,version,archive_url,manifest,validation_report,status
+model PluginVersion {
+  id                BigInt           @id @default(autoincrement()) @db.BigInt
+  plugin_id         BigInt
+  version           String
+  archive_url       String
+  manifest          Json?
+  validation_report Json?
+  status            ValidationStatus @default(unchecked)
+  created_at        DateTime         @default(now())
+  updated_at        DateTime         @updatedAt
+
+  plugin Plugin @relation(fields: [plugin_id], references: [id])
+
+  @@index([plugin_id])
+  @@map("plugin_versions")
+}
+
+// PLUGIN ZIP FILES (now tied to Author instead of string)
+///@guarded:id
+///@fillable:placeholder_id,path,meta,status,validation_status,uploaded_by_author_id
+model PluginZip {
+  id                    BigInt           @id @default(autoincrement()) @db.BigInt
+  placeholder_id        BigInt
+  path                  String           @db.Text
+  meta                  Json             @default("{}")
+  status                PluginStatus     @default(active)
+  validation_status     ValidationStatus @default(unchecked)
+  uploaded_by_author_id BigInt?
+  created_at            DateTime         @default(now())
+  updated_at            DateTime         @updatedAt
+
+  placeholder PluginPlaceholder @relation(fields: [placeholder_id], references: [id])
+  uploadedBy  Author?           @relation(fields: [uploaded_by_author_id], references: [id])
+
+  @@index([placeholder_id])
+  @@index([uploaded_by_author_id])
+  @@map("plugin_zips")
+}
+
+// PLUGIN TOKENS (associate to Author optionally)
+///@guarded:id
+///@fillable:plugin_placeholder_id,token_hash,expires_at,last_used,revoked,author_id
+model PluginToken {
+  id                    BigInt    @id @default(autoincrement()) @db.BigInt
+  plugin_placeholder_id BigInt
+  token_hash            String    @unique
+  meta                  Json ///@fillable
+  expires_at            DateTime
+  last_used             DateTime?
+  revoked               Boolean   @default(false)
+  author_id             BigInt?
+  created_at            DateTime  @default(now())
+  updated_at            DateTime  @updatedAt
+
+  placeholder PluginPlaceholder? @relation(fields: [plugin_placeholder_id], references: [id])
+  author      Author?            @relation(fields: [author_id], references: [id])
+
+  @@index([plugin_placeholder_id])
+  @@index([author_id])
+  @@map("plugin_tokens")
+}
+
+// PLUGIN ISSUES (reintroduced; author-based)
+///@guarded:id
+///@fillable:plugin_id,reporter_id,type,description,status,severity,meta
+model PluginIssue {
+  id          BigInt      @id @default(autoincrement()) @db.BigInt
+  plugin_id   BigInt
+  reporter_id BigInt
+  type        String
+  description String      @db.Text
+  status      IssueStatus @default(open)
+  severity    String? /// optional (low|med|high|critical or free-form)
+  meta        Json?
+  created_at  DateTime    @default(now())
+  updated_at  DateTime    @updatedAt
+
+  plugin   Plugin               @relation(fields: [plugin_id], references: [id])
+  reporter Author               @relation("IssueReporter", fields: [reporter_id], references: [id])
+  messages PluginIssueMessage[]
+
+  @@index([plugin_id])
+  @@index([reporter_id])
+  @@map("plugin_issues")
+}
+
+// PLUGIN ISSUE MESSAGES (author-based)
+///@guarded:id
+///@fillable:issue_id,author_id,message
+model PluginIssueMessage {
+  id         BigInt   @id @default(autoincrement()) @db.BigInt
+  issue_id   BigInt
+  author_id  BigInt
+  message    String   @db.Text
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  issue  PluginIssue @relation(fields: [issue_id], references: [id])
+  author Author      @relation(fields: [author_id], references: [id])
+
+  @@index([issue_id])
+  @@index([author_id])
+  @@map("plugin_issue_messages")
+}
+
+// AUDIT LOGS (global; add optional author)
+///@guarded:id
+///@fillable:actor,actor_author_id,action,context
+model AuditLog {
+  id              BigInt   @id @default(autoincrement()) @db.BigInt
+  actor           String?
+  actor_author_id BigInt?
+  action          String
+  context         Json?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  actorAuthor Author? @relation("AuditActor", fields: [actor_author_id], references: [id])
+
+  @@index([actor_author_id])
+  @@map("audit_logs")
+}
+
+// PLUGIN AUDIT LOGS (per-plugin; add optional author)
+///@guarded:id
+///@fillable:plugin_id,actor,actor_author_id,type,action,resource,context
+model PluginAuditLog {
+  id              BigInt   @id @default(autoincrement()) @db.BigInt
+  plugin_id       BigInt
+  actor           String?
+  actor_author_id BigInt?
+  type            String
+  action          String
+  resource        String
+  context         Json?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  plugin      Plugin  @relation(fields: [plugin_id], references: [id])
+  actorAuthor Author? @relation("PluginAuditActor", fields: [actor_author_id], references: [id])
+
+  @@index([plugin_id])
+  @@index([actor_author_id])
+  @@map("plugin_audit_logs")
+}
+
+// PLACEHOLDERS (unchanged except optional link to authors kept via tokens/zips)
+///@guarded:id
+///@fillable:slug,name,unique_key,owner_ref,meta
+model PluginPlaceholder {
+  id         BigInt   @id @default(autoincrement()) @db.BigInt
+  slug       String   @unique
+  name       String   @unique
+  unique_key String   @unique
+  owner_ref  String?
+  meta       Json?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  tokens     PluginToken[]
+  signatures PluginSignature[]
+  zips       PluginZip[]
+  plugin     Plugin?
+
+  @@map("placeholders")
+}
+
+// SIGNATURES (unchanged)
+///@guarded:id
+///@fillable:placeholder_id,host_domain,owner_host,plugin_key,signature
+model PluginSignature {
+  id             BigInt   @id @default(autoincrement()) @db.BigInt
+  placeholder_id BigInt
+  host_domain    String
+  owner_host     String
+  plugin_key     String
+  signature      String
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  placeholder PluginPlaceholder @relation(fields: [placeholder_id], references: [id])
+
+  @@index([placeholder_id])
+  @@map("plugin_signatures")
+}
+
 // Enums
-// =========================
-
-enum ReferralStatus {
-    pending // link exists but condition not met
-    completed // base event occurred (e.g. signup or first purchase)
-    rewarded // at least one reward was issued
-    cancelled // invalidated or revoked
+enum KeyPurpose {
+  packager_sign
+  installer_verify
 }
 
-enum ReferralEvent {
-    on_signup // reward when user signs up
-    first_purchase // reward on first successful purchase
-    purchase_amount // reward if a single order meets amount threshold
-    lifetime_spend // reward after total spend crosses threshold
-    n_referrals // reward after referrer hits N successful referrals
+// Model
+///@guarded:id
+///@fillable:purpose,public_pem,private_pem,fingerprint,created_at,rotated_at
+model HostKey {
+  id          BigInt     @id @default(autoincrement()) @db.BigInt
+  purpose     KeyPurpose
+  public_pem  String     @db.Text
+  private_pem String?    @db.Text
+  fingerprint String     @unique
+  created_at  DateTime   @default(now())
+  updated_at  DateTime?
+  rotated_at  DateTime?
+
+  @@map("host_keys")
+}
+/// ===========================
+/// Polymorphic enum
+/// ===========================
+enum PermissionType {
+  db
+  file
+  notification
+  module
+  network
+  codec // obfuscator
 }
 
-enum RewardType {
-    wallet_credit // add credit to in‑app wallet
-    discount // issue/attach a discount or coupon
-    badge // unlock a badge/achievement
-    custom_json // custom payload handled by your app
-    gift_card
+/// ===========================
+/// Route approval enum (as you defined)
+/// ===========================
+enum RoutePermissionStatus {
+  pending
+  approved
+  denied
+  revoked
 }
 
-enum RewardStatus {
-    pending // created but not yet applied
-    applied // successfully applied
-    failed // attempted but failed
+/// ===========================
+/// Optional bundles (tags)
+/// ===========================
+
+///@guarded:id
+///@fillable:name,description,is_system,status
+model PermissionTag {
+  id          BigInt       @id @default(autoincrement()) @db.BigInt
+  name        String       @unique
+  description String?
+  is_system   Boolean      @default(false)
+  status      PluginStatus @default(active)
+  created_at  DateTime     @default(now())
+  updated_at  DateTime     @updatedAt
+
+  // assignments
+  plugins PluginPermissionTag[]
+  items   PermissionTagItem[]
+
+  @@map("permission_tags")
 }
 
-// =========================
-// Core Models (Laravel-friendly relation names)
-// =========================
+/// Assign a tag to a plugin (plugins inherit all tag items)
+/// Host can time-window the entire tag assignment.
+///@guarded:id
+///@fillable:plugin_id,tag_id,active,limited,limit_type,limit_value
+model PluginPermissionTag {
+  id        BigInt  @id @default(autoincrement()) @db.BigInt
+  plugin_id BigInt
+  tag_id    BigInt
+  active    Boolean @default(true)
+
+  // Host-only approval window (not from manifest)
+  limited     Boolean @default(false)
+  limit_type  String?
+  limit_value String?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  plugin Plugin        @relation(fields: [plugin_id], references: [id])
+  tag    PermissionTag @relation(fields: [tag_id], references: [id])
+
+  @@unique([plugin_id, tag_id])
+  @@index([plugin_id])
+  @@index([tag_id])
+  @@map("plugin_permission_tags")
+}
+
+/// Tag → Concrete permission (polymorphic)
+/// Allows per-item constraints/audit at the tag layer.
+///@guarded:id
+///@fillable:tag_id,permission_type,permission_id,constraints,audit
+model PermissionTagItem {
+  id              BigInt         @id @default(autoincrement()) @db.BigInt
+  tag_id          BigInt
+  permission_type PermissionType
+  permission_id   BigInt         @db.BigInt
+
+  // Assignment-level metadata (host managed)
+  constraints Json?
+  audit       Json?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  tag PermissionTag @relation(fields: [tag_id], references: [id])
+
+  @@unique([tag_id, permission_type, permission_id])
+  @@index([tag_id])
+  @@map("permission_tag_items")
+}
+
+/// ===========================
+/// Direct plugin assignments
+/// ===========================
+
+/// Plugin → Concrete permission (polymorphic)
+/// Includes constraints/audit at the direct assignment level.
+///@guarded:id
+///@fillable:plugin_id,permission_type,permission_id,active,limited,limit_type,limit_value,constraints,audit
+model PluginPermission {
+  id              BigInt         @id @default(autoincrement()) @db.BigInt
+  plugin_id       BigInt
+  permission_type PermissionType
+  permission_id   BigInt         @db.BigInt
+  active          Boolean        @default(false)
+
+  // Host-only approval window (not from manifest)
+  limited     Boolean @default(false)
+  limit_type  String?
+  limit_value String?
+
+  // Assignment-level metadata (host managed)
+  constraints Json?
+  audit       Json?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  plugin Plugin @relation(fields: [plugin_id], references: [id])
+
+  @@unique([plugin_id, permission_type, permission_id])
+  @@index([plugin_id])
+  @@map("plugin_permissions")
+}
+
+/// ===========================
+/// Concrete permissions (strict action parity)
+/// ===========================
+
+/// DB — actions: select, insert, update, delete, truncate, grouped_queries
+///@guarded:id,permissions,natural_key
+///@fillable:natural_key,model,table,readable_columns,writable_columns,limited,limit_type,limit_value
+model DbPermission {
+  id BigInt @id @default(autoincrement()) @db.BigInt
+
+  /// Deterministic natural key (e.g., hash of model/table/columns/action-set)
+  natural_key String @unique
+
+  model String? // alias/FQCN (host-catalog validated if provided)
+  table String? // optional raw table name
+
+  // Boolean map: { select, insert, update, delete, truncate, grouped_queries }
+  permissions Json // SERVICE-MANAGED
+
+  readable_columns Json?
+  writable_columns Json?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("db_permissions")
+}
+
+/// FILE — actions: read, write, append, delete, mkdir, rmdir, list
+///@guarded:id,permissions,natural_key
+///@fillable:natural_key,base_dir,paths,limited,limit_type,limit_value
+model FilePermission {
+  id BigInt @id @default(autoincrement()) @db.BigInt
+
+  /// Deterministic natural key (e.g., hash of base_dir/paths/action-set)
+  natural_key String @unique
+
+  base_dir String
+  paths    Json // ["**/*","logs/*",...]
+
+  // Boolean map: { read, write, append, delete, mkdir, rmdir, list }
+  permissions Json // SERVICE-MANAGED
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("file_permissions")
+}
+
+/// NOTIFY — actions: send, receive
+///@guarded:id,permissions,natural_key
+///@fillable:natural_key,channel,templates_allowed,recipients_allowed,limited,limit_type,limit_value
+model NotificationPermission {
+  id BigInt @id @default(autoincrement()) @db.BigInt
+
+  /// Deterministic natural key (e.g., hash of channel/templates/recipients/action-set)
+  natural_key String @unique
+
+  channel String // host-defined alias
+
+  // Boolean map: { send, receive }
+  permissions Json // SERVICE-MANAGED
+
+  templates_allowed  Json?
+  recipients_allowed Json?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("notification_permissions")
+}
+
+/// MODULE — single action: call → access flag
+///@guarded:id,natural_key
+///@fillable:natural_key,module,apis,access,limited,limit_type,limit_value
+model ModulePermission {
+  id BigInt @id @default(autoincrement()) @db.BigInt
+
+  /// Deterministic natural key (e.g., hash of module/apis)
+  natural_key String @unique
+
+  module String // alias or FQCN (host-catalog validated)
+  apis   Json // ["createToken","revokeToken",...]
+  access Boolean @default(false) // action: call
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("module_permissions")
+}
+
+/// NETWORK — single action: request → access flag
+/// NOTE: natural key is `rule_key` (kept as-is).
+///@guarded:id,rule_key
+///@fillable:rule_key,label,hosts,methods,schemes,ports,paths,headers_allowed,ips_allowed,auth_via_host_secret,access,limited,limit_type,limit_value
+model NetworkPermission {
+  id BigInt @id @default(autoincrement()) @db.BigInt
+
+  /// Deterministic fingerprint for this rule (e.g., sha1 over hosts/methods/schemes/ports/paths).
+  natural_key String @unique
+
+  /// Optional human-readable label for admins/reviewers.
+  label String?
+
+  /// Gate for network egress via the host HTTP client.
+  access Boolean @default(false)
+
+  /// Allowlists (manifest `target` fields)
+  hosts           Json // ["api.stripe.com","*.example.com"]
+  methods         Json // ["GET","POST"]
+  schemes         Json?
+  ports           Json?
+  paths           Json?
+  headers_allowed Json?
+  ips_allowed     Json?
+
+  /// Secrets policy: if true, the host injects credentials; plugins don't supply secrets.
+  auth_via_host_secret Boolean @default(true)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("network_permissions")
+}
+
+/// CODEC/OBFUSCATOR — single action: invoke → access flag
+///@guarded:id,natural_key
+///@fillable:natural_key,module,allowed,access,limited,limit_type,limit_value
+model CodecPermission {
+  id BigInt @id @default(autoincrement()) @db.BigInt
+
+  /// Deterministic natural key (e.g., hash of allowed+access)
+  natural_key String @unique
+
+  module  String  @default("codec")
+  allowed Json? // validated against Obfuscator catalog
+  access  Boolean @default(false) // action: invoke
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("codec_permissions")
+}
+
+/// ===========================
+/// Per-route approvals (as provided)
+/// ===========================
+
+/// @fillable(plugin_id, route_id, status, guard, meta, approved_at)
+model PluginRoutePermission {
+  id        BigInt @id @default(autoincrement())
+  plugin_id BigInt
+  plugin    Plugin @relation(fields: [plugin_id], references: [id])
+
+  /// The JSON-declared route `id` (unique per plugin).
+  route_id String
+
+  /// Current permission state.
+  status RoutePermissionStatus @default(pending)
+
+  /// Optional: lock the guard used when writing this route.
+  guard String?
+
+  /// Host-defined metadata (notes, expiresAt, reasons, etc.).
+  meta Json?
+
+  approved_at DateTime?
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  @@unique([plugin_id, route_id])
+  @@index([plugin_id, status])
+  @@map("plugin_route_permissions")
+}
+
+/// ===========================
+/// Plugin (links to pivots)
+/// ===========================
+/// NOTE: Assuming PluginStatus enum & other related models already exist.
 ///@guarded
-model Referral {
-    id          BigInt         @id @default(autoincrement())
-    referrer_id BigInt // FK -> users.id (referrer)
-    referee_id  BigInt // FK -> users.id (referee)
-    code        String?        @unique // optional referral code used at signup
-    status      ReferralStatus @default(pending) // current state of referral
-    meta        Json? // extra details (ip, device, campaign, etc.)
-
-    // relations (match User relation names)
-    referrer User             @relation("referrer_user", fields: [referrer_id], references: [id])
-    referee  User             @relation("referred_user", fields: [referee_id], references: [id])
-    rewards  ReferralReward[]
-
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt
-
-    @@unique([referee_id]) // one referral owner per referee
-    @@index([referrer_id]) // query by referrer dashboard
-    @@index([status]) // quick filtering by status
-    @@map("referrals")
-}
-
-///@guarded
-model ReferralRule {
-    id           BigInt        @id @default(autoincrement())
-    name         String // admin label e.g. "10% of first order (cap ₦2,000)"
-    event        ReferralEvent // trigger event (enum)
-    active       Boolean       @default(true) // enable/disable
-    priority     Int           @default(0) // higher runs first; tie-breaker by id
-    conditions   Json // e.g. {"min_amount":5000,"currency":"NGN","n":1}
-    reward_type  RewardType // wallet_credit, discount, badge, custom_json
-    reward_value Json // e.g. {"mode":"percent","value":10,"cap":2000}
-    valid_from   DateTime? // optional start
-    valid_to     DateTime? // optional end
-
-    // relations
-    rewards ReferralReward[]
-
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt
-
-    @@index([active, priority]) // keep enum out of composite index
-    @@map("referral_rules")
-}
-
-///@guarded
-model ReferralReward {
-    id          BigInt        @id @default(autoincrement())
-    referral_id BigInt // FK -> referrals.id
-    rule_id     BigInt // FK -> referral_rules.id
-    referrer_id BigInt // denormalized for quick wallet credit
-    referee_id  BigInt // denormalized for reporting
-    event       ReferralEvent // event that triggered this reward
-    status      RewardStatus  @default(pending) // pending|applied|failed
-    payload     Json // computed snapshot: {"basis":"order","order_id":...,"calc":{"mode":"percent","value":10,"amount":1500,"cap":2000}}
-    awarded_at  DateTime? // when actually applied
-
-    // relations (match User relation names)
-    referral Referral     @relation(fields: [referral_id], references: [id])
-    rule     ReferralRule @relation(fields: [rule_id], references: [id])
-    referrer User         @relation("reward_referrer", fields: [referrer_id], references: [id])
-    referee  User         @relation("reward_referee", fields: [referee_id], references: [id])
-
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt
-
-    @@index([referral_id, rule_id])
-    @@index([referrer_id])
-    @@index([status])
-    @@map("referral_rewards")
-}
-
-// A unique referral code for a referrer (typically one code per user)
-///@guarded
-model ReferralCode {
-    id         BigInt       @id @default(autoincrement())
-    user_id    BigInt /// owner is always the User
-    code       String       @unique /// public code
-    label      String? /// optional: "campaign name" or "admin persona"
-    channel    String? /// optional: "web", "app", "ig", etc.
-    acc_type   AccountType? /// optional: hint which persona this code is meant for
-    active     Boolean      @default(true)
-    created_at DateTime     @default(now())
-    updated_at DateTime     @updatedAt
-
-    user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
-    @@index([user_id])
-    @@map("referral_codes")
-}
-
-// Attribution created when a visitor arrives with ?ref=CODE or a referral link
-///@guarded
-model ReferralAttribution {
-    id                  BigInt  @id @default(autoincrement()) // pk
-    referrer_account_id BigInt // FK -> accounts.id (owner of the code/link)
-    referred_account_id BigInt? // set when conversion happens (register/login)
-
-    token         String    @unique // cookie/session token for tracking a visitor
-    code_used     String? // referral code captured
-    attributed_at DateTime  @default(now()) // first seen
-    converted_at  DateTime? // when actually converted
-
-    // fraud/abuse tracking
-    ip_address String? // raw IP (optional if you hash)
-    ip_hash    String? // hash of IP for dedupe
-    user_agent String? // browser/device signature
-    is_flagged Boolean   @default(false) // mark suspicious attribution
-    expires_at DateTime? // expiry window (e.g. 30 days)
-
-    // relations (snake_case names to map cleanly to Laravel)
-    referrer Account  @relation("referrer_account", fields: [referrer_account_id], references: [id], onDelete: Cascade)
-    referred Account? @relation("referred_account", fields: [referred_account_id], references: [id])
-
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt
-
-    @@index([referrer_account_id])
-    @@index([referred_account_id])
-    @@index([converted_at])
-    @@index([ip_hash])
-    @@map("referral_attributions")
-}
-
-// =========================
-// Other Models (for reference)
-// =========================
-
-/// Referral policy "header": date window, active flag, who created it
-///@guarded
-model ReferralPolicy {
-    id        BigInt    @id @default(autoincrement())
-    name      String /// admin label e.g. "Default Global Policy"
-    active    Boolean   @default(true)
-    starts_at DateTime?
-    ends_at   DateTime?
-
-    // Who created/last edited
-    created_by_id BigInt?
-    updated_by_id BigInt?
-
-    rules ReferralPolicyRule[]
-
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt
-
-    @@map("referral_policies")
-}
-
-///@guarded
-model ReferralPolicyRule {
-    id           BigInt      @id @default(autoincrement())
-    policy_id    BigInt
-    account_type AccountType /// which persona this rule applies to (admin/user/shareholder…)
-
-    // --- UX for the referee ---
-    redirect_route String? /// where referee is sent after signup/login
-    flags          Json? /// {"employment_indicator": true, "badge":"influencer"}
-
-    // --- Reward governance ---
-    no_rewards      Boolean @default(false) /// disable rewards completely
-    manual_approval Boolean @default(false) /// rewards created but left pending
-    override_reward Json? /// {"type":"wallet_credit","value":{"wallet":"dividend","mode":"fixed","value":100}}
-
-    // Optional default referral status on conversion
-    status_on_convert ReferralStatus?
-
-    // relations
-    policy ReferralPolicy @relation(fields: [policy_id], references: [id], onDelete: Cascade)
-
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt
-
-    @@unique([policy_id, account_type])
-    @@map("referral_policy_rules")
-}
-enum ReviewStatus {
-    pending
-    approved
-    rejected
-}
-
-model Review {
-    id              BigInt       @id @default(autoincrement())
-    account_id      BigInt
-    reviewable_type String
-    reviewable_id   BigInt
-    rating          Int
-    review          String @db.Text
-    status          ReviewStatus @default(pending)
-    admin_comment   String?
-    created_at      DateTime     @default(now())
-    updated_at      DateTime     @updatedAt
-
-    // relations
-    account Account      @relation(fields: [account_id], references: [id], onDelete: Cascade)
-    votes   ReviewVote[]
-
-    @@index([account_id])
-    @@map("reviews")
-}
-
-model ReviewVote {
-    review_id  BigInt
-    account_id BigInt
-    is_helpful Boolean
-
-    review  Review  @relation(fields: [review_id], references: [id], onDelete: Cascade)
-    account Account @relation(fields: [account_id], references: [id], onDelete: Cascade)
-
-    @@id([review_id, account_id])
-    @@map("review_votes")
-}
-enum ThemeMode {
-    light
-    dark
-}
-
-///@guarded
-model SiteSetting {
-    id                BigInt    @id @default(autoincrement())
-    name              String    @unique
-    is_default        Boolean   @default(false)
-    //----
-    site_name         String
-    site_logo         String    @db.Text
-    site_url          String
-    banner_text       String    @db.Text
-    favicon           String    @db.Text
-    site_icon         String    @db.Text
-    //---
-    registration      Boolean   @default(false)
-    maintenance       Boolean   @default(false)
-    debug             Boolean
-    //-- verification
-    verify_email      Boolean   @default(true)
-    verify_phone      Boolean   @default(false)
-    recaptcha         Boolean   @default(false)
-    verify_kyc        Boolean   @default(false)
-    admin_must_2fa    Boolean   @default(true)
-    //--notification
-    notify_push       Boolean   @default(true)
-    notify_email      Boolean   @default(true)
-    notify_sms        Boolean   @default(false)
-    notify_admin      Boolean   @default(false)
-    // appearance
-    mode              ThemeMode @default(light)
-    color_id          BigInt
-    font_id           BigInt
-    // defaults
-    currency_id       BigInt
-    lang_id           BigInt
-    email_settings_id BigInt
-    // admin
-    two_factor        Boolean   @default(true) // must authenticate admin
-
-    // back-relations
-    config       SiteConfigStore?
-    contactBuses  ContactBus?
-    colors        SiteColor?
-    fonts         SiteFont?
-    emailSettings EmailSetting?
-    seoSettings   SeoSetting?
-
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt
-
-    @@map("site_settings")
-}
-
-///@guarded
-model ContactBus {
-    id              BigInt @id @default(autoincrement())
-    site_setting_id BigInt @unique
-    name            String
-    icon            String @db.Text
-    url             String @db.Text
-
-    // relation (required, cascade)
-    siteSetting SiteSetting @relation(fields: [site_setting_id], references: [id], onDelete: Cascade)
-
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt
-
-    @@index([site_setting_id])
-    @@map("contact_buses")
-}
-
-///@guarded
-model SiteColor {
-    id              BigInt @id @default(autoincrement())
-    site_setting_id BigInt @unique
-    value           Json
-
-    // relation (required, cascade)
-    siteSetting SiteSetting @relation(fields: [site_setting_id], references: [id], onDelete: Cascade)
-
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt
-
-    @@index([site_setting_id])
-    @@map("site_colors")
-}
-
-///@guarded
-model SiteFont {
-    id              BigInt @id @default(autoincrement())
-    site_setting_id BigInt @unique
-    url             String @db.Text
-    banner          String @db.Text
-
-    // relation (required, cascade)
-    siteSetting SiteSetting @relation(fields: [site_setting_id], references: [id], onDelete: Cascade)
-
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt
-
-    @@index([site_setting_id])
-    @@map("site_fonts")
-}
-
-///@guarded
-model EmailSetting {
-    id                   BigInt @id @default(autoincrement())
-    site_setting_id      BigInt @unique
-    //--
-    contact_email_type   String
-    contact_email_from   String
-    contact_email_config Json
-    contact_email_name   String
-    //---
-    ticket_email_type    String
-    ticket_email_from    String
-    ticket_email_config  Json
-    ticket_email_name    String
-    //---
-    support_email_type   String
-    support_email_from   String
-    support_email_config Json
-    support_email_name   String
-
-    // relation (required, cascade)
-    siteSetting SiteSetting @relation(fields: [site_setting_id], references: [id], onDelete: Cascade)
-
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt
-
-    @@index([site_setting_id])
-    @@map("email_settings")
-}
-
-///@guarded
-model SeoSetting {
-    id              BigInt  @id @default(autoincrement())
-    site_setting_id BigInt @unique
-    // Context: which page or model this applies to
-    page_slug       String?
-    seoable_type    String?
-    seoable_id      BigInt?
-
-    title            String
-    meta_tags        Json? // e.g. ["keyword1","keyword2"]
-    meta_description String
-    meta_image       String?
-
-    // Optional extra social fields
-    og_title       String?
-    og_description String?
-    og_image       String?
-
-    // Lifecycle
-    status     ModelStatus @default(active)
-    created_at DateTime    @default(now())
-    updated_at DateTime    @updatedAt
-
-    // relation (required, cascade)
-    siteSetting SiteSetting @relation(fields: [site_setting_id], references: [id], onDelete: Cascade)
-
-    @@unique([site_setting_id, page_slug])
-    @@index([page_slug])
-    @@index([site_setting_id])
-    @@map("seo_settings")
-}
-
-///@guarded
-model SiteConfigStore {
-    id              BigInt   @id @default(autoincrement()) // PK
-    site_setting_id BigInt @unique
-    key             String // Config key, e.g. "default_currency"
-    value_str       String? // Short string value (e.g. "USD", "prod", "on")
-    value_text      String?  @db.Text // Large text value (e.g. HTML, legal)
-    value_int       BigInt? // Numeric/integer value (e.g. counts, flags)
-    value_json      Json? // Any JSON object/array
-    value_bool      Boolean? // Any JSON object/array
-
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt
-
-    // relation (required, cascade)
-    siteSetting SiteSetting @relation(fields: [site_setting_id], references: [id], onDelete: Cascade)
-
-    // Enforce in code: at least one of value_str, value_text, value_int, value_json should be set!
-    @@unique([site_setting_id, key])
-    @@index([value_str])
-    @@index([value_int])
-    @@index([value_json])
-    @@index([site_setting_id])
-    @@map("site_config_store")
-}
-/// Supported channels
-enum MessageChannel {
-    sms /// Direct SMS via your chosen provider
-    whatsapp /// WhatsApp Cloud API
-    telegram /// Telegram Bot API
-    push /// Firebase Cloud Messaging
-}
-
-/// Delivery status
-enum MessageStatus {
-    queued
-    sending
-    sent
-    delivered
-    read
-    failed
-}
-
-/// Minimal outbound log
-model OutboundMessage {
-    id          BigInt         @id @default(autoincrement())
-    channel     MessageChannel
-    to          String /// MSISDN / chat_id / device token
-    content     String? /// Final text sent
-    template    String? /// Optional template key
-    variables   Json? /// Variables used for rendering
-    media       Json? /// {type,url,caption}
-    status      MessageStatus  @default(queued)
-    external_id String? /// Provider message id
-    error       String? /// Last error text
-    sent_at     DateTime?
-    meta        Json? /// Raw provider response or extras
-    created_at  DateTime       @default(now())
-    updated_at  DateTime       @updatedAt
-
-    @@index([channel, status])
-    @@index([to, channel])
-    @@map("outbound_messages")
-}
-///@guarded
-model TeamHasPermission {
-    team_id       BigInt
-    permission_id BigInt
-
-    team       Team       @relation(fields: [team_id], references: [id], onDelete: Cascade)
-    permission Permission @relation(fields: [permission_id], references: [id], onDelete: Cascade)
-
-    @@id([team_id, permission_id])
-    @@map("team_has_permissions")
-}
-
-///@guarded
-model UserHasTeam {
-    account_id BigInt
-    team_id    BigInt
-
-    account Account @relation(fields: [account_id], references: [id], onDelete: Cascade)
-    team    Team    @relation(fields: [team_id], references: [id], onDelete: Cascade)
-
-    @@id([account_id, team_id])
-    @@map("user_has_teams")
-}
-
-///@guarded
-model TeamHasRole {
-    team_id BigInt
-    role_id BigInt
-
-    team Team @relation(fields: [team_id], references: [id], onDelete: Cascade)
-    role Role @relation(fields: [role_id], references: [id], onDelete: Cascade)
-
-    @@id([team_id, role_id])
-    @@map("team_has_roles")
-}
-
-///@trait:App\Traits\TeamFeatures
-///@guarded
-///@with(scope, leader)
-model Team {
-    id               BigInt  @id @default(autoincrement())
-    name             String
-    description      String?
-    team_scope_id    BigInt
-    leader_id        BigInt? /// 👈 Optional team leader
-    team_category_id BigInt?
-
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt
-
-    // relations
-    scope             TeamScope                  @relation(fields: [team_scope_id], references: [id])
-    leader            Account?                   @relation(fields: [leader_id], references: [id])
-    permissions       TeamHasPermission[]
-    roles             TeamHasRole[]
-    members           UserHasTeam[]
-    contractTeams     ContractTeam[]
-    projects          OrderContract[]
-    overrideApprovals ContractOverrideApproval[]
-    category          TeamCategory?              @relation(fields: [team_category_id], references: [id])
-    labDirectives  LabTaskDirective[]
-
-    @@map("teams")
-}
-
-///@trait:Illuminate\Database\Eloquent\Factories\HasFactory
-///@guarded
-model TeamScope {
-    id                 BigInt  @id @default(autoincrement())
-    key                String  @unique
-    label              String
-    icon               String?
-    description        String?
-    is_system          Boolean @default(false)
-    can_view_contracts Boolean @default(false)
-
-    head_id BigInt? // 🔥 Optional HOD
-    head    Account? @relation("team_scope_head", fields: [head_id], references: [id])
-
-    teamCategories TeamCategory[]
-    teams          Team[]
-
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt
-
-    @@map("team_scopes")
-}
-
-///@trait:Illuminate\Database\Eloquent\Factories\HasFactory
-///@guarded
-model TeamCategory {
-    id            BigInt  @id @default(autoincrement())
-    team_scope_id BigInt
-    name          String  @unique
-    label         String
-    description   String?
-    icon          String?
-    is_system     Boolean @default(false)
-
-    scope TeamScope @relation(fields: [team_scope_id], references: [id])
-    teams Team[]
-
-    created_at DateTime @default(now())
-    updated_at DateTime @updatedAt
-
-    @@map("team_categories")
-}
-// ─────────────────────────────────────────────
-//  ENUMS
-// ─────────────────────────────────────────────
-enum TicketStatus {
-    open
-    in_progress
-    resolved
-    closed
-}
-
-enum TicketPriority {
-    low
-    medium
-    high
-    urgent
-}
-
-enum AttachmentType {
-    file
-    image
-    audio
-    video
-}
-
-// ─────────────────────────────────────────────
-//  TICKETS
-// ─────────────────────────────────────────────
-/// @trait:Illuminate\Database\Eloquent\Factories\HasFactory
-model TicketCategory {
-    id          BigInt  @id @default(autoincrement())
-    name        String  @unique /// @fillable
-    description String? /// @fillable
-    fields      Json? /// @cast{array} @fillable // JSON schema or key-value inputs
-
-    // relations
-    tickets Ticket[]
-
-    @@map("ticket_categories")
-}
-
-/// @trait:Illuminate\Database\Eloquent\Factories\HasFactory
-model Ticket {
-    id                 BigInt         @id @default(autoincrement())
-    ticket_category_id BigInt /// @fillable
-    subject            String /// @fillable
-    status             TicketStatus   @default(open) /// @fillable
-    priority           TicketPriority @default(medium) /// @fillable
-    created_by         BigInt // Account.id (system-set; not fillable)
-    created_at         DateTime       @default(now())
-    updated_at         DateTime       @updatedAt
-
-    // relations
-    category TicketCategory @relation(fields: [ticket_category_id], references: [id], onDelete: Cascade)
-    replies  TicketReply[]
-    creator  Account        @relation(fields: [created_by], references: [id])
-    contract OrderContract?
-
-    @@index([ticket_category_id])
-    @@index([created_by])
-    @@map("tickets")
-}
-
-/// @trait:Illuminate\Database\Eloquent\Factories\HasFactory
-/// @with(attachments)
-/// @morph(name: message, type: many, model: Attachment, as: attachments)
-model TicketReply {
-    id         BigInt   @id @default(autoincrement())
-    ticket_id  BigInt /// @fillable
-    account_id BigInt /// Account.id (sender) /// @fillable
-    message    String /// @fillable
-    created_at DateTime @default(now())
-
-    // relations
-    ticket  Ticket  @relation(fields: [ticket_id], references: [id], onDelete: Cascade)
-    account Account @relation(fields: [account_id], references: [id])
-
-    @@index([ticket_id])
-    @@index([account_id])
-    @@map("ticket_replies")
-}
-
-// ─────────────────────────────────────────────
-//  ATTACHMENTS (morph parent: message)
-// ─────────────────────────────────────────────
-/// @trait:Illuminate\Database\Eloquent\Factories\HasFactory
-model Attachment {
-    id               BigInt         @id @default(autoincrement())
-    message_id       BigInt // morph key (system-set; not fillable)
-    message_type     String // morph type "ticket_reply" | "chat_message" (system-set; not fillable)
-    type             AttachmentType @default(file) /// @fillable // file|image|audio|video
-    file_name        String /// @fillable
-    file_url         String /// @fillable
-    mime_type        String /// @fillable
-    file_size        Int /// @fillable
-    duration_seconds Int? /// @fillable // voice/video length if applicable
-    transcript       String? /// @fillable // optional ASR result
-    waveform         Json? /// @cast{array} @fillable // optional UI waveform data
-    created_at       DateTime       @default(now())
-
-    overrideLinks ContractOverrideAttachment[] /// many-to-many bridge
-
-    @@map("attachments")
+model Plugin {
+  id                    BigInt       @id @default(autoincrement()) @db.BigInt
+  name                  String       @unique
+  image                 String?
+  status                PluginStatus @default(active)
+  config                Json?
+  meta                  Json?
+  plugin_placeholder_id BigInt       @unique @db.BigInt
+  active_version_id     BigInt
+  owner_ref             String?
+
+  // existing relations (assumed to exist)
+  placeholder     PluginPlaceholder @relation(fields: [plugin_placeholder_id], references: [id])
+  plugin_settings PluginSetting[]
+  plugin_versions PluginVersion[]
+  logs            PluginAuditLog[]
+  authors         PluginAuthor[]
+  issues          PluginIssue[]
+
+  // direct + tag bundles
+  plugin_permissions PluginPermission[]
+  permission_tags    PluginPermissionTag[]
+
+  // per-route approvals
+  routes PluginRoutePermission[]
+
+  activated_at DateTime?
+  activated_by BigInt?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("plugins")
 }

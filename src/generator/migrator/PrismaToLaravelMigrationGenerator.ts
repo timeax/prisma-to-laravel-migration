@@ -3,7 +3,7 @@ import { ColumnDefinitionGenerator } from "./column-definition.js";
 import { RuleResolver } from "./rule-definition.js";
 import { ColumnDefinition } from "../../types/column-definition-types.js";
 import { DefaultMaps, Rule } from "./rules.js";
-import { isForMigrator, parseSilentDirective } from "../../utils/utils.js";
+import { decorate, getConfig, isForMigrator, parseSilentDirective } from "../../utils/utils.js";
 
 /**
  * The shape returned by the generator—pure data, no rendering.
@@ -12,6 +12,7 @@ export interface Migration {
    isIgnored: any;
    /** Table name (from dbName or model name) */
    tableName: string;
+   name: string;
    /** Fully resolved migration lines for that table */
    statements: string[];
    /** The ColumnDefinition objects used to produce those statements */
@@ -90,6 +91,7 @@ export class PrismaToLaravelMigrationGenerator {
          const isSilent = isForMigrator(parseSilentDirective(model.documentation ?? ""));
          return {
             tableName,
+            name: decorate(tableName, getConfig('migrator')!),
             isIgnored: isSilent,
             local: isSilent,
             definitions,

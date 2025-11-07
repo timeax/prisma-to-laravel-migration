@@ -129,17 +129,17 @@ export async function generateLaravelSchema(options: GeneratorOptions): Promise<
 
       // 3) Check for an existing file (old path before sort/repath)
       const existingFile = readdirSync(baseOut).find(f =>
-         f.endsWith(`_create_${mig.tableName}_table.php`)
+         f.endsWith(`_create_${mig.name}_table.php`)
       );
       const existingPath = existingFile ? path.join(baseOut, existingFile) : undefined;
 
       // 4) If creating new, ensure uniqueness (re-runs within same second)
-      let fileName = existingFile ?? `${timestamp}_create_${mig.tableName}_table.php`;
+      let fileName = existingFile ?? `${timestamp}_create_${mig.name}_table.php`;
       let filePath = path.join(baseOut, fileName);
       while (!existingFile && existsSync(filePath)) {
          seq += 1;
          timestamp = formatLaravelTimestamp(now, seq, padWidth);
-         fileName = `${timestamp}_create_${mig.tableName}_table.php`;
+         fileName = `${timestamp}_create_${mig.name}_table.php`;
          filePath = path.join(baseOut, fileName);
       }
 

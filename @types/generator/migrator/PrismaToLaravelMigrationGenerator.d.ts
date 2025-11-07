@@ -8,6 +8,7 @@ export interface Migration {
     isIgnored: any;
     /** Table name (from dbName or model name) */
     tableName: string;
+    name: string;
     /** Fully resolved migration lines for that table */
     statements: string[];
     /** The ColumnDefinition objects used to produce those statements */

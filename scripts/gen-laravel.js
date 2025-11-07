@@ -6,6 +6,7 @@ import * as dmf from "@prisma/internals";
 import * as gg from "../dist/generator/migrator/index.js";
 import * as modeler from "../dist/generator/modeler/index.js";
 import { buildModelContent } from "../dist/utils/build.js";
+import { table } from "console";
 
 (async () => {
    // 1) Load your Prisma schema
@@ -25,6 +26,7 @@ import { buildModelContent } from "../dist/utils/build.js";
          config: {
             namespace: "App",
             prettier: true,
+            tablePrefix: 'scpl_',
          },
       },
    });
@@ -64,12 +66,12 @@ import { buildModelContent } from "../dist/utils/build.js";
    // build content for each model
    const contents = models.map((m) => buildModelContent(m));
 
-   console.log(
-      "\n\n" +
-         "=".repeat(60) +
-         "\n\n" +
-         modelPrinter.printAll(models, enums, contents)
-   );
+   // console.log(
+   //    "\n\n" +
+   //       "=".repeat(60) +
+   //       "\n\n" +
+   //       modelPrinter.printAll(models, enums, contents)
+   // );
 })().catch((e) => {
    console.error(e);
    process.exit(1);

@@ -10,12 +10,12 @@ export function sortMigrations(migrations: Migration[]): Migration[] {
 
    // 1) Build a map: tableName → Migration
    const migMap = new Map<string, Migration>(
-      migrations.map(m => [m.tableName, m])
+      migrations.map(m => [m.name, m])
    );
 
    // 2) Collect “true” FKs only (skip back‐relation object fields)
    const rawDeps = new Map<string, Set<string>>();
-   for (const { tableName } of migrations) {
+   for (const { name: tableName } of migrations) {
       rawDeps.set(tableName, new Set());
    }
 
@@ -34,8 +34,8 @@ export function sortMigrations(migrations: Migration[]): Migration[] {
          }
 
          const parent = def.relationship.on;
-         if (!migMap.has(parent) || m.tableName === parent) continue; // skip external/self
-         rawDeps.get(m.tableName)!.add(parent);
+         if (!migMap.has(parent) || m.name === parent) continue; // skip external/self
+         rawDeps.get(m.name)!.add(parent);
       }
    }
 
@@ -74,8 +74,8 @@ export function sortMigrations(migrations: Migration[]): Migration[] {
    // 5) Cycle check
    if (sorted.length !== migrations.length) {
       const cycle = migrations
-         .map(m => m.tableName)
-         .filter(t => !sorted.some(s => s.tableName === t));
+         .map(m => m.name)
+         .filter(t => !sorted.some(s => s.name === t));
       throw new Error(
          `Cycle detected in migration dependencies: ${cycle.join(' → ')}`
       );

@@ -12,7 +12,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('${tableName}', function (Blueprint $table) {
+        Schema::create('${tableName}', static function (Blueprint $table) {
             ${columns}
         });
     }
