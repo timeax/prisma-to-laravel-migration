@@ -63,6 +63,7 @@ export async function generateLaravelModels(options: GeneratorOptions) {
       enumStubPath: pick('enumStubPath'),
       modelStubPath: pick('modelStubPath'),
       noEmit: pick('noEmit', false),
+      allowedPivotExtraFields: pick('allowedPivotExtraFields', []),
       namespace: pick("namespace", "App")
    };
 
@@ -128,7 +129,7 @@ export async function generateLaravelModels(options: GeneratorOptions) {
 
    // 5) Write model files
    for (const model of models) {
-      if(model.isIgnored) continue;
+      if (model.isIgnored) continue;
       let imports = model.properties.filter(item => item.enumRef).map(item => `use ${cfg.namespace ?? 'App'}\\Enums\\${item.enumRef};`);
       //----
       if (Array.isArray(model.imports)) model.imports.push(...imports);

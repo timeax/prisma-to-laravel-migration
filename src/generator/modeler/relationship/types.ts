@@ -102,6 +102,8 @@ export const PIVOT_SCALAR_WHITELIST = new Set([
   "createdAt",
   "updatedAt",
   "deletedAt",
+  "meta",
+  "extra",
 ]);
 
 export const getPrimaryKeyFields = (m: DMMF.Model): string[] => {

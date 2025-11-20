@@ -110,4 +110,6 @@ export interface ModelConfigOverride extends LaravelGeneratorConfig {
    outputEnumDir?: string;
    /** use awobaz/compoships */
    awobaz?: boolean;
+   /** Extra fields allowed on pivot models */
+   allowedPivotExtraFields?: string[];
 }

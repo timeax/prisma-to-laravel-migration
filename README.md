@@ -57,7 +57,8 @@ module.exports = {
       { stubFile: "audit.stub", tables: ["logs","audit_trails"] }
     ],
     outputEnumDir: "app/Enums",
-    overwriteExisting: true
+    overwriteExisting: true,
+    allowedPivotExtraFields: ["scope"]
   }
 };
 ```
@@ -191,6 +192,8 @@ export interface ModelConfigOverride extends LaravelGeneratorConfig {
    outputEnumDir?: string;
    /** use awobaz/compoships */
    awobaz?: boolean;
+   /** Extra fields allowed on pivot models */
+   allowedPivotExtraFields?: string[];
 }
 ```
 

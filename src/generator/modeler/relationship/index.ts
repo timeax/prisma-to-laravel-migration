@@ -13,7 +13,7 @@ import {
    PIVOT_SCALAR_WHITELIST,
 } from "./types.js";
 import { detectMorphToRelations, parseMorphOwnerDirectives } from "./morph.js";
-import { isForModel, parseLocalDirective } from "../../../utils/utils.js";
+import { getConfig, isForModel, parseLocalDirective } from "../../../utils/utils.js";
 
 /* ------------------ pivot relevance (explicit M:N) ----------------------- */
 const pivotOtherEndpointFor = (
@@ -33,9 +33,30 @@ const pivotOtherEndpointFor = (
    if (hasIntersection(fkA, fkB)) return undefined;
 
    const fkUnion = new Set([...fkA, ...fkB]);
+
+   // May be: ["id", "meta", "created_at", ...] from your config
+   const extrasFromConfigRaw = getConfig("model", "allowedPivotExtraFields") as
+      | string[]
+      | string
+      | undefined;
+
+   // Normalise to string[]
+   const extrasFromConfig = Array.isArray(extrasFromConfigRaw)
+      ? extrasFromConfigRaw
+      : extrasFromConfigRaw
+         ? [extrasFromConfigRaw]
+         : [];
+
+   // Combined whitelist: hard-coded + config
+   const allowedPivotScalars = new Set<string>([
+      ...PIVOT_SCALAR_WHITELIST,
+      ...extrasFromConfig,
+   ]);
+
    const extras = scalarNames(candidate).filter(
-      (n) => !fkUnion.has(n) && !PIVOT_SCALAR_WHITELIST.has(n)
+      (n) => !fkUnion.has(n) && !allowedPivotScalars.has(n)
    );
+
    if (extras.length > 0) return undefined;
 
    return relOther.type; // self-join allowed
