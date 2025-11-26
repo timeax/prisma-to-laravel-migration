@@ -629,6 +629,7 @@ You can attach them either:
 | `@morph(…)`                                                                                 | Model                                   | Declare owner-side polymorphic relations; child-side `morphTo` is auto-detected.         |
 | `@pivot` / `@pivot(a,b,…)`                                                                  | Pivot **model** and/or scalar **fields**| Explicitly mark extra pivot columns to include in generated `withPivot(…)` chains.       |
 | `@withTimestamps`                                                                           | Pivot **model** / relation **field**    | Instructs the generator to append `->withTimestamps()` on the relation definition.       |
+| `@pivotAlias(name)`                                                                         | Pivot **model**                         | Sets the pivot attribute alias; generator should add `->as('name')` on the relation.     |
 
 > **Syntax options**
 > • Inline: `balance Decimal /// @fillable @cast{decimal:2}`

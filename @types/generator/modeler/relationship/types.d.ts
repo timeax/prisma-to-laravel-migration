@@ -17,6 +17,8 @@ export interface RelationDefinition {
     /** belongsToMany extras */
     mode?: "explicit" | "implicit";
     pivotTable?: string;
+    /** On pivot: optional alias for relation */
+    pivotAlias?: string;
     /** On pivot: extra columns to include */
     pivotColumns?: readonly string[];
     /** On pivot: whether to include timestamps */
@@ -45,6 +47,7 @@ export type BelongsToManyExplicit = {
     mode: "explicit";
     target: string;
     pivotTable: string;
+    pivotAlias?: string;
     pivotColumns: readonly string[];
     withTimestamps: boolean;
     pivotLocal: readonly string[];

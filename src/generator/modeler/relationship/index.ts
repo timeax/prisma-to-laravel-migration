@@ -135,11 +135,16 @@ export function extractListRelationKeys(
       // 4) @withTimestamps is a pure flag: "call ->withTimestamps()"
       const withTimestamps = /@withTimestamps\b/i.test(pivotDoc);
 
+      // 5) @pivotAlias(name) for optional alias - take the first name from listFrom
+      const pivotAliasNames = listFrom(pivotDoc, "pivotAlias");
+      const pivotAlias = pivotAliasNames.length > 0 ? pivotAliasNames[0].trim() || undefined : undefined;
+
       return {
          kind: "belongsToMany",
          mode: "explicit",
          target: target.name,
          pivotTable: dbNameOf(pivot),
+         pivotAlias,
          pivotColumns,
          withTimestamps,
          pivotLocal: relToMe.relationFromFields ?? [],
@@ -190,13 +195,18 @@ export function buildRelationsForModel(
          } else if (keys.kind === "belongsToMany" && keys.mode === "explicit") {
             const chainParts: string[] = [];
 
+            // 1) alias first: ->as('alias')
+            if (keys.pivotAlias) {
+               chainParts.push(`as('${keys.pivotAlias}')`);
+            }
+
+            // 2) withPivot(...)
             if (keys.pivotColumns && keys.pivotColumns.length > 0) {
-               const cols = keys.pivotColumns
-                  .map((c) => `'${c}'`) // quote column names for PHP
-                  .join(", ");
+               const cols = keys.pivotColumns.map((c) => `'${c}'`).join(", ");
                chainParts.push(`withPivot(${cols})`);
             }
 
+            // 3) withTimestamps()
             if (keys.withTimestamps) {
                chainParts.push("withTimestamps()");
             }
@@ -213,6 +223,7 @@ export function buildRelationsForModel(
                pivotForeign: keys.pivotForeign,
                pivotColumns: keys.pivotColumns,
                withTimestamps: keys.withTimestamps,
+               pivotAlias: keys.pivotAlias,      // <— NEW, if you want it in defs
                localKey: keys.local,
                foreignKey: keys.foreign,
                targetModelName: keys.target,
