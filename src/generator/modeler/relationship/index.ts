@@ -3,66 +3,56 @@ import {
    RelationDefinition,
    ListRelationKeys,
    objRels,
-   scalarNames,
    getModel,
    dbNameOf,
    conventionalPivotName,
    getPrimaryKeyFields,
    hasIntersection,
    isUniqueOn,
-   PIVOT_SCALAR_WHITELIST,
 } from "./types.js";
 import { detectMorphToRelations, parseMorphOwnerDirectives } from "./morph.js";
-import { getConfig, isForModel, parseLocalDirective } from "../../../utils/utils.js";
+import { isForModel, listFrom, parseLocalDirective } from "../../../utils/utils.js";
 
 /* ------------------ pivot relevance (explicit M:N) ----------------------- */
 const pivotOtherEndpointFor = (
    thisModelName: string,
    candidate: DMMF.Model
 ): string | undefined => {
-   const rels = objRels(candidate);
-   if (rels.length !== 2) return undefined;
-   if (!rels.every((r) => (r.relationFromFields?.length ?? 0) > 0)) return undefined;
-
-   const relToMe = rels.find((r) => r.type === thisModelName);
-   if (!relToMe) return undefined;
-   const relOther = rels.find((r) => r !== relToMe)!;
-
-   const fkA = relToMe.relationFromFields ?? [];
-   const fkB = relOther.relationFromFields ?? [];
-   if (hasIntersection(fkA, fkB)) return undefined;
-
-   const fkUnion = new Set([...fkA, ...fkB]);
-
-   // May be: ["id", "meta", "created_at", ...] from your config
-   const extrasFromConfigRaw = getConfig("model", "allowedPivotExtraFields") as
-      | string[]
-      | string
-      | undefined;
-
-   // Normalise to string[]
-   const extrasFromConfig = Array.isArray(extrasFromConfigRaw)
-      ? extrasFromConfigRaw
-      : extrasFromConfigRaw
-         ? [extrasFromConfigRaw]
-         : [];
-
-   // Combined whitelist: hard-coded + config
-   const allowedPivotScalars = new Set<string>([
-      ...PIVOT_SCALAR_WHITELIST,
-      ...extrasFromConfig,
-   ]);
-
-   const extras = scalarNames(candidate).filter(
-      (n) => !fkUnion.has(n) && !allowedPivotScalars.has(n)
+   // Only relations that actually own FKs
+   const rels = objRels(candidate).filter(
+      (r) => (r.relationFromFields?.length ?? 0) > 0
    );
 
-   if (extras.length > 0) return undefined;
+   // Must have exactly one relation pointing to "me"
+   const relsToMe = rels.filter((r) => r.type === thisModelName);
+   if (relsToMe.length !== 1) return undefined;
+   const relToMe = relsToMe[0];
 
-   return relOther.type; // self-join allowed
+   const fkA = relToMe.relationFromFields ?? [];
+
+   // Candidate "other" relations: different type, disjoint FKs, unique FK union
+   const otherCandidates = rels.filter((r) => {
+      if (r === relToMe) return false;
+      const fkB = r.relationFromFields ?? [];
+      if (hasIntersection(fkA, fkB)) return false;
+
+      const fkUnion = [...new Set([...fkA, ...fkB])];
+      // Require that [fkA ∪ fkB] is unique on this model (PK or unique)
+      return isUniqueOn(candidate, fkUnion);
+   });
+
+   // Ambiguous or no clean pair → not a pivot for thisModelName
+   if (otherCandidates.length !== 1) return undefined;
+
+   const relOther = otherCandidates[0];
+
+   // "Other endpoint" type (self-join allowed)
+   return relOther.type;
 };
 
 /* ---------------- list-style key extractor (names only) ------------------ */
+
+
 export function extractListRelationKeys(
    dmmf: DMMF.Document,
    model: DMMF.Model,
@@ -87,6 +77,7 @@ export function extractListRelationKeys(
    const isImplicitM2M =
       !!(counterpart?.isList && !thisOwnsFK && !otherOwnsFK);
 
+   // ---------------- implicit M2M: unchanged ----------------
    if (isImplicitM2M) {
       return {
          kind: "belongsToMany",
@@ -98,19 +89,59 @@ export function extractListRelationKeys(
       };
    }
 
+   // ---------------- explicit M2M via pivot -----------------
    const otherEndpointType = pivotOtherEndpointFor(model.name, related);
    if (otherEndpointType) {
-      const pivot = related;
+      const pivot = related; // pivot model
       const target = getModel(dmmf, otherEndpointType);
       const rels = objRels(pivot);
       const relToMe = rels.find((r) => r.type === model.name)!;
       const relToThem = rels.find((r) => r.type === target.name)!;
+
+      // FK-ish fields we NEVER treat as pivotColumns (even if user writes @pivot on them)
+      const keyFieldNames = new Set<string>([
+         ...(relToMe.relationFromFields ?? []),
+         ...(relToMe.relationToFields ?? []),
+         ...(relToThem.relationFromFields ?? []),
+         ...(relToThem.relationToFields ?? []),
+      ]);
+
+      const pivotDoc = pivot.documentation ?? "";
+
+      // 1) Model-level pivot cols: @pivot(meta, flags, ...)
+      const modelPivotNames = listFrom(pivotDoc, "pivot"); // ['meta', 'flags', ...]
+
+      // 2) Field-level: scalar fields with @pivot in their own docs
+      const fieldPivotNames = pivot.fields
+         .filter(
+            (f) =>
+               f.kind === "scalar" &&
+               !!f.documentation &&
+               /@pivot\b/i.test(f.documentation)
+         )
+         .map((f) => f.name);
+
+      // 3) Only allow names that are real scalar fields and not FK columns
+      const scalarFieldNames = new Set(
+         pivot.fields
+            .filter((f) => f.kind === "scalar")
+            .map((f) => f.name)
+      );
+
+      const pivotColumns = [...new Set([...modelPivotNames, ...fieldPivotNames])]
+         .filter((name) => scalarFieldNames.has(name))
+         .filter((name) => !keyFieldNames.has(name));
+
+      // 4) @withTimestamps is a pure flag: "call ->withTimestamps()"
+      const withTimestamps = /@withTimestamps\b/i.test(pivotDoc);
 
       return {
          kind: "belongsToMany",
          mode: "explicit",
          target: target.name,
          pivotTable: dbNameOf(pivot),
+         pivotColumns,
+         withTimestamps,
          pivotLocal: relToMe.relationFromFields ?? [],
          pivotForeign: relToThem.relationFromFields ?? [],
          local: relToMe.relationToFields ?? [],
@@ -118,6 +149,7 @@ export function extractListRelationKeys(
       };
    }
 
+   // ---------------- hasMany fallback -----------------------
    if (counterpart && otherOwnsFK) {
       return {
          kind: "hasMany",
@@ -156,6 +188,21 @@ export function buildRelationsForModel(
                targetModelName: keys.target,
             });
          } else if (keys.kind === "belongsToMany" && keys.mode === "explicit") {
+            const chainParts: string[] = [];
+
+            if (keys.pivotColumns && keys.pivotColumns.length > 0) {
+               const cols = keys.pivotColumns
+                  .map((c) => `'${c}'`) // quote column names for PHP
+                  .join(", ");
+               chainParts.push(`withPivot(${cols})`);
+            }
+
+            if (keys.withTimestamps) {
+               chainParts.push("withTimestamps()");
+            }
+
+            const rawChain = chainParts.length ? chainParts.join("->") : "";
+
             defs.push({
                name: f.name.replace(/Id$/, ""),
                type: "belongsToMany",
@@ -164,9 +211,12 @@ export function buildRelationsForModel(
                pivotTable: keys.pivotTable,
                pivotLocal: keys.pivotLocal,
                pivotForeign: keys.pivotForeign,
+               pivotColumns: keys.pivotColumns,
+               withTimestamps: keys.withTimestamps,
                localKey: keys.local,
                foreignKey: keys.foreign,
                targetModelName: keys.target,
+               rawChain,
             });
          } else if (keys.kind === "belongsToMany" && keys.mode === "implicit") {
             defs.push({

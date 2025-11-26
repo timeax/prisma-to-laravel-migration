@@ -40,8 +40,8 @@
   },
   "dependencies": {
     "@prettier/plugin-php": "^0.24.0",
-    "@prisma/generator-helper": "^6.10.0",
-    "@prisma/internals": "^6.11.0",
+    "@prisma/generator-helper": "^6.19.0",
+    "@prisma/internals": "^6.19.0",
     "change-case": "^5.4.4",
     "commander": "^14.0.0",
     "dayjs": "^1.11.13",

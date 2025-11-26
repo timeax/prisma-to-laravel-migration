@@ -4,7 +4,6 @@
 
 datasource db {
   provider = "mysql"
-  url      = "pat"
 }
 
 generator migrations {
@@ -369,6 +368,7 @@ model HostKey {
 
   @@map("host_keys")
 }
+
 /// ===========================
 /// Polymorphic enum
 /// ===========================
