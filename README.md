@@ -615,18 +615,20 @@ You can attach them either:
 
 ## Summary of Directives
 
-| Directive                                                                                   | Scope                                  | Purpose                                                                             |
-| ------------------------------------------------------------------------------------------- | -------------------------------------- | ----------------------------------------------------------------------------------- |
-| `@fillable`                                                                                 | Field **or** `@fillable{...}` on model | Adds field(s) to `$fillable`.                                                       |
-| `@hidden`                                                                                   | Field **or** `@hidden{...}` on model   | Adds field(s) to `$hidden`.                                                         |
-| `@guarded`                                                                                  | Field **or** `@guarded{...}` on model  | Adds field(s) to `$guarded`.                                                        |
-| `@cast{…}`                                                                                  | Field                                  | Adds a cast to `$casts`.                                                            |
-| `@type{ import:'…', type:'…' }`                                                             | Field                                  | Exposes a PHP/interface type hint for downstream tooling.                           |
-| `@with` / `@with(a,b,…)`                                                                    | Field / Model                          | Eager-load relations via `$with`.                                                   |
-| `@trait:…` `@extend:…` `@implements:…` `@observer:…` `@factory:…` `@touch{…}` `@appends{…}` | Model                                  | Class customization & extras.                                                       |
-| **`@local` (new)**                                                                          | **Relation Field**                     | **Skip generating that specific relation method** on the model. Replaces `@ignore`. |
-| **`@silent` (new)**                                                                         | **Model / Enum**                       | **Do not emit files** for this entity (model + migration / enum).                   |
-| **`@morph(…)` (new)**                                                                       | **Model**                              | Declare owner-side polymorphic relations; child-side `morphTo` is auto.             |
+| Directive                                                                                   | Scope                                   | Purpose                                                                                  |
+| ------------------------------------------------------------------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `@fillable`                                                                                 | Field **or** `@fillable{…}` on model    | Adds field(s) to `$fillable`.                                                            |
+| `@hidden`                                                                                   | Field **or** `@hidden{…}` on model      | Adds field(s) to `$hidden`.                                                              |
+| `@guarded`                                                                                  | Field **or** `@guarded{…}` on model     | Adds field(s) to `$guarded`.                                                             |
+| `@cast{…}`                                                                                  | Field                                   | Adds a cast entry to `$casts`.                                                           |
+| `@type{ import:'…', type:'…' }`                                                             | Field                                   | Exposes a PHP/interface type hint for downstream tooling.                                |
+| `@with` / `@with(a,b,…)`                                                                    | Field / Model                           | Marks relations to eager-load via `$with`.                                               |
+| `@trait:…` `@extend:…` `@implements:…` `@observer:…` `@factory:…` `@touch{…}` `@appends{…}` | Model                                   | Class customization & extras (traits, parents, observers, factories, touches, appends).  |
+| `@local`                                                                                    | Relation Field                          | Skip generating that **specific relation method** on the model. Replaces `@ignore`.      |
+| `@silent`                                                                                   | Model / Enum                            | Do **not** emit files for this entity (model + migration / enum).                        |
+| `@morph(…)`                                                                                 | Model                                   | Declare owner-side polymorphic relations; child-side `morphTo` is auto-detected.         |
+| `@pivot` / `@pivot(a,b,…)`                                                                  | Pivot **model** and/or scalar **fields**| Explicitly mark extra pivot columns to include in generated `withPivot(…)` chains.       |
+| `@withTimestamps`                                                                           | Pivot **model** / relation **field**    | Instructs the generator to append `->withTimestamps()` on the relation definition.       |
 
 > **Syntax options**
 > • Inline: `balance Decimal /// @fillable @cast{decimal:2}`
