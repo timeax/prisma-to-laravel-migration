@@ -34,10 +34,11 @@
     "cjs": "node scripts/toCommons.cjs",
     "gen:laravel": "node scripts/gen-laravel.js",
     "build": "rm -rf dist @types && tsup",
-    "commit-if-needed": "git diff --quiet || git add . && git commit -m \"Release commit before publish\"",
-    "release": "npm run build && npm run commit-if-needed && npm publish && npm version patch",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
+    "commit-if-needed": "git diff --quiet || git add . && git commit -m \"Release commit before publish\"",
+    "prepublishOnly": "npm run build && npm run commit-if-needed",
+    "postpublish": "npm version patch",
     "install:dev": "npm run build && npm link",
     "uninstall:dev": "npm unlink"
   },
