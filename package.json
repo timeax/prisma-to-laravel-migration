@@ -5,6 +5,7 @@
   "bin": {
     "prisma-laravel-migrations": "./dist/cli/migrator.index.js",
     "prisma-laravel-models": "./dist/cli/models.index.js",
+    "prisma-laravel-types": "./dist/cli/ts.index.js",
     "prisma-laravel-cli": "./dist/cli/cli.js"
   },
   "keywords": [
@@ -27,14 +28,16 @@
   "author": "David Okpako",
   "type": "module",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "cjs": "node scripts/toCommons.cjs",
     "gen:laravel": "node scripts/gen-laravel.js",
-    "build": "rm -rf dist @types && tsc",
+    "build": "rm -rf dist @types && tsup",
     "commit-if-needed": "git diff --quiet || git add . && git commit -m \"Release commit before publish\"",
     "release": "npm run build && npm run commit-if-needed && npm publish && npm version patch",
-    "dev": "tsc --watch",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
     "install:dev": "npm run build && npm link",
     "uninstall:dev": "npm unlink"
   },
@@ -56,6 +59,8 @@
     "@types/node": "^24.0.3",
     "jest": "^30.0.2",
     "ts-node": "^10.9.2",
-    "tsx": "^4.20.3"
+    "tsup": "^8.5.1",
+    "tsx": "^4.20.3",
+    "typescript": "^5.9.3"
   }
 }

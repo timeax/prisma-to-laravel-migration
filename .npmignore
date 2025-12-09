@@ -27,3 +27,4 @@ docs/
 .DS_Store
 app/
 database/
+.prisma-laravel
