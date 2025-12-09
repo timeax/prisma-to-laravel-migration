@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readdirSync } from "fs";
 import path from "path";
 import { PrismaToLaravelMigrationGenerator, Migration } from "./PrismaToLaravelMigrationGenerator.js";
 import { StubMigrationPrinter } from "../../printer/migrations.js";
-import { addToConfig, StubConfig } from "../../utils/utils.js";
+import { addToConfig, getStubPath, StubConfig } from "../../utils/utils.js";
 import { fileURLToPath } from "url";
 import { sortMigrations } from "../../utils/sort.js";
 import { writeWithMerge } from "../../diff-writer/writer.js";
@@ -108,13 +108,11 @@ export async function generateLaravelSchema(options: GeneratorOptions): Promise<
    // 3) Generate Migration objects
    const migrations: Migration[] = sortMigrations(schemaGen.generateAll());
 
-   const __filename = fileURLToPath(import.meta.url);
-   const __dirname = path.dirname(__filename);
    // 4) Prepare the stub printer
    const stub = (shared.output?.migrations ?? cfg.stubPath);
    const fallbackStubFile = stub
       ? path.resolve(process.cwd(), stub)
-      : path.resolve(__dirname, "../stubs/migration.stub");
+      : getStubPath("migration.stub");
    let printer = new StubMigrationPrinter(cfg, fallbackStubFile);
 
    // 5) Write each migration file

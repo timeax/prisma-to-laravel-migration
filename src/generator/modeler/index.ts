@@ -1,7 +1,7 @@
 import { GeneratorConfig, GeneratorOptions } from "@prisma/generator-helper";
 import { existsSync, mkdirSync } from "fs";
 import path from "path";
-import { addToConfig, StubConfig } from "../../utils/utils.js";
+import { addToConfig, getStubPath, StubConfig } from "../../utils/utils.js";
 import { StubModelPrinter } from "../../printer/models.js";
 import { PrismaToLaravelModelGenerator } from "./generator.js";
 import { ModelDefinition, EnumDefinition } from "./types";
@@ -86,22 +86,16 @@ export async function generateLaravelModels(options: GeneratorOptions) {
    }
 
 
-   // __dirname replacement in ESM:
-   const __filename = fileURLToPath(import.meta.url);
-   const __dirname = path.dirname(__filename);
-
-   // …
-
    // 2) Load stubs (allow overrides)
    const mStub = (shared.output?.models ?? cfg.modelStubPath);
    const modelStub = mStub
       ? path.resolve(process.cwd(), mStub)
-      : path.resolve(__dirname, "../stubs/model.stub");
+      : getStubPath("model.stub");
 
    const eStub = (shared.output?.enums ?? cfg.enumStubPath);
    const enumStub = eStub
       ? path.resolve(process.cwd(), eStub)
-      : path.resolve(__dirname, "../stubs/enum.stub");
+      : getStubPath("enum.stub");
 
 
    const printer = new StubModelPrinter(cfg, modelStub, enumStub);

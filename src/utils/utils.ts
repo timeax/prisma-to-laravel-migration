@@ -6,6 +6,8 @@ import { NativeToMigrationTypeMap, PrismaTypes } from "../generator/migrator/col
 import { DefaultMaps } from "generator/migrator/rules";
 import { ModelConfig } from "generator/modeler";
 import { MigratorConfig } from "generator/migrator";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 /**
  * Given a Prisma field default, return the PHP code fragment
@@ -286,3 +288,30 @@ export const listFrom = (doc: string, tag: string): string[] => {
    }
    return cleaned;
 };
+
+
+const FOLDER = "prisma-to-laravel-migration";
+
+export function getStubPath(pathString: string) {
+   const __filename = fileURLToPath(import.meta.url);
+   const __dirname = path.dirname(__filename);
+   // Assume caller already stripped "../", "./", "/stubs", etc.
+   // Just normalise separators so it works on Windows too.
+   const normalised = pathString.replace(/\\/g, "/");
+
+   // __dirname in ESM compiled dist, e.g.
+   //   /Users/you/code/prisma-to-laravel-migration/dist/utils
+   const dir = __dirname.replace(/\\/g, "/");
+   const idx = dir.lastIndexOf(FOLDER);
+
+   // If we can't find the repo folder name, fall back to CWD.
+   if (idx === -1) {
+      return path.resolve(process.cwd(), normalised);
+   }
+
+   // Root of the repo: ".../prisma-to-laravel-migration"
+   const baseDir = dir.slice(0, idx + FOLDER.length);
+
+   // Join repo root with the (already cleaned) relative stub path
+   return path.join(baseDir, 'stubs', normalised);
+}
