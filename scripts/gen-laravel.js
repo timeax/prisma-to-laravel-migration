@@ -4,14 +4,17 @@ import fs from "node:fs";
 import path from "node:path";
 import * as dmf from "@prisma/internals";
 
-// PHP-side generators
-import * as gg from "../dist/generator/migrator/index.js";
-import * as modeler from "../dist/generator/modeler/index.js";
-import { buildModelContent } from "../dist/utils/build.js";
+// All runtime exports now come from the bundled entry:
+import {
+   // PHP-side generators
+   generateLaravelSchema,
+   generateLaravelModels,
+   buildModelContent,
 
-// TS-side generator + printer
-import { PrismaToTypesGenerator } from "../dist/generator/ts/generator.js";
-import { TsPrinter } from "../dist/generator/ts/printer.js";
+   // TS-side generator + printer
+   PrismaToTypesGenerator,
+   TsPrinter,
+} from "../dist/index.js";
 
 (async () => {
    // 1) Load your Prisma schema
@@ -29,9 +32,9 @@ import { TsPrinter } from "../dist/generator/ts/printer.js";
    console.log(prismaCfg);
 
    // --------------------------------------------------------------------
-   // 3) PHP: Generate migrations (in-memory) – same as before
+   // 3) PHP: Generate migrations (in-memory)
    // --------------------------------------------------------------------
-   await gg.generateLaravelSchema({
+   await generateLaravelSchema({
       dmmf,
       schemaPath,
       generator: {
@@ -51,9 +54,8 @@ import { TsPrinter } from "../dist/generator/ts/printer.js";
    // );
 
    // --------------------------------------------------------------------
-   // 4) PHP: Generate model definitions (in-memory) – same as before
+   // 4) PHP: Generate model definitions (in-memory)
    // --------------------------------------------------------------------
-   const generateLaravelModels = modeler.generateLaravelModels;
    const { models: phpModels, enums: phpEnums } = await generateLaravelModels({
       dmmf,
       schemaPath,
@@ -102,7 +104,6 @@ import { TsPrinter } from "../dist/generator/ts/printer.js";
       // TS-specific
       outputDir: "resources/ts/prisma",
       declaration: false,
-      shape: "interface",
       scalarMap: undefined,
       nullableAsOptional: false,
       readonlyArrays: false,

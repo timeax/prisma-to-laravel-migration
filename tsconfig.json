@@ -15,7 +15,10 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "skipDefaultLibCheck": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "paths": {
+      "@/*": ["*"]
+    }
   },
   "exclude": ["__tests__", "@types"]
 }

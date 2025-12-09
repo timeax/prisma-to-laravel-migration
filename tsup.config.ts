@@ -17,7 +17,7 @@ export default defineConfig({
 
    format: ["esm"],
    platform: "node",
-   target: "node18",
+   target: "esnext",
 
    sourcemap: true,
    clean: true,

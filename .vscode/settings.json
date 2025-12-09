@@ -16,7 +16,7 @@
     ".gitattributes": true,
     "LICENSE": true,
     "package-lock.json": true,
-    "tsconfig.json": true,
+    "tsconfig.json": false,
     "dist": false,
     "@types": true,
     "node_modules": true

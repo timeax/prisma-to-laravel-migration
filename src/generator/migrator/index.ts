@@ -114,7 +114,7 @@ export async function generateLaravelSchema(options: GeneratorOptions): Promise<
    const stub = (shared.output?.migrations ?? cfg.stubPath);
    const fallbackStubFile = stub
       ? path.resolve(process.cwd(), stub)
-      : path.resolve(__dirname, "../../../stubs/migration.stub");
+      : path.resolve(__dirname, "../stubs/migration.stub");
    let printer = new StubMigrationPrinter(cfg, fallbackStubFile);
 
    // 5) Write each migration file

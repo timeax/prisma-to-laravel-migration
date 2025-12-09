@@ -1,7 +1,7 @@
 import path from 'path';
 import { existsSync } from 'fs';
 import { Minimatch } from 'minimatch';
-import type { FlexibleStubGroup } from 'types/laravel-config';
+import type { FlexibleStubGroup } from '@/types/laravel-config';
 import type { StubConfig } from './utils';
 
 /** helper ── does `table` satisfy pattern? */
