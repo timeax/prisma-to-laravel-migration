@@ -40,7 +40,8 @@
     "prepublishOnly": "npm run build && npm run commit-if-needed",
     "postpublish": "npm version patch",
     "install:dev": "npm run build && npm link",
-    "uninstall:dev": "npm unlink"
+    "uninstall:dev": "npm unlink",
+    "start": "npm run dev"
   },
   "dependencies": {
     "@prettier/plugin-php": "^0.24.0",
