@@ -4,6 +4,7 @@
 
 datasource db {
   provider = "mysql"
+  url = ""
 }
 
 generator migrations {

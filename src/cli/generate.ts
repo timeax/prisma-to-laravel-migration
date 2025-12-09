@@ -1,11 +1,13 @@
 import { readdirSync, existsSync } from "fs";
 import { generateLaravelSchema } from "../generator/migrator/index.js";
 import { generateLaravelModels } from "../generator/modeler/index.js";
+import { generateTypesFromPrisma } from "../generator/ts/index.js";
 import fs from "fs/promises";
 import path from "path";
 import { spawn } from "child_process";
 import * as dmf from "@prisma/internals";
 import { loadConfig } from "../utils/config.js";
+import { GeneratorOptions } from "@prisma/generator-helper";
 
 // utility: load/merge ALL *.prisma files under prisma/ (schema first, then the rest)
 export async function loadMergedDatamodel(schemaPrismaPath: string): Promise<string> {
@@ -29,8 +31,9 @@ export async function getLaravelGeneratorConfigs(datamodel: string) {
 
    const migCfg = findCfg("prisma-laravel-migrations") as Record<string, string>;
    const modCfg = findCfg("prisma-laravel-models") as Record<string, string>;
+   const tsCfg = findCfg('prisma-laravel-ts') as Record<string, string>
 
-   return { migCfg, modCfg };
+   return { migCfg, modCfg, tsCfg };
 }
 
 // reusable runner
@@ -54,37 +57,33 @@ export async function runGenerators(configPath: string, skipPrismaGenerate = fal
       const datamodel = await loadMergedDatamodel(schemaPrismaPath);
 
       // 2) read generator *configs* from the schema itself
-      const { migCfg, modCfg } = await getLaravelGeneratorConfigs(datamodel);
+      const { migCfg, modCfg, tsCfg } = await getLaravelGeneratorConfigs(datamodel);
 
       // 3) build DMMF once
       const sdk = (dmf as any).default ?? dmf;
       const dmmf = await sdk.getDMMF({ datamodel });
 
+      const config = (conf: any): GeneratorOptions => {
+         return {
+            dmmf,
+            // pass the models block config directly
+            // @ts-ignore
+            generator: { config: conf },
+            otherGenerators: [],
+            schemaPath: schemaPrismaPath,
+            datasources: [],
+            datamodel,
+            version: "",
+         }
+      }
+
       // 4) run Laravel migrations generator
-      await generateLaravelSchema({
-         dmmf,
-         // pass the migrations block config directly
-         // @ts-ignore
-         generator: { config: migCfg },
-         otherGenerators: [],
-         schemaPath: schemaPrismaPath,
-         datasources: [],
-         datamodel,
-         version: "",
-      });
+      await generateLaravelSchema(config(migCfg));
 
       // 5) run Laravel models/enums generator
-      await generateLaravelModels({
-         dmmf,
-         // pass the models block config directly
-         // @ts-ignore
-         generator: { config: modCfg },
-         otherGenerators: [],
-         schemaPath: schemaPrismaPath,
-         datasources: [],
-         datamodel,
-         version: "",
-      });
+      await generateLaravelModels(config(modCfg));
+
+      await generateTypesFromPrisma(config(tsCfg))
    };
 
    if (skipPrismaGenerate) {

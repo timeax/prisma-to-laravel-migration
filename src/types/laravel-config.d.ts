@@ -32,7 +32,7 @@ interface FlexibleStubGroup {
 
 
 /* ------------------------------------------------------------
- *  Per-generator overrides  (migration / modeler)
+ *  Per-generator overrides  (migration / modeler / ts)
  * ---------------------------------------------------------- */
 export interface LaravelGeneratorConfig {
    tablePrefix?: string;
@@ -45,8 +45,10 @@ export interface LaravelGeneratorConfig {
    outputDir?: string;
 
    overwriteExisting?: boolean;
+
    /** Allow formatting with prettier */
    prettier?: boolean;
+
    /**
     * Stub grouping:
     *  • string  – path to a JS module exporting StubGroupConfig[]
@@ -57,8 +59,8 @@ export interface LaravelGeneratorConfig {
    /** Skip file emission for *this* generator only */
    noEmit?: boolean;
 
-   /**Default namespace for local imports */
-   namespace?: "App\\"
+   /** Default namespace for local imports (PHP generators) */
+   namespace?: "App\\";
 }
 
 /* ------------------------------------------------------------
@@ -75,16 +77,73 @@ export interface LaravelSharedConfig {
    /** Global “don’t write files” switch */
    noEmit?: boolean;
 
-   /** Override default output folders */
+   /** Override default output folders (PHP + TS) */
    output?: {
       migrations?: string;
       models?: string;
       enums?: string;
+      /** Where TS types go if not overridden in ts.outputDir */
+      ts?: string;
    };
 
    /** Per-generator fine-tuning */
    migrate?: Partial<MigratorConfigOverride>;
    modeler?: Partial<ModelConfigOverride>;
+   ts?: Partial<TypesConfigOverride>;
+}
+
+/* ------------------------------------------------------------
+ *  TypeScript generator overrides
+ * ---------------------------------------------------------- */
+export interface TypesConfigOverride extends LaravelGeneratorConfig {
+   /** Where generated TS types should be written, e.g. "resources/ts/prisma" */
+   outputDir?: string;
+
+   /** Emit `.d.ts` declaration files instead of `.ts` source files. */
+   declaration?: boolean; // default: false → .ts
+
+   /** Use `interface` or `type` for model declarations. */
+   shape?: "interface" | "type"; // default: "interface"
+
+   /**
+    * Map Prisma scalar types → TypeScript types.
+    * Keys are Prisma scalar names ("Int", "BigInt", "Decimal", "Json", "DateTime", etc.).
+    *
+    * Example:
+    *   scalarMap: {
+    *     BigInt: "bigint",
+    *     Decimal: "string",
+    *     Json: "unknown",
+    *   }
+    */
+   scalarMap?: Record<string, string>;
+
+   /**
+    * If true, nullable fields become optional:
+    *   `foo?: string`
+    * instead of:
+    *   `foo: string | null`
+    */
+   nullableAsOptional?: boolean;
+
+   /**
+    * If true, lists are emitted as `ReadonlyArray<T>` instead of `T[]`.
+    */
+   readonlyArrays?: boolean;
+
+   /**
+    * Optional name decoration for generated types/interfaces.
+    * e.g. `namePrefix: "I"` → `IUser`, `IAccount`.
+    */
+   namePrefix?: string;
+   nameSuffix?: string;
+
+   /**
+    * Optional root module/namespace hint if you want to wrap types
+    * in a `declare module "…" {}` or similar structure.
+    * (Purely for the TS generator; ignored by PHP generators.)
+    */
+   moduleName?: string;
 }
 
 
@@ -97,9 +156,9 @@ export interface MigratorConfigOverride extends LaravelGeneratorConfig {
     */
    rules?: string | Rule[];
    stubPath?: string;
-   /** Allow unsinged on non int types */
+   /** Allow unsigned on non-int types */
    allowUnsigned?: boolean;
-   defaultMaps?: DefaultMaps
+   defaultMaps?: DefaultMaps;
 }
 
 

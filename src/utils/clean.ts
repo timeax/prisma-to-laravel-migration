@@ -24,13 +24,13 @@
  * @param doc  the original documentation string (may be `///` above or inline)
  * @returns    the cleaned doc, or `undefined` if it’s empty
  */
-export function stripDirectives(doc?: string): string | undefined {
-  if (!doc) return undefined;
+export function stripDirectives(doc?: string): string {
+  if (!doc) return '';
   // 1) remove all @directives with optional (), {} or :… args
   const cleaned = doc
     .replace(/@\w+(?:\([^)]*\)|\{[^}]*\}|:[^\s]*)?/g, '')
     // 2) collapse multiple spaces/newlines into single space
     .replace(/[\s\uFEFF\xA0]{2,}/g, ' ')
     .trim();
-  return cleaned.length ? cleaned : undefined;
+  return cleaned.length ? cleaned : '';
 }

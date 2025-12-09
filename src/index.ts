@@ -10,6 +10,7 @@ export { Rule } from './generator/migrator/rules';
 // Core generators
 export { generateLaravelSchema } from './generator/migrator/index.js';
 export { generateLaravelModels } from './generator/modeler/index.js';
+export { generateTypesFromPrisma } from './generator/ts/index.js'
 
 // Utilities
 export { sortMigrations } from './utils/sort.js';

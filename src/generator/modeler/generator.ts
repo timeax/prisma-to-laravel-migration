@@ -8,6 +8,7 @@ import { PrismaTypes } from "../migrator/column-maps.js";
 import { RelationDefinition } from "./relationship/types";
 import { buildRelationsForModel } from "./relationship/index.js";
 import { getConfig, isForModel, listFrom, parseSilentDirective } from "../../utils/utils.js";
+import { parseAppendsDirective } from "generator/ts/directives";
 
 /**
  * Build ModelDefinition[] + EnumDefinition[] from your DMMF.
@@ -165,7 +166,7 @@ export class PrismaToLaravelModelGenerator {
 
          // eager-load arrays (now via listFrom)
          const touches = listFrom(modelDoc, "touch");
-         const appends = listFrom(modelDoc, "appends");
+         const appends = parseAppendsDirective(modelDoc)?.entries.map(item => item.name);
 
          const imports = [
             ...(parentUse ? [parentUse] : []),

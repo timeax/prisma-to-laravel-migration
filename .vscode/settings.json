@@ -7,5 +7,6 @@
     "dist": true,
     "@types": true,
     "node_modules": true
-  }
+  },
+  "prisma.pinToPrisma6": true
 }

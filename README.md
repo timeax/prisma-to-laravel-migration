@@ -1,8 +1,12 @@
 # Prisma Laravel Migrate
 
-A generator plugin that translates your **Prisma schema** into Laravel‑ready  
-**Database Migrations**, **Eloquent Models**, and **Enum classes**.  
-Built in strict TypeScript with fully‑customisable stubs, grouping, and smart merge updates.
+A generator plugin that translates your **Prisma schema** into Laravel‑ready
+
+* **Database Migrations**
+* **Eloquent Models & PHP Enums**
+* **TypeScript model & enum types**
+
+Built in strict TypeScript with fully‑customisable stubs, grouping, smart merge updates, and an optional TS types generator.
 
 ---
 
@@ -14,7 +18,8 @@ npm install prisma-laravel-migrate --save-dev
 ```
 
 ---
-🛠️ Configuration layers
+
+## 🛠️ Configuration layers
 
 The generators read options in **three tiers (highest → lowest)**:
 
@@ -43,54 +48,97 @@ module.exports = {
   output: {
     migrations: "database/migrations",
     models:      "app/Models",
-    enums:       "app/Enums"
+    enums:       "app/Enums",
   },
 
   /* -- per‑generator overrides ------------------------ */
   migrate: {
     groups: "./prisma/migrate-groups.js",
-    rules : "./prisma/custom-rules.js"
+    rules : "./prisma/custom-rules.js",
   },
 
   modeler: {
     groups: [
-      { stubFile: "audit.stub", tables: ["logs","audit_trails"] }
+      { stubFile: "audit.stub", tables: ["logs","audit_trails"] },
     ],
     outputEnumDir: "app/Enums",
     overwriteExisting: true,
-    allowedPivotExtraFields: ["scope"]
-  }
+    allowedPivotExtraFields: ["scope"],
+    // use awobaz/compoships for multi-column relations
+    awobaz: true,
+  },
+
+  /**
+   * NEW: TypeScript generator (models + enums → TS types)
+   */
+  types: {
+    // Where generated TS goes (default: "resources/ts/prisma")
+    outputDir: "resources/ts/prisma",
+
+    // Emit .d.ts instead of .ts when true
+    declaration: false,
+
+    // "interface" | "type" for model declarations
+    shape: "interface",
+
+    // Optional module wrapper for the main types file
+    // declare module "database/prisma" { ... }
+    moduleName: "database/prisma",
+
+    // Example scalar mapping overrides
+    scalarMap: {
+      // BigInt: "bigint",
+      // Decimal: "string",
+      // Json: "unknown",
+    },
+
+    // If true: nullable fields become optional properties
+    nullableAsOptional: false,
+
+    // If true: lists become ReadonlyArray<T>
+    readonlyArrays: false,
+
+    // Name decoration for interfaces/types
+    namePrefix: "",
+    nameSuffix: "",
+  },
 };
 ```
 
->`Updated! I added a new section in the canvas—“Related Generator Options (Formatting & Compoships)”—covering:
-prettier (per-generator): what it does, defaults, config snippets, and a typings excerpt.
-modeler.awobaz: what enabling Compoships changes, config example, and a reminder to composer require it.`
+> There is also a small section in the codebase labelled
+> **“Related Generator Options (Formatting & Compoships)”** covering:
+>
+> * `prettier` (per‑generator): enables formatting via Prettier for
+>   PHP/TS outputs during merge.
+> * `modeler.awobaz`: whether to emit Compoships‑aware relationships
+>   (requires `awobaz/compoships` in your Laravel app).
+
+---
 
 <details>
 <summary>Type reference</summary>
 
 ```ts
 export interface Rule {
-   test(
-      def: ColumnDefinition,
-      allDefs: ColumnDefinition[],
-      dmmf: DMMF.Document
-   ): boolean;
-   render(
-      def: ColumnDefinition,
-      allDefs: ColumnDefinition[],
-      dmmf: DMMF.Document
-   ): Render;
+  test(
+    def: ColumnDefinition,
+    allDefs: ColumnDefinition[],
+    dmmf: DMMF.Document,
+  ): boolean;
+  render(
+    def: ColumnDefinition,
+    allDefs: ColumnDefinition[],
+    dmmf: DMMF.Document,
+  ): Render;
 }
 
 /* ------------------------------------------------------------
  *  Re-usable stub-group description
  * ---------------------------------------------------------- */
 export interface StubGroupConfig extends FlexibleStubGroup {
-   /** Path relative to stubDir/<type>/  (e.g. "auth.stub") */
-   stubFile: string;
-   tables: string[];      // ["users","accounts",…] or enum names
+  /** Path relative to stubDir/<type>/  (e.g. "auth.stub") */
+  stubFile: string;
+  tables: string[];      // ["users","accounts",…] or enum names
 }
 
 /**
@@ -98,20 +146,20 @@ export interface StubGroupConfig extends FlexibleStubGroup {
  * Supply EITHER `tables` *or* (`include` / `exclude` / `pattern`).
  */
 interface FlexibleStubGroup {
-   /** Path relative to stubDir/<type>/, e.g. "auth.stub" */
-   stubFile: string;
+  /** Path relative to stubDir/<type>/, e.g. "auth.stub" */
+  stubFile: string;
 
-   /** Old style - explicit white-list */
-   tables?: string[];
+  /** Old style - explicit white-list */
+  tables?: string[];
 
-   /** New style – include list ( '*' means “all tables” ) */
-   include?: string[] | '*';
+  /** New style – include list ( '*' means “all tables” ) */
+  include?: string[] | '*';
 
-   /** New style – blacklist applied after include / pattern */
-   exclude?: string[];
+  /** New style – blacklist applied after include / pattern */
+  exclude?: string[];
 
-   /** New style – RegExp OR minimatch glob(s) */
-   pattern?: RegExp | string | Array<RegExp | string>;
+  /** New style – RegExp OR minimatch glob(s) */
+  pattern?: RegExp | string | Array<RegExp | string>;
 }
 
 
@@ -119,81 +167,124 @@ interface FlexibleStubGroup {
  *  Per-generator overrides  (migration / modeler)
  * ---------------------------------------------------------- */
 export interface LaravelGeneratorConfig {
-   tablePrefix?: string;
-   tableSuffix?: string;
+  tablePrefix?: string;
+  tableSuffix?: string;
 
-   /** Override stubDir only for this generator */
-   stubDir?: string;
+  /** Override stubDir only for this generator */
+  stubDir?: string;
 
-   /** Where the generated PHP goes (overrides block) */
-   outputDir?: string;
+  /** Where the generated PHP goes (overrides block) */
+  outputDir?: string;
 
-   overwriteExisting?: boolean;
-   /** Allow formatting with prettier */
-   prettier?: boolean;
-   /**
-    * Stub grouping:
-    *  • string  – path to a JS module exporting StubGroupConfig[]
-    *  • array   – the group definitions themselves
-    */
-   groups?: string | StubGroupConfig[];
+  overwriteExisting?: boolean;
+  /** Allow formatting with prettier */
+  prettier?: boolean;
+  /**
+   * Stub grouping:
+   *  • string  – path to a JS module exporting StubGroupConfig[]
+   *  • array   – the group definitions themselves
+   */
+  groups?: string | StubGroupConfig[];
 
-   /** Skip file emission for *this* generator only */
-   noEmit?: boolean;
+  /** Skip file emission for *this* generator only */
+  noEmit?: boolean;
 
-   /**Default namespace for local imports */
-   namespace?: "App\\"
+  /** Default namespace for local imports */
+  namespace?: "App\\";
 }
 
 /* ------------------------------------------------------------
  *  Top-level shared config  (visible to all generators)
  * ---------------------------------------------------------- */
 export interface LaravelSharedConfig {
-   /** Table name decoration */
-   tablePrefix?: string;
-   tableSuffix?: string;
+  /** Table name decoration */
+  tablePrefix?: string;
+  tableSuffix?: string;
 
-   /** Default stub root (migration/, model/, enum/) */
-   stubDir?: string;
+  /** Default stub root (migration/, model/, enum/, ts/) */
+  stubDir?: string;
 
-   /** Global “don’t write files” switch */
-   noEmit?: boolean;
+  /** Global “don’t write files” switch */
+  noEmit?: boolean;
 
-   /** Override default output folders */
-   output?: {
-      migrations?: string;
-      models?: string;
-      enums?: string;
-   };
+  /** Override default output folders (PHP side) */
+  output?: {
+    migrations?: string;
+    models?: string;
+    enums?: string;
+  };
 
-   /** Per-generator fine-tuning */
-   migrate?: Partial<MigratorConfigOverride>;
-   modeler?: Partial<ModelConfigOverride>;
+  /** Per-generator fine-tuning */
+  migrate?: Partial<MigratorConfigOverride>;
+  modeler?: Partial<ModelConfigOverride>;
+
+  /** NEW: TypeScript generator overrides */
+  types?: Partial<TypesConfigOverride>;
 }
 
 
 /* --- Migrator-specific extra keys ---------------------------------------- */
 export interface MigratorConfigOverride extends LaravelGeneratorConfig {
-   /**
-    * Custom migration rules:
-    *  • string – path to JS module exporting Rule[]
-    *  • Rule[] – rules array inline
-    */
-   rules?: string | Rule[];
-   stubPath?: string;
-   defaultMaps?: DefaultMaps
+  /**
+   * Custom migration rules:
+   *  • string – path to JS module exporting Rule[]
+   *  • Rule[] – rules array inline
+   */
+  rules?: string | Rule[];
+  stubPath?: string;
+  defaultMaps?: DefaultMaps;
 }
 
 
 export interface ModelConfigOverride extends LaravelGeneratorConfig {
-   modelStubPath?: string;
-   enumStubPath?: string;
-   /** Extra folder for enums (modeler only) */
-   outputEnumDir?: string;
-   /** use awobaz/compoships */
-   awobaz?: boolean;
-   /** Extra fields allowed on pivot models */
-   allowedPivotExtraFields?: string[];
+  modelStubPath?: string;
+  enumStubPath?: string;
+  /** Extra folder for enums (modeler only) */
+  outputEnumDir?: string;
+  /** use awobaz/compoships */
+  awobaz?: boolean;
+  /** Extra fields allowed on pivot models */
+  allowedPivotExtraFields?: string[];
+}
+
+/* ------------------------------------------------------------
+ *  TypeScript generator overrides
+ * ---------------------------------------------------------- */
+export interface TypesConfigOverride extends LaravelGeneratorConfig {
+  /** Where generated TS types should be written, e.g. "resources/ts/prisma" */
+  outputDir?: string;
+
+  /** Emit `.d.ts` declaration files instead of `.ts` source files. */
+  declaration?: boolean; // default: false → .ts
+
+  /** Use `interface` or `type` for model declarations. */
+  shape?: "interface" | "type"; // default: "interface"
+
+  /**
+   * Map Prisma scalar types → TypeScript types.
+   * Keys are Prisma scalar names ("Int", "BigInt", "Decimal", "Json", "DateTime", etc.).
+   */
+  scalarMap?: Record<string, string>;
+
+  /** If true, nullable fields become optional: `foo?: string` instead of `foo: string | null`. */
+  nullableAsOptional?: boolean;
+
+  /** If true, lists are emitted as `ReadonlyArray<T>` instead of `T[]`. */
+  readonlyArrays?: boolean;
+
+  /** Optional name decoration for generated types/interfaces. */
+  namePrefix?: string;
+  nameSuffix?: string;
+
+  /**
+   * Optional root module/namespace hint.
+   * When set, the main types file is wrapped in:
+   *   declare module "…" { ... }
+   */
+  moduleName?: string;
+
+  /** Where models should import enums from (default: "./enums"). */
+  enumImportFrom?: string;
 }
 ```
 
@@ -214,35 +305,47 @@ generator migrate {
 generator modeler {
   provider  = "prisma-laravel-models"
   stubDir   = "./prisma/stubs"
+}
+
+// NEW: TypeScript types generator
+generator types {
+  provider  = "prisma-laravel-types"
+  stubDir   = "./prisma/stubs"
+}
 ```
 
 ### Field Reference
 
-| Key                    | Notes                                                                                                     |
-| ---------------------- | --------------------------------------------------------------------------------------------------------- |
-| `outputDir / output`   | Destination folder (`outputDir` overrides `output`).                                                      |
-| `outputEnumDir`        | (modeler) directory for generated enum classes.                                                           |
-| `stubDir`              | Root stub folder (`migration/`, `model/`, `enum/`).                                                       |
-| `tablePrefix`          | String prepended to every generated **physical** table name.                                              |
-| `tableSuffix`          | String appended to every generated **physical** table name.                                               |
-| `groups`               | JS module *or* inline array that maps stub files to table groups.                                         |
-| `noEmit`               | If `true`, generator parses and validates but **does not write** any files (dry-run / CI mode).           |
+| Key                  | Notes                                                                                           |        |
+| -------------------- | ----------------------------------------------------------------------------------------------- | ------ |
+| `outputDir / output` | Destination folder (`outputDir` overrides `output`) — PHP and TS.                               |        |
+| `outputEnumDir`      | (modeler) directory for generated PHP enum classes.                                             |        |
+| `stubDir`            | Root stub folder (`migration/`, `model/`, `enum/`, `ts/`).                                      |        |
+| `tablePrefix`        | String prepended to every generated **physical** table name.                                    |        |
+| `tableSuffix`        | String appended to every generated **physical** table name.                                     |        |
+| `groups`             | JS module *or* inline array that maps stub files to table/model/enum/TS groups.                 |        |
+| `noEmit`             | If `true`, generator parses and validates but **does not write** any files (dry-run / CI mode). |        |
+| `prettier`           | Per-generator toggle for formatting (PHP or TS) before 3‑way merge.                             |        |
+| `awobaz`             | (modeler) Emit Compoships‑aware relationships; requires `awobaz/compoships`.                    |        |
+| `scalarMap`          | (types) Map Prisma scalars → TS type names.                                                     |        |
+| `nullableAsOptional` | (types) Emit `foo?: T` for nullable fields instead of `foo: T                                   | null`. |
+| `readonlyArrays`     | (types) Emit `ReadonlyArray<T>` instead of `T[]`.                                               |        |
+| `moduleName`         | (types) Wrap main types output in `declare module "…" {}`.                                      |        |
 
 ---
 
-
 ## 🔀 `groups` – Stub Grouping (v2)
 
-A **group** links one stub file to _many_ tables (or enums).  
+A **group** links one stub file to *many* tables (or enums / TS variants).
 From v2 you can keep the old **`tables: [...]`** list **or** use the new, more
 expressive selectors:
 
-| Key          | Type / Example                         | Meaning                                                      |
-|--------------|----------------------------------------|--------------------------------------------------------------|
-| `tables`     | `["users","accounts"]`                 | Classic explicit list – **exact names** only                 |
-| `include`    | `["audit_*","logs"]` **or** `"*"`      | White‑list using globs or `'*'` (all)                       |
-| `exclude`    | `["*_archive","failed_jobs"]`          | Black‑list applied *after* include / pattern                 |
-| `pattern`    | `/^temp_/` or `"report_*"`             | `RegExp` **or** glob(s) – match if **any** hits              |
+| Key       | Type / Example                    | Meaning                                         |
+| --------- | --------------------------------- | ----------------------------------------------- |
+| `tables`  | `["users","accounts"]`            | Classic explicit list – **exact names** only    |
+| `include` | `["audit_*","logs"]` **or** `"*"` | White‑list using globs or `'*'` (all)           |
+| `exclude` | `["*_archive","failed_jobs"]`     | Black‑list applied *after* include / pattern    |
+| `pattern` | `/^temp_/` or `"report_*"`        | `RegExp` **or** glob(s) – match if **any** hits |
 
 > Only one of **`tables`** **or** the new selector trio is required.
 
@@ -264,33 +367,35 @@ module.exports = [
   // 1. legacy explicit list
   {
     stubFile: "auth.stub",                // stubs/migration/auth.stub
-    tables:   ["users","accounts","password_resets"]
+    tables:   ["users","accounts","password_resets"],
   },
 
   // 2. regex + blacklist
   {
     stubFile: "audit.stub",
     pattern : /^audit_/,
-    exclude : ["audit_archive"]
+    exclude : ["audit_archive"],
   },
 
   // 3. catch‑all
   {
     stubFile: "catch-all.stub",
     include : "*",
-    exclude : ["failed_jobs","migrations"]
-  }
+    exclude : ["failed_jobs","migrations"],
+  },
 ];
 ```
 
 ### Resolution order
 
-1. **Table‑specific** — `stubs/<type>/<table>.stub`  
-2. **First matching group** (objects are checked top‑to‑bottom)  
+1. **Table‑specific** — `stubs/<type>/<table>.stub`
+2. **First matching group** (objects are checked top‑to‑bottom)
 3. **Default** — `stubs/<type>/index.stub`
 
 > If a group’s `stubFile` does not exist it is skipped, so you may leave unused
 > groups in place without breaking the build.
+
+---
 
 ## 📁 Stub Folder Layout
 
@@ -299,21 +404,26 @@ prisma/stubs/
 ├── migration/index.stub
 ├── model/index.stub
 ├── model/simple-model.stub
-└── enum/index.stub
+├── enum/index.stub
+└── ts/index.stub
 ```
 
-Add table‑specific overrides at  
-`stubs/<type>/<table>.stub` (e.g. `stubs/model/users.stub`).
+Add table‑specific overrides at
+`stubs/<type>/<table>.stub` (e.g. `stubs/model/users.stub`, `stubs/ts/Account.stub`).
+
+* `migration/` and `model/` stubs are **PHP** template literals.
+* `enum/` stubs are **PHP** enum templates.
+* `ts/` stubs are **JavaScript template literals** evaluated by the TS printer.
 
 ---
 
 ## 🔧 CLI Commands
 
-| Command | Purpose |
-| --- | --- |
-| `init` | Inject generator blocks & scaffold stub folders |
-| `customize` | Create per-table stub overrides |
-| `gen` | Run `prisma generate` then Laravel generators |
+| Command     | Purpose                                            |
+| ----------- | -------------------------------------------------- |
+| `init`      | Inject generator blocks & scaffold stubs           |
+| `customize` | Create per-table stub overrides                    |
+| `gen`       | Run `prisma generate` then Laravel + TS generators |
 
 ### init
 
@@ -324,15 +434,18 @@ npx prisma-laravel-cli init --schema=prisma/schema.prisma
 ### customize
 
 ```bash
-npx prisma-laravel-cli customize   -t migration,model   -n users,accounts   --force
+npx prisma-laravel-cli customize \
+  -t migration,model,ts \
+  -n users,accounts \
+  --force
 ```
 
-| Flag | Description |
-| --- | --- |
-| `-t, --type` | **Required.** Stub types (`migration`, `model`, `enum`). `enum` may not mix. |
-| `-n, --names` | **Required.** Table or enum names (`users,accounts`). |
-| `--force` | Overwrite existing stub files. |
-| `--config` | Alternate CLI config path. |
+| Flag          | Description                                                                                    |
+| ------------- | ---------------------------------------------------------------------------------------------- |
+| `-t, --types` | **Required.** Stub types (`migration`, `model`, `enum`, `ts`). `enum` may not mix with others. |
+| `-n, --names` | **Required.** Table or enum names (`users,accounts`).                                          |
+| `--force`     | Overwrite existing stub files.                                                                 |
+| `--config`    | Alternate CLI config path.                                                                     |
 
 ### gen
 
@@ -346,17 +459,22 @@ npx prisma-laravel-cli gen --config=prisma/laravel.config.js --skipGenerate
 
 ```js
 module.exports = {
-  migrator: {
+  migrate: {
     outputDir: "database/migrations",
     stubDir:   "prisma/stubs",
-    groups:    "./prisma/group-stubs.js"
+    groups:    "./prisma/group-stubs.js",
   },
   modeler: {
     outputDir:     "app/Models",
     outputEnumDir: "app/Enums",
     stubDir:       "prisma/stubs",
-    groups:        "./prisma/group-stubs.js"
-  }
+    groups:        "./prisma/group-stubs.js",
+  },
+  types: {
+    outputDir:  "resources/ts/prisma",
+    stubDir:    "prisma/stubs",
+    moduleName: "database/prisma",
+  },
 };
 ```
 
@@ -366,13 +484,20 @@ module.exports = {
 
 1. Generator builds a **full new file** from your schema & stubs.
 2. Performs a **git‑style 3‑way merge** (using `node-diff3`):
-  - **base** = last generator output (`.prisma-laravel/backups/...`)
-  - **ours** = file on disk (user edits)
-  - **theirs** = freshly generated file
-3. Non‑conflicting changes merge automatically; conflicts are wrapped with  
-  `<<<<<<<`, `=======`, `>>>>>>>`.
-4. New `use …;` imports are merged, duplicates skipped.
+
+   * **base** = last generator output (`.prisma-laravel/backups/...`)
+   * **ours** = file on disk (user edits)
+   * **theirs** = freshly generated file
+3. Non‑conflicting changes merge automatically; conflicts are wrapped with
+   `<<<<<<<`, `=======`, `>>>>>>>`.
+4. New imports are merged, duplicates skipped.
 5. Baseline copy is updated in the backups folder.
+
+The same merge pipeline is used for:
+
+* PHP migrations (`type: "migrator"` in the diff writer),
+* PHP models/enums (`type: "model"`),
+* TypeScript outputs (`type: "ts"`, using the `typescript` Prettier parser).
 
 Delete the marker block **and** set `noEmit = true` to stop updates for a file.
 
@@ -380,32 +505,36 @@ Delete the marker block **and** set `noEmit = true` to stop updates for a file.
 
 ## ✨ Stub Customisation Notes
 
-Stubs are **JavaScript template literals**. Escape \` and \${ } if you want them literally.
+Stubs are **JavaScript template literals**. Escape ` and ${ } if you want them literally.
 
-> **Fully custom model stubs**  
+> **Fully custom model stubs**
 > If you remove the `${content}` placeholder **and** the marker block, the
-> generator leaves the file untouched.  
+> generator leaves the file untouched.
 > Keep the markers if you want automated updates but customised surroundings.
 
 ---
 
 ## 📑 Default Stub Templates
 
+### PHP Enum `index.stub`
+
 <details>
-<summary>Enum <code>index.stub</code></summary>
+<summary>Enum <code>index.stub</code> (PHP)</summary>
 
 ```php
 <?php
 
-namespace App\\Enums;
+namespace App\Enums;
 
 enum ${enumDef.name}: string
 {
-${enumDef.values.map(v => `    case ${v} = '${v}';`).join('\\n')}
+${enumDef.values.map(v => `    case ${v} = '${v}';`).join('\n')}
 }
 ```
 
 </details>
+
+### PHP Migration `index.stub`
 
 <details>
 <summary>Migration <code>index.stub</code></summary>
@@ -413,9 +542,9 @@ ${enumDef.values.map(v => `    case ${v} = '${v}';`).join('\\n')}
 ```php
 <?php
 
-use Illuminate\\Database\\Migrations\\Migration;
-use Illuminate\\Database\\Schema\\Blueprint;
-use Illuminate\\Support\\Facades\\Schema;
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -435,9 +564,35 @@ return new class extends Migration
 
 </details>
 
+### TypeScript module `index.stub`
+
+<details>
+<summary>TS <code>ts/index.stub</code> (module-level)</summary>
+
+```ts
+${imports}
+
+${body}
+```
+
+* `imports` → merged import block for all non-stubbed models (including enums).
+* `body`    → full `declare module "…" { … }` wrapper generated by the TS printer.
+* `content` (exposed to the stub function) is just the inner interfaces/types
+  without the `declare module` wrapper, if you need it for advanced patterns.
+
+Per-model TS stubs under `stubs/ts/<Model>.stub` receive:
+
+```ts
+(model, imports, content, body, moduleName) => string
+```
+
+and are free to ignore or wrap the default `body` however they like.
+
+</details>
+
 ---
 
-## 🏗️ Complex Model Stub Example
+## 🏗️ Complex Model Stub Example (PHP)
 
 <details>
 <summary>Expand stub</summary>
@@ -445,11 +600,11 @@ return new class extends Migration
 ```php
 <?php
 
-namespace App\\Models;
+namespace App\Models;
 
 ${model.imports}
-use Illuminate\\Database\\Eloquent\\Model;
-use Illuminate\\Database\\Eloquent\\Relations\\{ BelongsTo, HasMany, BelongsToMany };
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\{ BelongsTo, HasMany, BelongsToMany };
 
 class ${model.className} extends Model
 {
@@ -457,25 +612,25 @@ class ${model.className} extends Model
 
     /* Mass Assignment */
     protected $fillable = [
-${model.properties.filter(p => p.fillable).map(p => `        '${p.name}',`).join('\\n')}
+${model.properties.filter(p => p.fillable).map(p => `        '${p.name}',`).join('\n')}
     ];
     protected $guarded = [
-${(model.guarded ?? []).map(n => `        '${n}',`).join('\\n')}
+${(model.guarded ?? []).map(n => `        '${n}',`).join('\n')}
     ];
 
     /* Hidden & Casts */
     protected $hidden = [
-${model.properties.filter(p => p.hidden).map(p => `        '${p.name}',`).join('\\n')}
+${model.properties.filter(p => p.hidden).map(p => `        '${p.name}',`).join('\n')}
     ];
     protected $casts = [
-${model.properties.filter(p => p.cast).map(p => `        '${p.name}' => '${p.cast}',`).join('\\n')}
-${model.properties.filter(p => p.enumRef).map(p => `        '${p.name}' => ${p.enumRef}::class,`).join('\\n')}
+${model.properties.filter(p => p.cast).map(p => `        '${p.name}' => '${p.cast}',`).join('\n')}
+${model.properties.filter(p => p.enumRef).map(p => `        '${p.name}' => ${p.enumRef}::class,`).join('\n')}
     ];
 
     /* Interfaces metadata */
     public array $interfaces = [
 ${Object.entries(model.interfaces).map(([k,i]) =>
-`        '${k}' => {${i.import ? ` import: '${i.import}',` : ''} type: '${i.type}' },`).join('\\n')}
+`        '${k}' => {${i.import ? ` import: '${i.import}',` : ''} type: '${i.type}' },`).join('\n')}
     ];
     // This structure is useful for packages like fumeapp/modeltyper which
     // read interface metadata to build TypeScript helpers.
@@ -483,9 +638,9 @@ ${Object.entries(model.interfaces).map(([k,i]) =>
     /* Relationships */
 ${model.relations.map(r => {
   const args = [r.modelClass, r.foreignKey ? `'${r.foreignKey}'` : '', r.localKey ? `'${r.localKey}'` : ''].filter(Boolean).join(', ');
-  return `    public function ${r.name}(): ${r.type.charAt(0).toUpperCase()+r.type.slice(1)}\\n    {\\n        return $this->${r.type}(${args});\\n    }`;
-}).join('\\n\\n')}
-// Or 
+  return `    public function ${r.name}(): ${r.type.charAt(0).toUpperCase()+r.type.slice(1)}\n    {\n        return $this->${r.type}(${args});\n    }`;
+}).join('\n\n')}
+// Or   
 ${relationships}
 
     ${content}
@@ -505,7 +660,6 @@ protected $casts = [
 ```
 
 ---
-
 
 ## 🧩 Custom Migration Rules
 
@@ -543,7 +697,7 @@ module.exports = [
 
 **Rule execution order**
 
-1. Built‑in rules  
+1. Built‑in rules
 2. Custom rules (executed in array order)
 
 ---
@@ -568,7 +722,7 @@ export interface ColumnDefinition extends DMMF.Field {
   relationship?: {
     on: string;
     references?: string[];
-    fields: string[]
+    fields: string[];
     onDelete?: string;
     onUpdate?: string;
   };
@@ -586,9 +740,8 @@ def.migrationType // mapped Laravel builder name
 def.isId
 ```
 
-📝 **Prisma DMMF docs:**  
-https://github.com/prisma/prisma/blob/main/packages/prisma-schema-wasm/src/__tests__/snapshot/dmmf.md
-
+📝 **Prisma DMMF docs:**
+[https://github.com/prisma/prisma/blob/main/packages/prisma-schema-wasm/src/__tests__/snapshot/dmmf.md](https://github.com/prisma/prisma/blob/main/packages/prisma-schema-wasm/src/__tests__/snapshot/dmmf.md)
 
 ---
 
@@ -603,6 +756,13 @@ You can attach them either:
 
 > This document focuses on the **new & updated directives** and how they interact with existing ones like `@fillable`, `@hidden`, `@guarded`, `@cast{…}`, `@type{…}`, `@with`, `@trait:…`, `@extend:…`, `@implements:…`, `@observer:…`, `@factory:…`, `@touch{…}`, `@appends{…}`.
 
+The same directives are visible to the **PHP generators** (migrator + modeler)
+**and** to the **TS types generator**, which uses them to:
+
+* apply `@type{…}` overrides for TS field types/imports,
+* honour `@with` when deciding whether relation properties are optional, and
+* strip directive noise from generated JSDoc/docblocks.
+
 ---
 
 ## What’s New
@@ -615,21 +775,21 @@ You can attach them either:
 
 ## Summary of Directives
 
-| Directive                                                                                   | Scope                                   | Purpose                                                                                  |
-| ------------------------------------------------------------------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `@fillable`                                                                                 | Field **or** `@fillable{…}` on model    | Adds field(s) to `$fillable`.                                                            |
-| `@hidden`                                                                                   | Field **or** `@hidden{…}` on model      | Adds field(s) to `$hidden`.                                                              |
-| `@guarded`                                                                                  | Field **or** `@guarded{…}` on model     | Adds field(s) to `$guarded`.                                                             |
-| `@cast{…}`                                                                                  | Field                                   | Adds a cast entry to `$casts`.                                                           |
-| `@type{ import:'…', type:'…' }`                                                             | Field                                   | Exposes a PHP/interface type hint for downstream tooling.                                |
-| `@with` / `@with(a,b,…)`                                                                    | Field / Model                           | Marks relations to eager-load via `$with`.                                               |
-| `@trait:…` `@extend:…` `@implements:…` `@observer:…` `@factory:…` `@touch{…}` `@appends{…}` | Model                                   | Class customization & extras (traits, parents, observers, factories, touches, appends).  |
-| `@local`                                                                                    | Relation Field                          | Skip generating that **specific relation method** on the model. Replaces `@ignore`.      |
-| `@silent`                                                                                   | Model / Enum                            | Do **not** emit files for this entity (model + migration / enum).                        |
-| `@morph(…)`                                                                                 | Model                                   | Declare owner-side polymorphic relations; child-side `morphTo` is auto-detected.         |
-| `@pivot` / `@pivot(a,b,…)`                                                                  | Pivot **model** and/or scalar **fields**| Explicitly mark extra pivot columns to include in generated `withPivot(…)` chains.       |
-| `@withTimestamps`                                                                           | Pivot **model** / relation **field**    | Instructs the generator to append `->withTimestamps()` on the relation definition.       |
-| `@pivotAlias(name)`                                                                         | Pivot **model**                         | Sets the pivot attribute alias; generator should add `->as('name')` on the relation.     |
+| Directive                                                                                   | Scope                                    | Purpose                                                                                 |
+| ------------------------------------------------------------------------------------------- | ---------------------------------------- | --------------------------------------------------------------------------------------- |
+| `@fillable`                                                                                 | Field **or** `@fillable{…}` on model     | Adds field(s) to `$fillable`.                                                           |
+| `@hidden`                                                                                   | Field **or** `@hidden{…}` on model       | Adds field(s) to `$hidden`.                                                             |
+| `@guarded`                                                                                  | Field **or** `@guarded{…}` on model      | Adds field(s) to `$guarded`.                                                            |
+| `@cast{…}`                                                                                  | Field                                    | Adds a cast entry to `$casts`.                                                          |
+| `@type{ import:'…', type:'…' }`                                                             | Field                                    | Exposes a PHP/interface/TS type hint for downstream tooling.                            |
+| `@with` / `@with(a,b,…)`                                                                    | Field / Model                            | Marks relations to eager-load via `$with` and as non‑optional in TS types.              |
+| `@trait:…` `@extend:…` `@implements:…` `@observer:…` `@factory:…` `@touch{…}` `@appends{…}` | Model                                    | Class customization & extras (traits, parents, observers, factories, touches, appends). |
+| `@local`                                                                                    | Relation Field                           | Skip generating that **specific relation method** on the model. Replaces `@ignore`.     |
+| `@silent`                                                                                   | Model / Enum                             | Do **not** emit files for this entity (model + migration / enum).                       |
+| `@morph(…)`                                                                                 | Model                                    | Declare owner-side polymorphic relations; child-side `morphTo` is auto-detected.        |
+| `@pivot` / `@pivot(a,b,…)`                                                                  | Pivot **model** and/or scalar **fields** | Explicitly mark extra pivot columns to include in generated `withPivot(…)` chains.      |
+| `@withTimestamps`                                                                           | Pivot **model** / relation **field**     | Instructs the generator to append `->withTimestamps()` on the relation definition.      |
+| `@pivotAlias(name)`                                                                         | Pivot **model**                          | Sets the pivot attribute alias; generator should add `->as('name')` on the relation.    |
 
 > **Syntax options**
 > • Inline: `balance Decimal /// @fillable @cast{decimal:2}`
@@ -646,10 +806,12 @@ You can attach them either:
 > `/// @touch{company,profile}`
 > `/// @appends{full_name,age}`
 
-> **Note:** Directives like `@fillable`, `@hidden`, `@guarded`, `@with`, `@touch`, and `@appends` now support **all of the following syntaxes**:
-> - `/// @fillable{name,balance}`  
-> - `/// @fillable(name,balance)`  
-> - `/// @fillable: name,balance`
+> **Note:** Directives like `@fillable`, `@hidden`, `@guarded`, `@with`, `@touch`, and `@appends` support **all** of the following syntaxes:
+>
+> * `/// @fillable{name,balance}`
+> * `/// @fillable(name,balance)`
+> * `/// @fillable: name,balance`
+
 ---
 
 ## `@local` — Skip a Single Relation Method (replaces `@ignore`)
@@ -672,7 +834,7 @@ model Account {
 }
 ```
 
-**Effect:** the `user()` method is *not* written to `Account.php`. If scope includes Migrator, the migration also skips generating the FK/constraint. Other methods remain unaffected.
+**Effect:** the `user()` method is *not* written to `Account.php`. If scope includes Migrator, the migration also skips generating the FK/constraint. Other methods remain unaffected. TS types still include the `user?: User | null` navigation property unless you override it with `@type`.
 
 ---
 
@@ -696,10 +858,9 @@ model AuditTrail {
 }
 ```
 
-**Effect:** no Eloquent model and/or no migration file are emitted for `AuditTrail` depending on the scope. For enums, no PHP enum is emitted.
+**Effect:** no Eloquent model and/or no migration file are emitted for `AuditTrail` depending on the scope. For enums, no PHP enum is emitted. The TS generator can still expose types for `AuditTrail` if you wish (or you can add an additional TS-side filter later).
 
 ---
-
 
 ## Polymorphic Relations
 
@@ -715,6 +876,16 @@ public function commentable()
 ```
 
 No directive is required for `morphTo`.
+
+On the TS side, the generator also detects these pairs and adds a
+corresponding **appended property** like:
+
+```ts
+commentable?: any;
+```
+
+which you can refine via `@appends{commentable: Comment}` or project‑specific
+TS overrides.
 
 ### Owner Side via `@morph(…)`
 
@@ -758,8 +929,8 @@ model User {
 /// Owner: Video → morphToMany(Tag::class, 'taggable', 'taggables')
 /// @morph(name: taggable, type: to many, model: Tag, table:"taggables")
 model Video {
-  id   Int   @id @default(autoincrement())
-  url  String
+  id    Int   @id @default(autoincrement())
+  url   String
 }
 ```
 
@@ -809,7 +980,7 @@ model Image {
 }
 ```
 
-**C) Polymorphic M\:N (`morphToMany` / `morphedByMany`)**
+**C) Polymorphic M:N (`morphToMany` / `morphedByMany`)**
 
 ```prisma
 /// @morph(name: taggable, type: to many, model: Tag, table: "taggables")
@@ -863,64 +1034,53 @@ model Activity {
 }
 ```
 
-  
+---
 
-#### Other Examples
-
-  
+## Other Examples
 
 ```prisma
-
 /// @fillable{name,balance}
 /// @hidden{secretToken}
 model Account {
-  id        Int      @id @default(autoincrement())
-  balance   Decimal  @default(0.0) /// @cast{decimal:2}
-  nickname  String   /// @fillable @hidden
-  profile   Json?    /// @type{ import:'@types/forms', type:'ProfileDTO' }
-  company   Company? @relation(fields:[companyId], references:[id]) /// @local
+  id        Int      @id @default(autoincrement())
+  balance   Decimal  @default(0.0) /// @cast{decimal:2}
+  nickname  String   /// @fillable @hidden
+  profile   Json?    /// @type{ import:'@types/forms', type:'ProfileDTO' }
+  company   Company? @relation(fields:[companyId], references:[id]) /// @local
 
-  companyId Int?
-  posts     Post[]   /// @with
+  companyId Int?
+  posts     Post[]   /// @with
 }
-
-  
 
 /// @with(posts,comments)
-
 model User {
-  id       Int      @id @default(autoincrement())
-  email    String
-  posts    Post[]
-  comments Comment[]
+  id       Int      @id @default(autoincrement())
+  email    String
+  posts    Post[]
+  comments Comment[]
 }
-
 ```
 
-**Generated output**
+**Generated (PHP, simplified)**
 
 ```php
-
 protected $fillable = ['name','balance','nickname'];
-protected $hidden   = ['secretToken','nickname'];
-protected $casts    = ['balance' => 'decimal:2'];
+protected $hidden   = ['secretToken','nickname'];
+protected $casts    = ['balance' => 'decimal:2'];
 
 public array $interfaces = [
-    'profile' => { import: '@types/forms', type: 'ProfileDTO' },
+    'profile' => { import: '@types/forms', type: 'ProfileDTO' },
 ];
 
 protected $with = ['posts'];
-
 ```
 
-`@local` prevents the `company()` relation method.  
-
+`@local` prevents the `company()` relation method.
 Combine multiple inline directives; they’re processed left‑to‑right.
 
-#### Example: Combined Directives
+### Example: Combined Directives
 
 ```prisma
-
 /// @fillable{name,balance}
 /// @hidden{secretToken}
 /// @guarded{password,apiToken}
@@ -932,22 +1092,20 @@ Combine multiple inline directives; they’re processed left‑to‑right.
 /// @touch{company}
 /// @appends{full_name}
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique                      /// @hidden @fillable
-  password  String                                 /// @hidden @guarded
-  balance   Decimal @default(0.0) /// @cast{decimal:2}
-  profile   Json?    /// @type{ import:'@types/forms', type:'ProfileDTO' }
-  company   Company? @relation(fields:[companyId], references:[id]) /// @local
-  companyId Int?
-  posts     Post[]   /// @with
+  id        Int      @id @default(autoincrement())
+  email     String   @unique                      /// @hidden @fillable
+  password  String                               /// @hidden @guarded
+  balance   Decimal  @default(0.0)               /// @cast{decimal:2}
+  profile   Json?    /// @type{ import:'@types/forms', type:'ProfileDTO' }
+  company   Company? @relation(fields:[companyId], references:[id]) /// @local
+  companyId Int?
+  posts     Post[]   /// @with
 }
-
 ```
 
 **Generated output (simplified)**
 
 ```php
-
 use Illuminate\Auth\Authenticatable;
 use Illuminate\Auth\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -956,47 +1114,51 @@ use App\Observers\UserObserver;
 
 class User extends User implements AuthenticatableContract
 {
-    use HasFactory, Authenticatable;
-    
-    protected $fillable = ['name','balance','email'];
-    protected $hidden   = ['secretToken','password'];
-    protected $guarded  = ['password','apiToken'];
-    protected $casts    = ['balance' => 'decimal:2'];
-    protected $touches  = ['company'];
-    protected $appends  = ['full_name'];
-    protected static string $factory = UserFactory::class;
+    use HasFactory, Authenticatable;
+    
+    protected $fillable = ['name','balance','email'];
+    protected $hidden   = ['secretToken','password'];
+    protected $guarded  = ['password','apiToken'];
+    protected $casts    = ['balance' => 'decimal:2'];
+    protected $touches  = ['company'];
+    protected $appends  = ['full_name'];
+    protected static string $factory = UserFactory::class;
 
-    protected static function boot()
-    {
-        parent::boot();
-        static::observe(UserObserver::class);
-    }
+    protected static function boot()
+    {
+        parent::boot();
+        static::observe(UserObserver::class);
+    }
 
-    public function getFullNameAttribute()
-    {
-        return $this->attributes['full_name'] ?? null;
-    }
+    public function getFullNameAttribute()
+    {
+        return $this->attributes['full_name'] ?? null;
+    }
 
-    public function posts()
-    {
-        return $this->hasMany(Post::class);
-    }
+    public function posts()
+    {
+        return $this->hasMany(Post::class);
+    }
 }
 ```
 
 ---
+
 ## Notes & Limitations
 
 * `@local` is **model-method only**; it does not change the migration. Use `@silent` to suppress a whole model/enum from emission.
 * Laravel cannot express **composite pivot keys** directly inside `belongsToMany(...)`. If your schema uses composite pivot keys, consider generating a Pivot model or using query/Compoships patterns on the one-to-many sides.
 * The generator keeps your edits safe via merge markers; conflicts will be surfaced with `<<<<<<<` sections for manual resolution.
+* TS types are generated from the **same DMMF + directives** as PHP. You can always override a single field type with `@type{…}`.
+
 ---
 
 ## 💡 Tips
 
-- Combine `migration` & `model` in one customize command when table names align.
-- Use `noEmit: true` for dry‑runs or CI validation.
-- Escape template chars in stub files.
+* Combine `migration` & `model` & `ts` in one `customize` command when table names align.
+* Use `noEmit: true` for dry‑runs or CI validation.
+* Escape template chars in stub files.
+* Keep your Prisma schema as the single source of truth; everything else is generated.
 
 ---
 
@@ -1008,6 +1170,7 @@ Use the library directly in a script or build tool instead of the CLI.
 import {
   generateLaravelSchema,
   generateLaravelModels,
+  generateTypesFromPrisma,
   sortMigrations,
 } from 'prisma-laravel-migrate';
 import { readFileSync, writeFileSync } from 'fs';
@@ -1020,22 +1183,37 @@ import { getDMMF } from '@prisma/sdk';
   const dmmf       = await getDMMF({ datamodel });
 
   /* 2. Run generators entirely in-memory */
-  const migrations = generateLaravelSchema({
+  const migrations = await generateLaravelSchema({
     dmmf,
     schemaPath,                 // ← always pass this
     generator : { config: {} } as any,
   });
 
-  const { models, enums } = generateLaravelModels({
+  const { models, enums } = await generateLaravelModels({
     dmmf,
     schemaPath,
     generator : { config: {} } as any,
+  });
+
+  const tsResult = await generateTypesFromPrisma({
+    dmmf: dmmf as any,
+    schemaPath,
+    generator: {
+      config: {
+        // types-specific overrides
+        moduleName: 'database/prisma',
+        noEmit: true,
+      },
+      output: { value: 'resources/ts/prisma' },
+    } as any,
   });
 
   /* 3. Inspect or write output */
   sortMigrations(migrations).forEach(m => {
     writeFileSync(`./out/${m.tableName}.php`, m.statements.join('\n'), 'utf8');
   });
+
+  // tsResult.models / tsResult.enums contain TS model/enum definitions
 })();
 ```
 
@@ -1061,30 +1239,34 @@ generateLaravelSchema({
 
 ### Public exports
 
-| Export                           | Purpose                                             |
-| -------------------------------- | --------------------------------------------------- |
-| `generateLaravelSchema`          | Build migration objects (and optionally write files)|
-| `generateLaravelModels`          | Build model + enum definitions                      |
-| `sortMigrations`                 | Topologically sort migrations by FK dependencies    |
-| `Rule`                           | Type helper for custom migration shortcuts          |
-| _types_ (`column-definition-types`, `laravel-config`) | Full TypeScript typings          |
+| Export                                                | Purpose                                                       |
+| ----------------------------------------------------- | ------------------------------------------------------------- |
+| `generateLaravelSchema`                               | Build migration objects (and optionally write files)          |
+| `generateLaravelModels`                               | Build PHP model + enum definitions                            |
+| `generateTypesFromPrisma`                             | Build TS model + enum definitions, with stub + module support |
+| `sortMigrations`                                      | Topologically sort migrations by FK dependencies              |
+| `Rule`                                                | Type helper for custom migration shortcuts                    |
+| *types* (`column-definition-types`, `laravel-config`) | Full TypeScript typings                                       |
 
 ```ts
 import {
   ColumnDefinition,
   LaravelSharedConfig,
   MigratorConfigOverride,
+  ModelConfigOverride,
+  TypesConfigOverride,
 } from 'prisma-laravel-migrate';
 ```
 
-> **Heads-up:**  
-> `generateLaravelSchema` and `generateLaravelModels` **write files by default**  
-> (honouring the `outputDir` settings).  
+> **Heads-up:**
+> `generateLaravelSchema`, `generateLaravelModels`, and `generateTypesFromPrisma`
+> **write files by default** (honouring their respective `outputDir` settings).
 > If you only want the in-memory objects—e.g. to capture the returned
-> `migrations`, `models`, or `enums` arrays—set  
+> `migrations`, `models`, `enums`, or TS `models`/`enums` arrays—set
 > `noEmit: true` in either
 >
 > * the per-call `generator.config` object:
+>
 >   ```ts
 >   generateLaravelSchema({
 >     dmmf,
@@ -1093,17 +1275,19 @@ import {
 >   });
 >   ```
 > * **or** in `prisma/laravel.config.js`:
+>
 >   ```js
 >   module.exports = {
 >     migrate: { noEmit: true },
 >     modeler: { noEmit: true },
+>     types:   { noEmit: true },
 >   };
 >   ```
+>
 > This prevents any files from being created or overwritten while still
 > returning the fully-populated data structures for custom processing.
 
 ---
-
 
 # Prisma → Laravel Migration Guide
 
@@ -1118,21 +1302,21 @@ clean, idiomatic Laravel migrations.
 The generator first turns every Prisma (or native) scalar into the
 corresponding **Laravel schema builder method**.
 
-| Native type | Laravel method |
-|-------------|----------------|
-| `Text` | `text()` |
-| `VarChar` | `string()` |
-| `Boolean` | `boolean()` |
-| `TinyInt` | `tinyInteger()` |
+| Native type      | Laravel method         |
+| ---------------- | ---------------------- |
+| `Text`           | `text()`               |
+| `VarChar`        | `string()`             |
+| `Boolean`        | `boolean()`            |
+| `TinyInt`        | `tinyInteger()`        |
 | `UnsignedBigInt` | `unsignedBigInteger()` |
-| `BigInt` | `bigInteger()` |
-| `Decimal` | `decimal()` |
-| `Double` | `double()` |
-| `DateTime` | `timestamp()` |
-| `Timestamptz` | `timestampsTz()` |
-| `Json` | `json()` |
-| `Uuid` | `uuid()` |
-| `Inet` | `ipAddress()` |
+| `BigInt`         | `bigInteger()`         |
+| `Decimal`        | `decimal()`            |
+| `Double`         | `double()`             |
+| `DateTime`       | `timestamp()`          |
+| `Timestamptz`    | `timestampsTz()`       |
+| `Json`           | `json()`               |
+| `Uuid`           | `uuid()`               |
+| `Inet`           | `ipAddress()`          |
 
 *(See source `migrationTypes.ts` for the full mapping.)*
 
@@ -1143,17 +1327,17 @@ corresponding **Laravel schema builder method**.
 After basic mapping, each column is checked against a **rule set**
 so that common Laravel helper methods are used instead of verbose definitions.
 
-| Rule | Condition in Prisma | Generated code |
-|------|--------------------|----------------|
-| **Primary ID** | `id BigInt @id @default(autoincrement())` | `$table->id();` |
-| **Timestamps** | `created_at / updated_at` pair (`DateTime` or `Timestamp`) | `$table->timestamps();` |
-| **TimestampsTz** | Same pair but `DateTimeTz` / tz‑aware types | `$table->timestampsTz();` |
-| **Soft‑deletes** | `deleted_at DateTime` | `$table->softDeletes();` |
-| **Soft‑deletesTz** | `deleted_at DateTimeTz` | `$table->softDeletesTz();` |
-| **Remember token** | `remember_token String?` | `$table->rememberToken();` |
-| **`foreignId`** | `<col>_id` + `@relation(...)` | `$table->foreignId('…')->constrained();` |
-| **Morphs / NullableMorphs** | `<base>_id` & `<base>_type` combo | `$table->morphs('base');` / `$table->nullableMorphs('base');` |
-| **UUID / ULID Morphs** | Same but with `Uuid` / `Ulid` id column | `$table->uuidMorphs()` & friends |
+| Rule                        | Condition in Prisma                                        | Generated code                                                |
+| --------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------- |
+| **Primary ID**              | `id BigInt @id @default(autoincrement())`                  | `$table->id();`                                               |
+| **Timestamps**              | `created_at / updated_at` pair (`DateTime` or `Timestamp`) | `$table->timestamps();`                                       |
+| **TimestampsTz**            | Same pair but `DateTimeTz` / tz‑aware types                | `$table->timestampsTz();`                                     |
+| **Soft‑deletes**            | `deleted_at DateTime`                                      | `$table->softDeletes();`                                      |
+| **Soft‑deletesTz**          | `deleted_at DateTimeTz`                                    | `$table->softDeletesTz();`                                    |
+| **Remember token**          | `remember_token String?`                                   | `$table->rememberToken();`                                    |
+| **`foreignId`**             | `<col>_id` + `@relation(...)`                              | `$table->foreignId('…')->constrained();`                      |
+| **Morphs / NullableMorphs** | `<base>_id` & `<base>_type` combo                          | `$table->morphs('base');` / `$table->nullableMorphs('base');` |
+| **UUID / ULID Morphs**      | Same but with `Uuid` / `Ulid` id column                    | `$table->uuidMorphs()` & friends                              |
 
 If a rule fires, both columns involved are marked *ignored* so the fallback
 builder doesn't emit them twice.
@@ -1183,7 +1367,7 @@ Foreign‑key references (`@relation`) then add a separate `$table->foreign()` c
 ```prisma
 model Post {
   id          Int      @id @default(autoincrement())       // ➜ $table->id()
-  title       String                                         
+  title       String                                           
   body        Text
   author_id   Int
   author      User     @relation(fields:[author_id], references:[id])
@@ -1226,7 +1410,9 @@ $table->softDeletes();
   for shortcut rules; non‑standard names fall back to the generic builder.
 * Remember to run migrations **after** generating to ensure FK order is correct
   (the tool topologically sorts tables to avoid dependency loops).
+
 ---
+
 ### Custom `defaultMaps` for `formatDefault`
 
 You can override the built‑in `formatDefault()` logic without forking the package by
@@ -1267,11 +1453,12 @@ module.exports = {
 4. Keys are matched *case‑sensitive* to the Prisma default function
    (`uuid`, `cuid`, `sequence`, etc.).
 
-> **Reference** – full list of Prisma `@@default()` helpers  
-> <https://www.prisma.io/docs/orm/reference/prisma-schema-reference#default>
----
-Happy scaffolding! 🎉
+> **Reference** – full list of Prisma `@@default()` helpers
+> [https://www.prisma.io/docs/orm/reference/prisma-schema-reference#default](https://www.prisma.io/docs/orm/reference/prisma-schema-reference#default)
 
+---
+
+Happy scaffolding! 🎉
 
 ---
 

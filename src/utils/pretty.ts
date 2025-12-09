@@ -16,11 +16,11 @@ async function loadConfig(filePath?: string) {
 }
 
 /** Safe formatter for php strings. */
-export async function prettyPhp(
+export async function prettify(
   content: string,
-  opts: { parser?: "php"; filepathHint?: string } = {}
+  opts: { parser?: "php" | 'typescript'; filepathHint?: string } = {}
 ) {
-  const parser = opts.parser ?? "css";
+  const parser: prettier.ParserOptions['parser'] = opts.parser ?? "typescript";
   try {
     const base = (await loadConfig(opts.filepathHint)) ?? {};
     return await prettier.format(content, {

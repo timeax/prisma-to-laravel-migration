@@ -1,5 +1,5 @@
 /** Safe formatter for php strings. */
-export declare function prettyPhp(content: string, opts?: {
-    parser?: "php";
+export declare function prettify(content: string, opts?: {
+    parser?: "php" | 'typescript';
     filepathHint?: string;
 }): Promise<string>;
