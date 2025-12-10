@@ -31,7 +31,7 @@ export async function getLaravelGeneratorConfigs(datamodel: string) {
 
    const migCfg = findCfg("prisma-laravel-migrations") as Record<string, string>;
    const modCfg = findCfg("prisma-laravel-models") as Record<string, string>;
-   const tsCfg = findCfg('prisma-laravel-ts') as Record<string, string>
+   const tsCfg = findCfg('prisma-laravel-types') as Record<string, string>
 
    return { migCfg, modCfg, tsCfg };
 }
