@@ -28,3 +28,4 @@ docs/
 app/
 database/
 .prisma-laravel
+*.prisma
