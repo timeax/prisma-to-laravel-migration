@@ -21,7 +21,7 @@ interface FlexibleStubGroup {
    tables?: string[];
 
    /** New style – include list ( '*' means “all tables” ) */
-   include?: string[] | '*';
+   include?: string[] | "*";
 
    /** New style – blacklist applied after include / pattern */
    exclude?: string[];
@@ -30,23 +30,31 @@ interface FlexibleStubGroup {
    pattern?: RegExp | string | Array<RegExp | string>;
 }
 
-
 /* ------------------------------------------------------------
  *  Per-generator overrides  (migration / modeler / ts)
  * ---------------------------------------------------------- */
 export interface LaravelGeneratorConfig {
+   /** Optional prefix applied to *physical* table names. */
    tablePrefix?: string;
+   /** Optional suffix applied to *physical* table names. */
    tableSuffix?: string;
 
-   /** Override stubDir only for this generator */
+   /** Override stubDir only for this generator (migration/model/ts). */
    stubDir?: string;
 
-   /** Where the generated PHP goes (overrides block) */
+   /**
+    * Where the generated PHP/TS **primary output** goes for this generator.
+    *
+    * - Migrator → PHP migration files directory.
+    * - Modeler  → PHP model files directory.
+    * - TS       → base directory for TS types (models + enums) unless
+    *              further specialised by ts.outputDir / ts.* flags.
+    */
    outputDir?: string;
 
    overwriteExisting?: boolean;
 
-   /** Allow formatting with prettier */
+   /** Allow formatting with prettier for this generator. */
    prettier?: boolean;
 
    /**
@@ -56,10 +64,10 @@ export interface LaravelGeneratorConfig {
     */
    groups?: string | StubGroupConfig[];
 
-   /** Skip file emission for *this* generator only */
+   /** Skip file emission for *this* generator only. */
    noEmit?: boolean;
 
-   /** Default namespace for local imports (PHP generators) */
+   /** Default namespace for local imports (PHP generators). */
    namespace?: "App\\";
 }
 
@@ -67,28 +75,43 @@ export interface LaravelGeneratorConfig {
  *  Top-level shared config  (visible to all generators)
  * ---------------------------------------------------------- */
 export interface LaravelSharedConfig {
-   /** Table name decoration */
+   /** Table name decoration applied globally. */
    tablePrefix?: string;
    tableSuffix?: string;
 
-   /** Default stub root (migration/, model/, enum/) */
+   /** Default stub root (migration/, model/, enum/). */
    stubDir?: string;
 
-   /** Global “don’t write files” switch */
+   /** Global “don’t write files” switch. */
    noEmit?: boolean;
 
-   /** Override default output folders (PHP + TS) */
+   /**
+    * Override default output folders (PHP + TS).
+    *
+    * These are *global* defaults; each generator (migrate/modeler/ts)
+    * can still override via its own `outputDir` / `outputEnumDir`.
+    */
    output?: {
+      /** Directory for PHP migrations (migrator). */
       migrations?: string;
+      /** Directory for PHP models (modeler). */
       models?: string;
+      /** Directory for PHP enums (modeler). */
       enums?: string;
-      /** Where TS types go if not overridden in ts.outputDir */
+      /**
+       * Base directory for **TS types** (both models + enums bundles),
+       * if not overridden by:
+       *   - ts.outputDir
+       *   - or generator types { outputDir = "…" } block.
+       */
       ts?: string;
    };
 
-   /** Per-generator fine-tuning */
+   /** Per-generator fine-tuning (PHP migrations). */
    migrate?: Partial<MigratorConfigOverride>;
+   /** Per-generator fine-tuning (PHP models + PHP enums). */
    modeler?: Partial<ModelConfigOverride>;
+   /** Per-generator fine-tuning (TS types generator). */
    ts?: Partial<TypesConfigOverride>;
 }
 
@@ -96,11 +119,31 @@ export interface LaravelSharedConfig {
  *  TypeScript generator overrides
  * ---------------------------------------------------------- */
 export interface TypesConfigOverride extends LaravelGeneratorConfig {
-   /** Where generated TS types should be written, e.g. "resources/ts/prisma" */
+   /**
+    * Base directory where generated TS types should be written.
+    *
+    * This is the **root** for both:
+    *   - the main models bundle (e.g. `index.d.ts`)
+    *   - the enums bundle (e.g. `enums.ts` / `enums.d.ts`)
+    *
+    * Resolution precedence for TS:
+    *   1. generator types { outputDir = "…" }
+    *   2. shared.ts.outputDir
+    *   3. shared.output.ts
+    *   4. hardcoded default ("resources/ts/prisma" or similar)
+    */
    outputDir?: string;
 
-   /** Emit `.d.ts` declaration files instead of `.ts` source files. */
-   declaration?: boolean; // default: false → .ts
+   /**
+    * Emit `.d.ts` declaration files instead of `.ts` **for enums**.
+    *
+    * Models are always emitted as `.d.ts` – this flag only changes the
+    * extension of the enums bundle:
+    *
+    *   declaration === true  → `<enumsFileName>.d.ts`
+    *   declaration === false → `<enumsFileName>.ts`
+    */
+   declaration?: boolean; // default: false → enums.ts
 
    /** Use `interface` or `type` for model declarations. */
    shape?: "interface" | "type"; // default: "interface"
@@ -144,8 +187,27 @@ export interface TypesConfigOverride extends LaravelGeneratorConfig {
     * (Purely for the TS generator; ignored by PHP generators.)
     */
    moduleName?: string;
-}
 
+   /**
+    * Base filename (without extension) for the **main models bundle**.
+    *
+    * Defaults to `"index"`, and is always emitted as:
+    *
+    *   `<modelsFileName>.d.ts`
+    *
+    * in the configured TS types output directory.
+    */
+   modelsFileName?: string;
+
+   /**
+    * Base filename (without extension) for the **enums bundle**.
+    *
+    * Defaults to `"enums"`, and is emitted as:
+    *   - `<enumsFileName>.d.ts` when `declaration === true`
+    *   - `<enumsFileName>.ts`   otherwise.
+    */
+   enumsFileName?: string;
+}
 
 /* --- Migrator-specific extra keys ---------------------------------------- */
 export interface MigratorConfigOverride extends LaravelGeneratorConfig {
@@ -161,14 +223,22 @@ export interface MigratorConfigOverride extends LaravelGeneratorConfig {
    defaultMaps?: DefaultMaps;
 }
 
-
 export interface ModelConfigOverride extends LaravelGeneratorConfig {
+   /** Optional explicit PHP model stub file path. */
    modelStubPath?: string;
+   /** Optional explicit PHP enum stub file path. */
    enumStubPath?: string;
-   /** Extra folder for enums (modeler only) */
+   /**
+    * Extra folder for PHP enums (modeler only).
+    *
+    * Resolution for enums directory:
+    *   1. modeler.outputEnumDir
+    *   2. shared.output.enums
+    *   3. hardcoded default (e.g. "app/Enums")
+    */
    outputEnumDir?: string;
-   /** use awobaz/compoships */
+   /** Use awobaz/compoships for composite keys. */
    awobaz?: boolean;
-   /** Extra fields allowed on pivot models */
+   /** Extra fields allowed on pivot models. */
    allowedPivotExtraFields?: string[];
 }

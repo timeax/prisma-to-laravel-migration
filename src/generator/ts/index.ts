@@ -4,10 +4,7 @@ import type {
    GeneratorConfig,
 } from "@prisma/generator-helper";
 import path from "node:path";
-import { existsSync, mkdirSync, readdirSync } from "node:fs";
-import fs from "node:fs/promises";
-import { fileURLToPath } from "node:url";
-import * as dmf from "@prisma/internals";
+import { existsSync, mkdirSync } from "node:fs";
 
 import { loadSharedConfig } from "../../utils/loadSharedCfg.js";
 import type {
@@ -16,10 +13,7 @@ import type {
 } from "types/laravel-config.js";
 
 import { PrismaToTypesGenerator } from "./generator.js";
-import type {
-   TsModelDefinition,
-   TsEnumDefinition,
-} from "./types.js";
+import type { TsModelDefinition, TsEnumDefinition } from "./types.js";
 import { TsPrinter } from "./printer.js";
 import { writeWithMerge } from "../../diff-writer/writer.js";
 import { resolveStub } from "../../utils/utils.js";
@@ -35,33 +29,8 @@ export interface TypesConfig
 }
 
 /** default TS output folder if not overridden */
-function getDefaultTsOutDir(
-   generator: GeneratorConfig | undefined,
-): string {
+function getDefaultTsOutDir(generator: GeneratorConfig | undefined): string {
    return generator?.output?.value ?? "resources/ts/prisma";
-}
-
-/** Merge all *.prisma files in schema dir, with schema.prisma first */
-async function loadMergedDatamodel(
-   schemaPrismaPath: string,
-): Promise<string> {
-   const schemaDir = path.dirname(schemaPrismaPath);
-   const entries = readdirSync(schemaDir).filter((f) =>
-      f.endsWith(".prisma"),
-   );
-
-   const order = [
-      // schema.prisma first
-      ...entries.filter((f) => f === "schema.prisma"),
-      // then the rest alphabetically
-      ...entries.filter((f) => f !== "schema.prisma").sort(),
-   ];
-
-   const chunks = await Promise.all(
-      order.map((f) => fs.readFile(path.join(schemaDir, f), "utf-8")),
-   );
-
-   return chunks.join("\n\n");
 }
 
 /**
@@ -96,29 +65,22 @@ function hasModelSpecificTsStub(
    return path.basename(stubPath) !== "index.stub";
 }
 
-export async function generateTypesFromPrisma(
-   options: GeneratorOptions,
-) {
-   const { generator } = options;
-   const raw = (generator.config ?? {}) as Record<
-      string,
-      string | undefined
-   >;
+export async function generateTypesFromPrisma(options: GeneratorOptions) {
+   const { dmmf, generator } = options;
 
-   const schemaPrismaPath = options.schemaPath;
-   const schemaDir = path.dirname(schemaPrismaPath);
+   // 0) Pull config values from generator block
+   const raw = (generator.config ?? {}) as Record<string, string | undefined>;
+
+   // Load shared config (auto-discovers prisma/laravel.config.js from schema dir)
+   const schemaDir = path.dirname(options.schemaPath);
    const shared = await loadSharedConfig(schemaDir);
 
    // --- 1. Load stub groups if present (same pattern as modeler) ------
    let groups: StubGroupConfig[] = [];
    if (raw["groups"]) {
-      const groupsModulePath = path.resolve(
-         process.cwd(),
-         raw["groups"],
-      );
+      const groupsModulePath = path.resolve(process.cwd(), raw["groups"]);
       const importedModule = await import(groupsModulePath);
-      const imported =
-         importedModule.default ?? importedModule;
+      const imported = importedModule.default ?? importedModule;
 
       if (!Array.isArray(imported)) {
          throw new Error(
@@ -133,7 +95,7 @@ export async function generateTypesFromPrisma(
       key: K,
       fallback?: any,
    ): any | undefined =>
-      // prisma-laravel.config.ts -> ts: {}
+      // shared.ts section (if present)
       (shared.ts as any)?.[key] ??
       // shared root (if you keep ts props there)
       (shared as any)[key] ??
@@ -144,7 +106,7 @@ export async function generateTypesFromPrisma(
 
    // --- 3. Build merged TS generator config --------------------------
    const cfg: TypesConfig = {
-      // base Laravel-ish generator knobs
+      // Laravel-ish generator knobs
       overwriteExisting: pick("overwriteExisting", true),
       prettier: pick("prettier", false),
       noEmit: pick("noEmit", false),
@@ -161,11 +123,15 @@ export async function generateTypesFromPrisma(
       groups,
 
       // TS-specific
-      outputDir:
-         pick("outputDir") ??
-         getDefaultTsOutDir(generator),
+      outputDir: pick("outputDir") ?? getDefaultTsOutDir(generator),
 
+      /**
+       * declaration now only affects enums:
+       *  - true  → enums.d.ts
+       *  - false → enums.ts
+       */
       declaration: pick("declaration", false),
+
       shape: pick("shape", "interface"),
       scalarMap: pick("scalarMap"),
       nullableAsOptional: pick("nullableAsOptional", false),
@@ -173,6 +139,9 @@ export async function generateTypesFromPrisma(
       namePrefix: pick("namePrefix", ""),
       nameSuffix: pick("nameSuffix", ""),
       moduleName: pick("moduleName", "database/prisma"),
+
+      modelsFileName: pick("modelsFileName", "index"),
+      enumsFileName: pick("enumsFileName", "enums"),
    };
 
    // --- 4. Ensure TS output directory exists -------------------------
@@ -187,12 +156,7 @@ export async function generateTypesFromPrisma(
       prettier: !!cfg.prettier,
    };
 
-   // --- 5. Build DMMF from merged datamodel --------------------------
-   const datamodel = await loadMergedDatamodel(schemaPrismaPath);
-   const sdk = (dmf as any).default ?? dmf;
-   const { dmmf } = await sdk.getDMMF({ datamodel });
-
-   // --- 6. Generate TS definitions (pure data) -----------------------
+   // --- 5. Use DMMF from GeneratorOptions (no merging bullshit) ------
    const tsGen = new PrismaToTypesGenerator(dmmf, cfg as any);
    const {
       models,
@@ -207,7 +171,7 @@ export async function generateTypesFromPrisma(
       return { models, enums, config: cfg };
    }
 
-   // --- 7. Create TS printer (handles stubs + moduleName) ------------
+   // --- 6. Create TS printer (handles stubs + moduleName) ------------
    const stubConfig = {
       stubDir: cfg.stubDir,
       groups: cfg.groups,
@@ -222,13 +186,20 @@ export async function generateTypesFromPrisma(
       shape: cfg.shape,
    });
 
-   const ext = cfg.declaration ? ".d.ts" : ".ts";
+   // Extensions:
+   // - models are ALWAYS .d.ts
+   // - enums honour cfg.declaration
+   const modelExt = ".d.ts";
+   const enumExt = cfg.declaration ? ".d.ts" : ".ts";
 
-   // --- 8. Emit enums (single file, no TS stubs) ---------------------
+   // --- 7. Emit enums (single file, no TS stubs) ---------------------
    if (enums.length) {
       const enumsCode = printer.printEnums(enums);
       if (enumsCode.trim()) {
-         const enumsPath = path.join(tsOutDir, `enums${ext}`);
+         const enumsPath = path.join(
+            tsOutDir,
+            `${cfg.enumsFileName ?? "enums"}${enumExt}`,
+         );
          await writeWithMerge(
             enumsPath,
             enumsCode,
@@ -238,7 +209,7 @@ export async function generateTypesFromPrisma(
       }
    }
 
-   // --- 9. Emit models -----------------------------------------------
+   // --- 8. Emit models -----------------------------------------------
    //
    // TsPrinter.printModels(models) returns:
    //   [0] => main module file (all non-stubbed models, plus module-level stub)
@@ -262,9 +233,12 @@ export async function generateTypesFromPrisma(
       );
    }
 
-   // 9a) Main combined file: all non-stubbed models
+   // 8a) Main combined file: all non-stubbed models
    if (mainFile.trim()) {
-      const mainPath = path.join(tsOutDir, `index${ext}`);
+      const mainPath = path.join(
+         tsOutDir,
+         `${cfg.modelsFileName ?? "index"}${modelExt}`,
+      );
       await writeWithMerge(
          mainPath,
          mainFile,
@@ -273,16 +247,16 @@ export async function generateTypesFromPrisma(
       );
    }
 
-   // 9b) Per-model stubbed outputs
+   // 8b) Per-model stubbed outputs (always .d.ts)
    specialOutputs.forEach(async (code, idx) => {
       const model = specialModels[idx];
       if (!model) return;
 
-      const decoratedName = `${cfg.namePrefix ?? ""
-         }${model.name}${cfg.nameSuffix ?? ""}`;
+      const decoratedName = `${cfg.namePrefix ?? ""}${model.name}${cfg.nameSuffix ?? ""
+         }`;
       const filePath = path.join(
          tsOutDir,
-         `${decoratedName}${ext}`,
+         `${decoratedName}${modelExt}`,
       );
 
       await writeWithMerge(

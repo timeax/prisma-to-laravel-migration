@@ -6,21 +6,25 @@ datasource db {
   provider = "mysql"
 }
 
+generator models {
+  provider      = "prisma-laravel-models"
+  outputDir     = "./database/Models"
+  outputEnumDir = "./database/Enums"
+  namespace     = "Timeax\\FortiPlugin"
+  stubDir       = "prisma/stubs"
+  tablePrefix   = "scpl_"
+}
+
 generator migrations {
   provider    = "prisma-laravel-migrations"
   outputDir   = "./database/migrations"
   tablePrefix = "scpl_"
 }
 
-generator models {
-  provider      = "prisma-laravel-models"
-  outputDir     = "src/Models"
-  outputEnumDir = "src/Enums"
-  namespace     = "Timeax\\FortiPlugin"
-  stubDir       = "prisma/stubs"
-  tablePrefix   = "scpl_"
+generator types {
+  provider  = "prisma-laravel-types"
+  outputDir = "./database/types/"
 }
-
 // ─── ENUMS ────────────────────────────────────────────────
 
 enum PluginStatus {

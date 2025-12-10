@@ -3,7 +3,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import type { TsModelDefinition, TsEnumDefinition } from "./types.js";
+import type { TsModelDefinition, TsEnumDefinition, TsImport } from "./types.js";
 import { resolveStub, type StubConfig, formatStub } from "../../utils/utils.js";
 
 /**
@@ -214,6 +214,27 @@ export class TsPrinter {
    // IMPORTS
    // ---------------------------------------------------------------------------
 
+   private normalizeTsImports(imports: TsImport[]): TsImport[] {
+      const grouped = new Map<string, Set<string>>();
+
+      for (const imp of imports) {
+         if (!imp.from) continue;
+
+         const set = grouped.get(imp.from) ?? new Set<string>();
+         for (const t of imp.types ?? []) {
+            if (!t) continue;
+            set.add(t);
+         }
+         grouped.set(imp.from, set);
+      }
+
+      return Array.from(grouped.entries())
+         .map(([from, set]) => ({
+            from,
+            types: Array.from(set).sort(),
+         }))
+         .sort((a, b) => a.from.localeCompare(b.from));
+   }
    /**
     * Render import statements for a node that has an `imports` property:
     *   node.imports?: { from: string; types: string[] }[];
@@ -224,7 +245,7 @@ export class TsPrinter {
       const imports = node.imports ?? [];
       if (!imports.length) return "";
 
-      return imports
+      return this.normalizeTsImports(imports)
          .map((i) => {
             const names = i.types.join(", ");
             return `import { ${names} } from ${JSON.stringify(i.from)};`;

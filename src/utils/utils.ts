@@ -292,9 +292,10 @@ export const listFrom = (doc: string, tag: string): string[] => {
 
 const FOLDER = "prisma-laravel-migrate";
 
-export function getStubPath(pathString: string) {
+export function getStubPath(pathString: string, folder?: string) {
    const __filename = fileURLToPath(import.meta.url);
    const __dirname = path.dirname(__filename);
+   const __file = folder ?? FOLDER;
    // Assume caller already stripped "../", "./", "/stubs", etc.
    // Just normalise separators so it works on Windows too.
    const normalised = pathString.replace(/\\/g, "/");
@@ -302,15 +303,16 @@ export function getStubPath(pathString: string) {
    // __dirname in ESM compiled dist, e.g.
    //   /Users/you/code/prisma-to-laravel-migration/dist/utils
    const dir = __dirname.replace(/\\/g, "/");
-   const idx = dir.lastIndexOf(FOLDER);
+   const idx = dir.lastIndexOf(__file);
 
    // If we can't find the repo folder name, fall back to CWD.
    if (idx === -1) {
+      if (!folder) return getStubPath(pathString, 'prisma-to-laravel-migration');
       return path.resolve(process.cwd(), normalised);
    }
 
    // Root of the repo: ".../prisma-to-laravel-migration"
-   const baseDir = dir.slice(0, idx + FOLDER.length);
+   const baseDir = dir.slice(0, idx + __file.length);
 
    // Join repo root with the (already cleaned) relative stub path
    return path.join(baseDir, 'stubs', normalised);
