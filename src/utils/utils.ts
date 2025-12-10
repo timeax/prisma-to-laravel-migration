@@ -290,7 +290,7 @@ export const listFrom = (doc: string, tag: string): string[] => {
 };
 
 
-const FOLDER = "prisma-to-laravel-migration";
+const FOLDER = "prisma-laravel-migrate";
 
 export function getStubPath(pathString: string) {
    const __filename = fileURLToPath(import.meta.url);
