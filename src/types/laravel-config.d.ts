@@ -145,6 +145,15 @@ export interface TypesConfigOverride extends LaravelGeneratorConfig {
     */
    declaration?: boolean; // default: false → enums.ts
 
+   /**
+    * If true, **only** the enums bundle is skipped.
+    *
+    * Models are still generated and written (unless `noEmit` is true).
+    * Useful when you already maintain enums elsewhere but still want
+    * strong-typed model shapes.
+    */
+   noEmitEnums?: boolean;
+
    /** Use `interface` or `type` for model declarations. */
    shape?: "interface" | "type"; // default: "interface"
 

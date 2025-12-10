@@ -125,12 +125,9 @@ export async function generateTypesFromPrisma(options: GeneratorOptions) {
       // TS-specific
       outputDir: pick("outputDir") ?? getDefaultTsOutDir(generator),
 
-      /**
-       * declaration now only affects enums:
-       *  - true  → enums.d.ts
-       *  - false → enums.ts
-       */
+      // enums-only knobs
       declaration: pick("declaration", false),
+      noEmitEnums: pick("noEmitEnums", false),
 
       shape: pick("shape", "interface"),
       scalarMap: pick("scalarMap"),
@@ -139,7 +136,6 @@ export async function generateTypesFromPrisma(options: GeneratorOptions) {
       namePrefix: pick("namePrefix", ""),
       nameSuffix: pick("nameSuffix", ""),
       moduleName: pick("moduleName", "database/prisma"),
-
       modelsFileName: pick("modelsFileName", "index"),
       enumsFileName: pick("enumsFileName", "enums"),
    };
@@ -193,13 +189,11 @@ export async function generateTypesFromPrisma(options: GeneratorOptions) {
    const enumExt = cfg.declaration ? ".d.ts" : ".ts";
 
    // --- 7. Emit enums (single file, no TS stubs) ---------------------
-   if (enums.length) {
+   if (!cfg.noEmitEnums && enums.length) {
       const enumsCode = printer.printEnums(enums);
       if (enumsCode.trim()) {
-         const enumsPath = path.join(
-            tsOutDir,
-            `${cfg.enumsFileName ?? "enums"}${enumExt}`,
-         );
+         const enumsBase = cfg.enumsFileName || "enums";
+         const enumsPath = path.join(tsOutDir, `${enumsBase}${enumExt}`);
          await writeWithMerge(
             enumsPath,
             enumsCode,
@@ -208,7 +202,6 @@ export async function generateTypesFromPrisma(options: GeneratorOptions) {
          );
       }
    }
-
    // --- 8. Emit models -----------------------------------------------
    //
    // TsPrinter.printModels(models) returns:
