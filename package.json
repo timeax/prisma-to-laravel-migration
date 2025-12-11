@@ -30,7 +30,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "npx prisma generate --schema=small.prisma",
     "cjs": "node scripts/toCommons.cjs",
     "gen:laravel": "node scripts/gen-laravel.js",
     "build": "rm -rf dist @types && tsup",

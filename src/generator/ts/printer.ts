@@ -4,7 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { TsModelDefinition, TsEnumDefinition, TsImport } from "./types.js";
-import { resolveStub, type StubConfig, formatStub } from "../../utils/utils.js";
+import { resolveStub, type StubConfig, formatStub, getStubPath } from "../../utils/utils.js";
 
 /**
  * Options for the TS printer.
@@ -546,7 +546,7 @@ export class TsPrinter {
       }
 
       // Resolve module-level stub via 'index' key.
-      const stubPath = resolveStub(this.stubConfig, "ts", "index");
+      const stubPath = resolveStub(this.stubConfig, "ts", "index") ?? getStubPath('ts.stub');
       if (!stubPath) {
          // No module stub → default: imports + body
          const parts = [];

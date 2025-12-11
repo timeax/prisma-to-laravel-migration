@@ -1,5 +1,4 @@
-${ctx.imports}
-
-${ctx.body}
-
-export {};
+declare module "${moduleName}" {
+   ${imports}
+   ${content}
+}
