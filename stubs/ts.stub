@@ -1,3 +1,5 @@
 ${ctx.imports}
 
 ${ctx.body}
+
+export {};
