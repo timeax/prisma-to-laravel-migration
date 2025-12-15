@@ -2,7 +2,7 @@ import { DMMF } from "@prisma/generator-helper";
 import {
   RelationDefinition,
   scalarNames,
-} from "./types.js";
+} from "./types";
 
 /* ----------------------------- Morph config ------------------------------ */
 

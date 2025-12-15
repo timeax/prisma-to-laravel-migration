@@ -4,7 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { TsModelDefinition, TsEnumDefinition, TsImport } from "./types.js";
-import { resolveStub, type StubConfig, formatStub, getStubPath } from "../../utils/utils.js";
+import { resolveStub, type StubConfig, formatStub, getStubPath } from "@/utils/utils";
 
 /**
  * Options for the TS printer.

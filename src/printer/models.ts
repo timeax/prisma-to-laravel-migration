@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { ModelDefinition, EnumDefinition } from 'generator/modeler/types';
 import { decorate, formatStub, resolveStub, StubConfig } from '../utils/utils.js';
-import { relationTemplate } from '../generator/modeler/relationship/template-builder.js';
+import { relationTemplate } from '@/generator/lib/relationship/template-builder.js';
 
 /**
  * Loads JS‐based stubs for both models and enums, and evaluates

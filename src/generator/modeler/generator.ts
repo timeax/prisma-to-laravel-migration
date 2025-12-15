@@ -5,9 +5,9 @@ import {
    PropertyDefinition,
 } from "./types";
 import { PrismaTypes } from "../migrator/column-maps.js";
-import { RelationDefinition } from "./relationship/types";
-import { buildRelationsForModel } from "./relationship/index.js";
-import { getConfig, isForModel, listFrom, parseSilentDirective } from "../../utils/utils.js";
+import { RelationDefinition } from "@/generator/lib/relationship/types";
+import { buildRelationsForModel } from "@/generator/lib/relationship/index.js";
+import { getConfig, isForModel, listFrom, parseSilentDirective } from "@/utils/utils";
 import { parseAppendsDirective } from "generator/ts/directives";
 
 /**

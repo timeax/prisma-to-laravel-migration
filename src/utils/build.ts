@@ -1,4 +1,4 @@
-import { relationTemplate } from "../generator/modeler/relationship/template-builder.js";
+import { relationTemplate } from "@/generator/lib/relationship/template-builder.js";
 import { ModelDefinition } from "../generator/modeler/types";
 
 /**

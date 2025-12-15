@@ -1,15 +1,15 @@
 import { GeneratorConfig, GeneratorOptions } from "@prisma/generator-helper";
 import { existsSync, mkdirSync } from "fs";
 import path from "path";
-import { addToConfig, getStubPath, StubConfig } from "../../utils/utils.js";
-import { StubModelPrinter } from "../../printer/models.js";
+import { addToConfig, getStubPath, StubConfig } from "@/utils/utils";
+import { StubModelPrinter } from "@/printer/models";
 import { PrismaToLaravelModelGenerator } from "./generator.js";
 import { ModelDefinition, EnumDefinition } from "./types";
 import { fileURLToPath } from "url";
-import { writeWithMerge } from "../../diff-writer/writer.js";
+import { writeWithMerge } from "@/diff-writer/writer";
 import { ModelConfigOverride, StubGroupConfig } from "types/laravel-config.js";
-import { loadSharedConfig } from "../../utils/loadSharedCfg.js";
-import { buildModelContent } from "../../utils/build.js";
+import { loadSharedConfig } from "@/utils/loadSharedCfg";
+import { buildModelContent } from "@/utils/build";
 
 export interface ModelConfig extends StubConfig, Omit<ModelConfigOverride, 'groups' | 'stubDir'> { }
 

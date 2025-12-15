@@ -1,4 +1,4 @@
-import { RelationDefinition } from "./relationship/types";
+import { RelationDefinition } from "@/generator/lib/relationship/types";
 
 /** Reuse these from your model‐generator file */
 export interface EnumDefinition {
