@@ -163,7 +163,7 @@ export class PrismaToTypesGenerator {
                     }
 
                     const pivotShape = pivotProps.length ? `{ ${pivotProps.join("; ")} }` : "{}";
-                    const elementType = `${target} & ${pivotShape}`;
+                    const elementType = pivotShape ? `(${target} & ${pivotShape})` : target;
                     tsType = wrapList(elementType);
                 } else {
                     tsType = wrapList(target);
