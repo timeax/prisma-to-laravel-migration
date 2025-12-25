@@ -58,17 +58,54 @@ export interface TsEnumContext {
    body: string; // enum declaration
 }
 
+/**
+ * Override return type for `content((model) => ...)`.
+ *
+ * - Return a `string` to fully replace the model chunk.
+ * - Return an `object` to patch the generated chunk (append/prepend/body addProps, etc).
+ */
+export type TsContentOverride =
+   | string
+   | {
+      /** Replace the whole model chunk (header + shape). */
+      replace?: string;
+
+      /** Insert before/after the whole model chunk. */
+      prepend?: string;
+      append?: string;
+
+      /** Patch only the shape body (inside `{ ... }`). */
+      body?: {
+         prepend?: string;
+         append?: string;
+         addProps?: string | string[];
+      };
+   };
+
+/**
+ * Callable content passed into stubs.
+ *
+ * - As a string: behaves like the original `content` (via `toString()`).
+ * - As a function: `content((model) => override)` returns patched output.
+ */
+export type TsContentFn<TModel> = ((
+   override?: (model: TModel) => TsContentOverride | undefined,
+) => string) & {
+   toString(): string;
+   valueOf(): string;
+};
+
 type ModelStubFn = (
    model: TsModelDefinition,
    imports: string,
-   content: string,
+   content: TsContentFn<TsModelDefinition>,
    body: string,
    moduleName: string
 ) => string;
 
 type ModuleStubFn = (
    imports: string,
-   content: string,
+   content: TsContentFn<TsModelDefinition>,
    body: string,
    moduleName: string,
    models: TsModelDefinition[]
@@ -129,6 +166,9 @@ export class TsPrinter {
       const regularModelContexts: TsModelContext[] = [];
       const regularModelDefs: TsModelDefinition[] = [];
 
+      // Keep per-model default chunks so `content((m)=>...)` can patch them.
+      const regularModelChunks = new Map<TsModelDefinition, string>();
+
       const specialOutputs: string[] = [];
 
       for (const model of models) {
@@ -136,22 +176,36 @@ export class TsPrinter {
          const hasSpecialStub = this.hasModelSpecificStub(model);
 
          if (hasSpecialStub) {
-            const singleContent = this.renderModelStandalone(ctx); // header + shape, no imports
-            const body = this.wrapInModule(singleContent);
-            const code = this.renderModelWithStub(model, ctx, singleContent, body);
+            const singleContentStr = this.renderModelStandalone(ctx); // header + shape, no imports
+            const content = makeContentFn(
+               [model],
+               () => singleContentStr,
+               this.shape,
+            );
+
+            const body = this.wrapInModule(singleContentStr);
+            const code = this.renderModelWithStub(model, ctx, content, body);
             specialOutputs.push(code);
          } else {
             regularModelContexts.push(ctx);
             regularModelDefs.push(model);
+
+            regularModelChunks.set(model, this.renderModelStandalone(ctx));
          }
       }
 
       const importsBlock = this.collectImports(regularModelContexts);
-      const interfacesContent = this.renderModelsBlock(regularModelContexts); // headers + shapes only
-      const body = this.wrapInModule(interfacesContent);
+
+      const content = makeContentFn(
+         regularModelDefs,
+         (m) => regularModelChunks.get(m) ?? "",
+         this.shape,
+      );
+
+      const body = this.wrapInModule(content.toString());
       const mainFile = this.renderModuleWithStub(
          importsBlock,
-         interfacesContent,
+         content,
          body,
          models
       );
@@ -254,11 +308,11 @@ export class TsPrinter {
    }
 
    /**
-   * Merge & dedupe imports from multiple model contexts.
-   *
-   * We re-parse the per-model import lines into TsImport objects so that
-   * `normalizeTsImports` can group everything by `from` and merge type lists.
-   */
+    * Merge & dedupe imports from multiple model contexts.
+    *
+    * We re-parse the per-model import lines into TsImport objects so that
+    * `normalizeTsImports` can group everything by `from` and merge type lists.
+    */
    private collectImports(ctxs: TsModelContext[]): string {
       const collected: TsImport[] = [];
 
@@ -280,8 +334,8 @@ export class TsPrinter {
                // by treating it as a TsImport with empty type list.
                if (trimmed.startsWith("import ")) {
                   collected.push({
-                     from: trimmed,         // sentinel; will emit as-is below
-                     types: [],             // no types
+                     from: trimmed, // sentinel; will emit as-is below
+                     types: [], // no types
                   } as any);
                }
                continue;
@@ -313,9 +367,7 @@ export class TsPrinter {
       );
 
       // Deduplicate everything
-      const allLines = Array.from(
-         new Set([...rawLines, ...structuredLines]),
-      );
+      const allLines = Array.from(new Set([...rawLines, ...structuredLines]));
 
       return allLines.join("\n");
    }
@@ -359,9 +411,7 @@ export class TsPrinter {
       for (const p of props) {
          const doc = p.doc ? this.renderHeaderComment(p.doc) + "\n" : "";
          const optional = p.optional ? "?" : "";
-         lines.push(
-            `${doc}${p.name}${optional}: ${p.type};`
-         );
+         lines.push(`${doc}${p.name}${optional}: ${p.type};`);
       }
 
       return indentBlock(lines.join("\n"));
@@ -470,7 +520,7 @@ export class TsPrinter {
    private renderModelWithStub(
       model: TsModelDefinition,
       ctx: TsModelContext,
-      content: string,
+      content: TsContentFn<TsModelDefinition>,
       body: string,
    ): string {
       if (!this.stubConfig?.stubDir) {
@@ -531,7 +581,7 @@ export class TsPrinter {
     */
    private renderModuleWithStub(
       imports: string,
-      content: string,
+      content: TsContentFn<TsModelDefinition>,
       body: string,
       models: TsModelDefinition[],
    ): string {
@@ -546,7 +596,8 @@ export class TsPrinter {
       }
 
       // Resolve module-level stub via 'index' key.
-      const stubPath = resolveStub(this.stubConfig, "ts", "index") ?? getStubPath('ts.stub');
+      const stubPath =
+         resolveStub(this.stubConfig, "ts", "index") ?? getStubPath("ts.stub");
       if (!stubPath) {
          // No module stub → default: imports + body
          const parts = [];
@@ -579,6 +630,264 @@ export class TsPrinter {
 
       return out.replace(/\r\n/g, "\n");
    }
+}
+
+// ---------------------------------------------------------------------------
+// Content helpers (stub patching)
+// ---------------------------------------------------------------------------
+
+function makeContentFn<TModel>(
+   models: TModel[],
+   getDefaultChunk: (model: TModel) => string,
+   shape: "interface" | "type",
+): TsContentFn<TModel> {
+   const compute = (override?: (model: TModel) => TsContentOverride | undefined) => {
+      const parts: string[] = [];
+
+      for (const m of models) {
+         const base = normalizeLf(getDefaultChunk(m));
+         const ov = override ? override(m) : undefined;
+         const out = applyOverrideToChunk(base, ov, shape);
+
+         if (out && out.trim()) {
+            parts.push(out.trimEnd());
+         }
+      }
+
+      return parts.join("\n\n") + (parts.length ? "\n" : "");
+   };
+
+   const fn = ((override?: (model: TModel) => TsContentOverride | undefined) =>
+      compute(override)) as TsContentFn<TModel>;
+
+   const defaultString = compute();
+
+   // Preserve original behavior in stubs: `${content}` prints default content.
+   fn.toString = () => defaultString;
+   fn.valueOf = () => defaultString;
+
+   return fn;
+}
+
+function applyOverrideToChunk(
+   chunk: string,
+   override: TsContentOverride | undefined,
+   shape: "interface" | "type",
+): string {
+   if (!override) return chunk;
+
+   // string = full replace
+   if (typeof override === "string") {
+      return normalizeLf(ensureEndsWithNewline(override));
+   }
+
+   if (override.replace) {
+      return normalizeLf(ensureEndsWithNewline(override.replace));
+   }
+
+   let out = chunk;
+
+   if (override.body) {
+      out = patchShapeBody(out, shape, override.body);
+   }
+
+   if (override.prepend) {
+      out = normalizeLf(override.prepend).trimEnd() + "\n" + out;
+   }
+
+   if (override.append) {
+      out = out.trimEnd() + "\n" + normalizeLf(override.append).trimEnd() + "\n";
+   }
+
+   return ensureEndsWithNewline(out);
+}
+
+function patchShapeBody(
+   chunk: string,
+   shape: "interface" | "type",
+   body: {
+      prepend?: string;
+      append?: string;
+      addProps?: string | string[];
+   },
+): string {
+   const declNeedle = shape === "type" ? "export type " : "export interface ";
+   const declIdx = chunk.indexOf(declNeedle);
+   if (declIdx === -1) return chunk;
+
+   const openIdx = chunk.indexOf("{", declIdx);
+   if (openIdx === -1) return chunk;
+
+   const closeIdx = findMatchingBrace(chunk, openIdx);
+   if (closeIdx === -1) return chunk;
+
+   const before = chunk.slice(0, openIdx + 1);
+   let inner = normalizeLf(chunk.slice(openIdx + 1, closeIdx));
+   const after = chunk.slice(closeIdx);
+
+   // Normalize inner to have leading & trailing newline for clean insertion.
+   if (!inner.startsWith("\n")) inner = "\n" + inner;
+   if (!inner.endsWith("\n")) inner = inner + "\n";
+
+   // Insert right after the opening newline.
+   if (body.prepend) {
+      const inj = indentBlock(normalizeLf(body.prepend).trimEnd());
+      if (inj.trim()) {
+         inner = "\n" + inj + "\n" + inner.slice(1);
+      }
+   }
+
+   // Append props and/or append text before the final newline.
+   const tailInsert: string[] = [];
+
+   if (body.addProps) {
+      const props = Array.isArray(body.addProps) ? body.addProps : [body.addProps];
+      const lines = props
+         .flatMap((p) => normalizeLf(p).split("\n"))
+         .map((l) => l.trimEnd())
+         .filter((l) => l.length > 0);
+
+      const normalized = lines.map((l) => normalizePropLine(l));
+      if (normalized.length) {
+         tailInsert.push(normalized.join("\n"));
+      }
+   }
+
+   if (body.append) {
+      const app = normalizeLf(body.append).trimEnd();
+      if (app.trim()) {
+         tailInsert.push(app);
+      }
+   }
+
+   if (tailInsert.length) {
+      const inj = indentBlock(tailInsert.join("\n").trimEnd());
+      if (inj.trim()) {
+         inner = inner.trimEnd();
+         inner = inner + "\n" + inj + "\n";
+      }
+   }
+
+   return before + inner + after;
+}
+
+function normalizePropLine(line: string): string {
+   const t = line.trim();
+   if (!t) return line;
+
+   // Doc/comment lines should pass through.
+   if (t.startsWith("/**") || t.startsWith("*/") || t.startsWith("*") || t.startsWith("//")) {
+      return line;
+   }
+
+   // If it's already terminated, keep it.
+   if (t.endsWith(";") || t.endsWith(",")) return line;
+
+   return line + ";";
+}
+
+function findMatchingBrace(text: string, openIndex: number): number {
+   let depth = 0;
+
+   let inLineComment = false;
+   let inBlockComment = false;
+   let inSingle = false;
+   let inDouble = false;
+   let inTemplate = false;
+
+   for (let i = openIndex; i < text.length; i++) {
+      const ch = text[i];
+      const next = text[i + 1];
+
+      // Line comment
+      if (inLineComment) {
+         if (ch === "\n") inLineComment = false;
+         continue;
+      }
+
+      // Block comment
+      if (inBlockComment) {
+         if (ch === "*" && next === "/") {
+            inBlockComment = false;
+            i++;
+         }
+         continue;
+      }
+
+      // Strings
+      if (inSingle) {
+         if (ch === "\\") {
+            i++;
+            continue;
+         }
+         if (ch === "'") inSingle = false;
+         continue;
+      }
+      if (inDouble) {
+         if (ch === "\\") {
+            i++;
+            continue;
+         }
+         if (ch === '"') inDouble = false;
+         continue;
+      }
+      if (inTemplate) {
+         if (ch === "\\") {
+            i++;
+            continue;
+         }
+         if (ch === "`") inTemplate = false;
+         continue;
+      }
+
+      // Enter comment
+      if (ch === "/" && next === "/") {
+         inLineComment = true;
+         i++;
+         continue;
+      }
+      if (ch === "/" && next === "*") {
+         inBlockComment = true;
+         i++;
+         continue;
+      }
+
+      // Enter string
+      if (ch === "'") {
+         inSingle = true;
+         continue;
+      }
+      if (ch === '"') {
+         inDouble = true;
+         continue;
+      }
+      if (ch === "`") {
+         inTemplate = true;
+         continue;
+      }
+
+      // Braces
+      if (ch === "{") {
+         depth++;
+         continue;
+      }
+
+      if (ch === "}") {
+         depth--;
+         if (depth === 0) return i;
+      }
+   }
+
+   return -1;
+}
+
+function normalizeLf(s: string): string {
+   return s.replace(/\r\n/g, "\n");
+}
+
+function ensureEndsWithNewline(s: string): string {
+   const t = normalizeLf(s);
+   return t.endsWith("\n") ? t : t + "\n";
 }
 
 // ---------------------------------------------------------------------------
