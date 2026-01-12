@@ -1,3 +1,5 @@
+// noinspection JSUnusedLocalSymbols
+
 import {DMMF} from "@prisma/generator-helper";
 import {
     RelationDefinition,
@@ -11,7 +13,7 @@ import {
     isUniqueOn,
 } from "./types";
 import {detectMorphToRelations, parseMorphOwnerDirectives} from "./morph";
-import {isForModel, listFrom, parseLocalDirective} from "@/utils/utils";
+import {decorate, getConfig, isForModel, listFrom, parseLocalDirective} from "@/utils/utils";
 
 /* ------------------ pivot relevance (explicit M:N) ----------------------- */
 const pivotOtherEndpointFor = (
@@ -218,7 +220,10 @@ export function buildRelationsForModel(
                     type: "belongsToMany",
                     mode: "explicit",
                     modelClass: `${keys.target}::class`,
-                    pivotTable: keys.pivotTable,
+                    pivotTable: decorate(keys.pivotTable, {
+                        tablePrefix: getConfig('model', 'tablePrefix'),
+                        tableSuffix: getConfig('model', 'tableSuffix')
+                    }),
                     pivotLocal: keys.pivotLocal,
                     pivotForeign: keys.pivotForeign,
                     pivotColumns: keys.pivotColumns,
@@ -235,7 +240,10 @@ export function buildRelationsForModel(
                     type: "belongsToMany",
                     mode: "implicit",
                     modelClass: `${keys.target}::class`,
-                    pivotTable: keys.pivotTable,
+                    pivotTable: decorate(keys.pivotTable, {
+                        tablePrefix: getConfig('model', 'tablePrefix'),
+                        tableSuffix: getConfig('model', 'tableSuffix')
+                    }),
                     localKey: keys.local,
                     foreignKey: keys.foreign,
                     targetModelName: keys.target,

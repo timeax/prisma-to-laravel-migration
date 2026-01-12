@@ -1,9 +1,9 @@
 import { DMMF } from "@prisma/generator-helper";
 import { ColumnDefinitionGenerator } from "./column-definition.js";
 import { RuleResolver } from "./rule-definition.js";
-import { ColumnDefinition } from "../../types/column-definition-types.js";
+import { ColumnDefinition } from "@/types/column-definition-types";
 import { DefaultMaps, Rule } from "./rules.js";
-import { decorate, getConfig, isForMigrator, parseSilentDirective } from "../../utils/utils.js";
+import { decorate, getConfig, isForMigrator, parseSilentDirective } from "@/utils/utils";
 
 /**
  * The shape returned by the generator—pure data, no rendering.

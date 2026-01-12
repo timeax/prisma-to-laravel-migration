@@ -1,4 +1,5 @@
 import { DMMF } from "@prisma/generator-helper";
+import {decorate, getConfig} from "@/utils/utils";
 
 /* ----------------------------- Public types ------------------------------ */
 
@@ -94,7 +95,7 @@ export type ListRelationKeys =
 export const getModel = (dmmf: DMMF.Document, name: string) =>
   dmmf.datamodel.models.find((m) => m.name === name)!;
 
-export const dbNameOf = (m: DMMF.Model) => m.dbName ?? m.name;
+export const dbNameOf = (m: DMMF.Model) => decorate(m.dbName ?? m.name, {tablePrefix: getConfig('model')?.tablePrefix, tableSuffix: getConfig('model')?.tableSuffix});
 
 export const conventionalPivotName = (a: string, b: string) =>
   [a, b].map((s) => s.toLowerCase()).sort().join("_");
