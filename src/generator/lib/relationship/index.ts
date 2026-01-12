@@ -220,10 +220,7 @@ export function buildRelationsForModel(
                     type: "belongsToMany",
                     mode: "explicit",
                     modelClass: `${keys.target}::class`,
-                    pivotTable: decorate(keys.pivotTable, {
-                        tablePrefix: getConfig('model', 'tablePrefix'),
-                        tableSuffix: getConfig('model', 'tableSuffix')
-                    }),
+                    pivotTable: decorate(keys.pivotTable, getConfig('model')!),
                     pivotLocal: keys.pivotLocal,
                     pivotForeign: keys.pivotForeign,
                     pivotColumns: keys.pivotColumns,
@@ -240,10 +237,7 @@ export function buildRelationsForModel(
                     type: "belongsToMany",
                     mode: "implicit",
                     modelClass: `${keys.target}::class`,
-                    pivotTable: decorate(keys.pivotTable, {
-                        tablePrefix: getConfig('model', 'tablePrefix'),
-                        tableSuffix: getConfig('model', 'tableSuffix')
-                    }),
+                    pivotTable: decorate(keys.pivotTable, getConfig('model')!),
                     localKey: keys.local,
                     foreignKey: keys.foreign,
                     targetModelName: keys.target,

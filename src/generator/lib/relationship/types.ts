@@ -95,7 +95,7 @@ export type ListRelationKeys =
 export const getModel = (dmmf: DMMF.Document, name: string) =>
   dmmf.datamodel.models.find((m) => m.name === name)!;
 
-export const dbNameOf = (m: DMMF.Model) => decorate(m.dbName ?? m.name, {tablePrefix: getConfig('model')?.tablePrefix, tableSuffix: getConfig('model')?.tableSuffix});
+export const dbNameOf = (m: DMMF.Model) => decorate(m.dbName ?? m.name, getConfig('model')!);
 
 export const conventionalPivotName = (a: string, b: string) =>
   [a, b].map((s) => s.toLowerCase()).sort().join("_");

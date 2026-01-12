@@ -195,9 +195,6 @@ export class PrismaToLaravelModelGenerator {
                 docblockProps.push(`@property ${type} $${p.name}`);
             }
             for (const rel of relations) {
-                if(rel.pivotTable) {
-
-                }
                 const type =
                     rel.type === 'hasMany' || rel.type === 'belongsToMany'
                         ? `\\Illuminate\\Support\\Collection<int, ${rel.modelClass}>`

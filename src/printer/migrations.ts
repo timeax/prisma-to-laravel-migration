@@ -1,13 +1,13 @@
 import fs from "fs";
 import path from "path";
-import { Migration } from "../generator/migrator/PrismaToLaravelMigrationGenerator.js";
+import { Migration } from "@/generator/migrator/PrismaToLaravelMigrationGenerator";
 import {
    formatStub,
    resolveStub,
    StubConfig,
    decorate,            // ⬅️ helper that applies prefix / suffix
-} from "../utils/utils.js";
-import { sortMigrations } from "../utils/sort.js";
+} from "@/utils/utils";
+import { sortMigrations } from "@/utils/sort";
 
 export interface PrinterNameOpts {
    tablePrefix?: string;
