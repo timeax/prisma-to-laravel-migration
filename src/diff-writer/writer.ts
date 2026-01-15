@@ -18,7 +18,7 @@ import { getConfig } from "@/utils/utils.js";
 export async function writeWithMerge(
    filePath: string,
    theirs: string,
-   type: "migrator" | "model" | "ts",
+   type: "migrator" | "model" | "typescript",
    overwrite = true,
    currentPath?: string | null,
    removeOld = true
@@ -36,14 +36,12 @@ export async function writeWithMerge(
     *   - parser = 'php' otherwise
     */
    const doFormat = (code: string | null | undefined) => {
-      const globalCfg = getConfig(type as any);
-      const typeCfg = globalCfg ?? {};
+      const typeCfg = getConfig(type)!;
       const usePrettier = !!typeCfg.prettier;
 
       if (!usePrettier || !code) return code;
 
-      const parser: "php" | "typescript" =
-         typeCfg.parser ?? (type === "ts" ? "typescript" : "php");
+      const parser: "php" | "typescript" = type == 'typescript' ? "typescript" : "php";
 
       return prettify(code, {
          parser,

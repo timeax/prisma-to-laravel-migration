@@ -200,7 +200,7 @@ export async function generateTypesFromPrisma(options: GeneratorOptions) {
             await writeWithMerge(
                 enumsPath,
                 enumsCode,
-                "ts",
+                "typescript",
                 cfg.overwriteExisting,
             );
         }
@@ -238,7 +238,7 @@ export async function generateTypesFromPrisma(options: GeneratorOptions) {
         await writeWithMerge(
             mainPath,
             mainFile,
-            "ts",
+            "typescript",
             cfg.overwriteExisting,
         );
     }
@@ -258,7 +258,7 @@ export async function generateTypesFromPrisma(options: GeneratorOptions) {
         await writeWithMerge(
             filePath,
             code,
-            "ts",
+            "typescript",
             cfg.overwriteExisting,
         );
     });
