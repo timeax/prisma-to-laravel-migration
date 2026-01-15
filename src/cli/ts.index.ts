@@ -21,7 +21,7 @@ generatorHandler({
       if (!defaultOutput && options.sourceFilePath) {
          try {
             const schemaDir = path.dirname(options.sourceFilePath);
-            const shared = await loadSharedConfig(schemaDir);
+            const shared = await loadSharedConfig(schemaDir, 'typescript');
 
             // TS-only: shared.ts.outputDir (no cross-talk with migrations/models/enums)
             if (shared && (shared as any).ts) {

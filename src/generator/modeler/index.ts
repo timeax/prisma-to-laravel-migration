@@ -21,7 +21,7 @@ export async function generateLaravelModels(options: GeneratorOptions) {
 
    /* load shared cfg (auto-discovers prisma/laravel.config.js) */
    const schemaDir = path.dirname(generator.sourceFilePath ?? path.resolve(options.schemaPath));          // << from GeneratorOptions
-   const shared = await loadSharedConfig(schemaDir);
+   const shared = await loadSharedConfig(schemaDir, 'models');
 
    /* merge stub groups from block, then shared file (shared wins) */
    let groups: StubGroupConfig[] = [];

@@ -19,7 +19,7 @@ generatorHandler({
       if (options.sourceFilePath) {
          try {
             const schemaDir = path.dirname(options.sourceFilePath);
-            const shared = await loadSharedConfig(schemaDir);
+            const shared = await loadSharedConfig(schemaDir, 'models');
 
             // --- model output resolution (models) ---
             if (!modelOutput) {

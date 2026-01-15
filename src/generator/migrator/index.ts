@@ -20,7 +20,7 @@ export async function generateLaravelSchema(options: GeneratorOptions): Promise<
    const raw = (generator.config ?? {}) as Record<string, string | undefined>;
 
    const schemaDir = path.dirname(generator.sourceFilePath ?? path.resolve(options.schemaPath));             // << from GeneratorOptions
-   const shared = await loadSharedConfig(schemaDir);
+   const shared = await loadSharedConfig(schemaDir, 'migrations');
 
    // 0.a) Load groups from a JS file if provided
    let groups: StubGroupConfig[] = [];

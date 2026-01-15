@@ -21,7 +21,7 @@ generatorHandler({
       if (!migrationsOutput && options.sourceFilePath) {
          try {
             const schemaDir = path.dirname(options.sourceFilePath);
-            const shared = await loadSharedConfig(schemaDir);
+            const shared = await loadSharedConfig(schemaDir, 'models');
 
             migrationsOutput =
                shared?.migrate?.outputDir ??

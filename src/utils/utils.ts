@@ -158,7 +158,7 @@ export function decorate(name: string, opts: NameOpts): string {
    return `${pre}${name}${suf}`.trim();
 }
 
-export function addToConfig(key: 'model' | 'migrator', value: any) {
+export function addToConfig(key: 'model' | 'migrator' | 'typescript', value: any) {
    global._config = global._config ?? {};
    global._config[key] = value;
 }

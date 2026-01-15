@@ -16,7 +16,7 @@ import {PrismaToTypesGenerator} from "./generator.js";
 import type {TsModelDefinition, TsEnumDefinition} from "./types.js";
 import {TsPrinter} from "./printer.js";
 import {writeWithMerge} from "@/diff-writer/writer";
-import {resolveStub} from "@/utils/utils";
+import {addToConfig, resolveStub} from "@/utils/utils";
 
 /**
  * TS generator config:
@@ -72,8 +72,8 @@ export async function generateTypesFromPrisma(options: GeneratorOptions) {
     const raw = (generator.config ?? {}) as Record<string, string | undefined>;
 
     // Load shared config (auto-discovers prisma/laravel.config.js from schema dir)
-    const schemaDir = path.dirname(options.schemaPath);
-    const shared = await loadSharedConfig(schemaDir);
+    const schemaDir = path.dirname(generator.sourceFilePath ?? path.resolve(options.schemaPath));
+    const shared = await loadSharedConfig(schemaDir, 'typescript');
 
     // --- 1. Load stub groups if present (same pattern as modeler) ------
     let groups: StubGroupConfig[] = [];
@@ -145,6 +145,9 @@ export async function generateTypesFromPrisma(options: GeneratorOptions) {
     if (!existsSync(tsOutDir)) {
         mkdirSync(tsOutDir, {recursive: true});
     }
+
+       addToConfig('typescript', cfg);
+
 
     // Tell diff-writer how to pretty-print TS (if enabled)
     (global as any)._config = (global as any)._config || {};

@@ -1,3 +1,4 @@
+import { TypesConfig } from "@/generator/ts";
 import { MigratorConfig } from "generator/migrator";
 import { ModelConfig } from "generator/modeler";
 
@@ -15,4 +16,5 @@ declare global {
 interface Config {
    model: ModelConfig;
    migrator: MigratorConfig
+   typescript: TypesConfig
 }

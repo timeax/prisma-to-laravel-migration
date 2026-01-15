@@ -4,12 +4,12 @@ import { LaravelSharedConfig } from "types/laravel-config";
 import path from "path";
 import { loadConfig } from "./config.js";
 /** ---------------- shared-config loader ---------------- */
-export async function loadSharedConfig(schemaDir: string): Promise<LaravelSharedConfig> {
+export async function loadSharedConfig(schemaDir: string, type: string): Promise<LaravelSharedConfig> {
   const envOverride = process.env.PRISMA_LARAVEL_CFG;
   const defaultPath = path.join(schemaDir, "prisma-laravel.config.js");
   const cfgPath = envOverride ? path.resolve(envOverride) : defaultPath;
 
-  console.log("Loading shared config from - " + cfgPath)
+  console.log("Loading shared config for "+ type +" from - " + cfgPath)
 
   try {
     await fs.accessSync(cfgPath);
