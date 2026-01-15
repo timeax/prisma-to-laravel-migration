@@ -3,6 +3,7 @@ import path from "path";
 import * as diff3 from "node-diff3";
 import { backupPathFor } from "./backupPath.js";
 import { prettify } from "../utils/pretty.js";
+import { getConfig } from "@/utils/utils.js";
 
 /**
  * Git-style 3-way merge writer that supports moving outputs.
@@ -35,8 +36,8 @@ export async function writeWithMerge(
     *   - parser = 'php' otherwise
     */
    const doFormat = (code: string | null | undefined) => {
-      const globalCfg = (global as any)?._config ?? {};
-      const typeCfg = globalCfg[type] ?? {};
+      const globalCfg = getConfig(type as any);
+      const typeCfg = globalCfg ?? {};
       const usePrettier = !!typeCfg.prettier;
 
       if (!usePrettier || !code) return code;
