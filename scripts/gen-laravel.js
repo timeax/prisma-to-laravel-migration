@@ -26,10 +26,10 @@ import {
    const dmmf = await sdk.getDMMF({ datamodel });
    const prismaCfg = await sdk.getConfig({ datamodel });
 
-   console.log("=== DMMF models ===");
-   console.log(dmmf.datamodel.models.map((m) => m.name));
-   console.log("=== Datasources / Generators ===");
-   console.log(prismaCfg);
+   // console.log("=== DMMF models ===");
+   // console.log(dmmf.datamodel.models.map((m) => m.name));
+   // console.log("=== Datasources / Generators ===");
+   // console.log(prismaCfg);
 
    // --------------------------------------------------------------------
    // 3) PHP: Generate migrations (in-memory)
@@ -136,22 +136,22 @@ import {
    // Models: [ mainFile, ...perModelStubFiles ]
    const [mainModelsFile, ...perModelFiles] = tsPrinter.printModels(tsModels);
 
-   console.log("\n\n" + "=".repeat(60));
-   console.log("=== TS ENUMS ===\n");
-   console.log(enumsCode);
+   // console.log("\n\n" + "=".repeat(60));
+   // console.log("=== TS ENUMS ===\n");
+   // console.log(enumsCode);
 
-   console.log("\n" + "=".repeat(60));
-   console.log("=== TS MODELS (MAIN FILE) ===\n");
-   console.log(mainModelsFile);
+   // console.log("\n" + "=".repeat(60));
+   // console.log("=== TS MODELS (MAIN FILE) ===\n");
+   // console.log(mainModelsFile);
 
-   if (perModelFiles.length) {
-      console.log("\n" + "=".repeat(60));
-      console.log("=== TS MODELS (PER-MODEL STUB FILES) ===\n");
-      perModelFiles.forEach((code, idx) => {
-         console.log(`\n--- Fragment #${idx + 1} ---\n`);
-         console.log(code);
-      });
-   }
+   // if (perModelFiles.length) {
+   //    console.log("\n" + "=".repeat(60));
+   //    console.log("=== TS MODELS (PER-MODEL STUB FILES) ===\n");
+   //    perModelFiles.forEach((code, idx) => {
+   //       console.log(`\n--- Fragment #${idx + 1} ---\n`);
+   //       console.log(code);
+   //    });
+   // }
 
    // Later we can swap the console.log sections with writeWithMerge(..., "ts", ...)
    // to actually emit files using the diff writer + TS prettier config.

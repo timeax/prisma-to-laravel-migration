@@ -8,6 +8,7 @@ import { ModelConfig } from "generator/modeler";
 import { MigratorConfig } from "generator/migrator";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { TypesConfig } from "@/generator/ts";
 
 /**
  * Given a Prisma field default, return the PHP code fragment
@@ -158,9 +159,10 @@ export function decorate(name: string, opts: NameOpts): string {
    return `${pre}${name}${suf}`.trim();
 }
 
+let config: GlobalCfg = {}
+
 export function addToConfig(key: 'model' | 'migrator' | 'typescript', value: any) {
-   global._config = global._config ?? {};
-   global._config[key] = value;
+   config[key] = value;
 }
 
 
@@ -172,6 +174,7 @@ export { stripDirectives } from './clean.js'
 type GlobalCfg = {
    model?: ModelConfig;
    migrator?: MigratorConfig;
+   typescript?: TypesConfig
 };
 
 
@@ -195,7 +198,7 @@ export function getConfig(
    key: keyof GlobalCfg,
    property?: string
 ) {
-   const cfg = (global._config ?? {}) as GlobalCfg;
+   const cfg = config;
    const section = cfg[key];
    return property ? (section as any)?.[property] : section;
 }

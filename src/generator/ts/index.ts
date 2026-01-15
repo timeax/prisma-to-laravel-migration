@@ -4,19 +4,19 @@ import type {
     GeneratorConfig,
 } from "@prisma/generator-helper";
 import path from "node:path";
-import {existsSync, mkdirSync} from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 
-import {loadSharedConfig} from "@/utils/loadSharedCfg";
+import { loadSharedConfig } from "@/utils/loadSharedCfg";
 import type {
     TypesConfigOverride,
     StubGroupConfig,
 } from "types/laravel-config.js";
 
-import {PrismaToTypesGenerator} from "./generator.js";
-import type {TsModelDefinition, TsEnumDefinition} from "./types.js";
-import {TsPrinter} from "./printer.js";
-import {writeWithMerge} from "@/diff-writer/writer";
-import {addToConfig, resolveStub} from "@/utils/utils";
+import { PrismaToTypesGenerator } from "./generator.js";
+import type { TsModelDefinition, TsEnumDefinition } from "./types.js";
+import { TsPrinter } from "./printer.js";
+import { writeWithMerge } from "@/diff-writer/writer";
+import { addToConfig, resolveStub } from "@/utils/utils";
 
 /**
  * TS generator config:
@@ -66,7 +66,7 @@ function hasModelSpecificTsStub(
 }
 
 export async function generateTypesFromPrisma(options: GeneratorOptions) {
-    const {dmmf, generator} = options;
+    const { dmmf, generator } = options;
 
     // 0) Pull config values from generator block
     const raw = (generator.config ?? {}) as Record<string, string | undefined>;
@@ -143,11 +143,11 @@ export async function generateTypesFromPrisma(options: GeneratorOptions) {
     // --- 4. Ensure TS output directory exists -------------------------
     const tsOutDir = path.resolve(process.cwd(), cfg.outputDir!);
     if (!existsSync(tsOutDir)) {
-        mkdirSync(tsOutDir, {recursive: true});
+        mkdirSync(tsOutDir, { recursive: true });
     }
 
-       addToConfig('typescript', cfg);
-
+    addToConfig('typescript', cfg);
+    addToConfig('model', { tablePrefix: cfg.tablePrefix, tableSuffix: cfg.tableSuffix });
 
     // Tell diff-writer how to pretty-print TS (if enabled)
     (global as any)._config = (global as any)._config || {};
@@ -167,7 +167,7 @@ export async function generateTypesFromPrisma(options: GeneratorOptions) {
 
     if (cfg.noEmit) {
         // useful for tests or "dry" runs
-        return {models, enums, config: cfg};
+        return { models, enums, config: cfg };
     }
 
     // --- 6. Create TS printer (handles stubs + moduleName) ------------
@@ -249,7 +249,7 @@ export async function generateTypesFromPrisma(options: GeneratorOptions) {
         if (!model) return;
 
         const decoratedName = `${cfg.namePrefix ?? ""}${model.name}${cfg.nameSuffix ?? ""
-        }`;
+            }`;
         const filePath = path.join(
             tsOutDir,
             `${decoratedName}${modelExt}`,
@@ -263,5 +263,5 @@ export async function generateTypesFromPrisma(options: GeneratorOptions) {
         );
     });
 
-    return {models, enums, config: cfg};
+    return { models, enums, config: cfg };
 }
