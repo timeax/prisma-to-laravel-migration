@@ -15,12 +15,13 @@ export interface ModelConfig extends StubConfig, Omit<ModelConfigOverride, 'grou
 export async function generateLaravelModels(options: GeneratorOptions) {
    const { dmmf, generator } = options;
    // 0) Pull config values
+   generator.sourceFilePath
    // Inside generateLaravelModels()
    /** ---------------- existing logic --------------------- */
    const raw = (generator.config ?? {}) as Record<string, string | undefined>;
 
    /* load shared cfg (auto-discovers prisma/laravel.config.js) */
-   const schemaDir = path.dirname(options.schemaPath);          // << from GeneratorOptions
+   const schemaDir = path.dirname(path.resolve(options.schemaPath));          // << from GeneratorOptions
    const shared = await loadSharedConfig(schemaDir);
 
    /* merge stub groups from block, then shared file (shared wins) */

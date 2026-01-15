@@ -19,7 +19,7 @@ export async function generateLaravelSchema(options: GeneratorOptions): Promise<
    // Inside generateLaravelSchema()
    const raw = (generator.config ?? {}) as Record<string, string | undefined>;
 
-   const schemaDir = path.dirname(options.schemaPath);             // << from GeneratorOptions
+   const schemaDir = path.dirname(generator.sourceFilePath ?? path.resolve(options.schemaPath));             // << from GeneratorOptions
    const shared = await loadSharedConfig(schemaDir);
 
    // 0.a) Load groups from a JS file if provided
