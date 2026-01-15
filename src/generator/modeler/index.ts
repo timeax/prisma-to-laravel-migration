@@ -5,7 +5,6 @@ import { addToConfig, getStubPath, StubConfig } from "@/utils/utils";
 import { StubModelPrinter } from "@/printer/models";
 import { PrismaToLaravelModelGenerator } from "./generator.js";
 import { ModelDefinition, EnumDefinition } from "./types";
-import { fileURLToPath } from "url";
 import { writeWithMerge } from "@/diff-writer/writer";
 import { ModelConfigOverride, StubGroupConfig } from "types/laravel-config.js";
 import { loadSharedConfig } from "@/utils/loadSharedCfg";

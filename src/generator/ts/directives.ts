@@ -52,47 +52,61 @@ export function parseTypeDirective(doc?: string | null): TypeDirective | undefin
  * - @appends(foo:string, bar:Record<string, any>)
  * - @appends{ foo, bar }
  * - @appends{ foo:string, bar:number }
+ * - @appends: foo, bar
+ * - @appends: foo:string, bar:Record<string, any>
  *
- * We keep the syntax forgiving:
- *  - parentheses () or braces {} are both allowed
+ * Forgiving rules:
+ *  - parentheses () or braces {} or colon-form are allowed
  *  - entries separated by comma
  *  - each entry is `name` or `name:type`
  */
 export function parseAppendsDirective(doc?: string | null): AppendsDirective | undefined {
    if (!doc) return undefined;
 
-   // Find the first "@appends..." occurrence
-   const m = doc.match(/@appends\s*(\{[^}]*\}|\([^)]*\)|[^\r\n]*)/);
+   // Capture the directive body, supporting:
+   //   @appends{...}
+   //   @appends(...)
+   //   @appends: ...
+   //   @appends ... (rest of line)
+   const m = doc.match(/@appends\s*(?::\s*)?(\{[^}]*\}|\([^)]*\)|[^\r\n]*)/i);
    if (!m) return undefined;
 
-   let body = m[1].trim();
+   let body = (m[1] ?? "").trim();
 
    // Strip surrounding {} or ()
-   if ((body.startsWith("{") && body.endsWith("}")) || (body.startsWith("(") && body.endsWith(")"))) {
+   if (
+      (body.startsWith("{") && body.endsWith("}")) ||
+      (body.startsWith("(") && body.endsWith(")"))
+   ) {
       body = body.slice(1, -1).trim();
    }
+
+   // Safety: if something slipped through like ":owner,..."
+   if (body.startsWith(":")) body = body.slice(1).trim();
 
    if (!body) return undefined;
 
    const entries: AppendEntry[] = [];
 
-   // Split by commas at top-level (no need for deep parsing here)
+   // Split by commas (simple, forgiving)
    for (const raw of body.split(",")) {
       const token = raw.trim();
       if (!token) continue;
 
-      // Support "name" or "name:type"
-      const [nameRaw, typeRaw] = token.split(":").map((s) => s.trim());
-      if (!nameRaw) continue;
+      // Split ONLY on the first ":" so types can contain ":" safely
+      const idx = token.indexOf(":");
+      const name = (idx === -1 ? token : token.slice(0, idx)).trim();
+      const type = (idx === -1 ? "" : token.slice(idx + 1)).trim();
 
-      const name = nameRaw;
-      const type = typeRaw && typeRaw.length ? typeRaw : undefined;
+      if (!name) continue;
 
-      entries.push({ name, type });
+      entries.push({
+         name,
+         type: type.length ? type : undefined,
+      });
    }
 
-   if (!entries.length) return undefined;
-   return { entries };
+   return entries.length ? { entries } : undefined;
 }
 
 /**

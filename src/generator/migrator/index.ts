@@ -4,7 +4,6 @@ import path from "path";
 import { PrismaToLaravelMigrationGenerator, Migration } from "./PrismaToLaravelMigrationGenerator.js";
 import { StubMigrationPrinter } from "../../printer/migrations.js";
 import { addToConfig, getStubPath, StubConfig } from "../../utils/utils.js";
-import { fileURLToPath } from "url";
 import { sortMigrations } from "../../utils/sort.js";
 import { writeWithMerge } from "../../diff-writer/writer.js";
 import { loadSharedConfig } from "../../utils/loadSharedCfg.js";
