@@ -91,7 +91,7 @@ export class PrismaToLaravelModelGenerator {
                 }
 
                 return {
-                    name: field.name,
+                    name: field.dbName ?? field.name,
                     phpType,
                     fillable,
                     hidden,
@@ -187,7 +187,7 @@ export class PrismaToLaravelModelGenerator {
 
             //--- docprops
             const docblockProps: string[] = [];
-            const relationNames = new Set(relations.map(r => r.name));
+            const relationNames = new Set(relations.map(r =>  r.name));
 
             for (const p of properties) {
                 if (p.ignore || relationNames.has(p.name)) continue;

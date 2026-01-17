@@ -1,6 +1,6 @@
 // noinspection JSUnusedLocalSymbols
 
-import {DMMF} from "@prisma/generator-helper";
+import { DMMF } from "@prisma/generator-helper";
 import {
     RelationDefinition,
     ListRelationKeys,
@@ -12,8 +12,8 @@ import {
     hasIntersection,
     isUniqueOn,
 } from "./types";
-import {detectMorphToRelations, parseMorphOwnerDirectives} from "./morph";
-import {decorate, getConfig, isForModel, listFrom, parseLocalDirective} from "@/utils/utils";
+import { detectMorphToRelations, parseMorphOwnerDirectives } from "./morph";
+import { decorate, getConfig, isForModel, listFrom, parseLocalDirective } from "@/utils/utils";
 
 /* ------------------ pivot relevance (explicit M:N) ----------------------- */
 const pivotOtherEndpointFor = (
@@ -216,7 +216,7 @@ export function buildRelationsForModel(
                 const rawChain = chainParts.length ? chainParts.join("->") : "";
 
                 defs.push({
-                    name: f.name.replace(/Id$/, ""),
+                    name: (f.dbName ?? f.name).replace(/Id$/, ""),
                     type: "belongsToMany",
                     mode: "explicit",
                     modelClass: `${keys.target}::class`,
@@ -233,7 +233,7 @@ export function buildRelationsForModel(
                 });
             } else if (keys.kind === "belongsToMany" && keys.mode === "implicit") {
                 defs.push({
-                    name: f.name.replace(/Id$/, ""),
+                    name: (f.dbName ?? f.name).replace(/Id$/, ""),
                     type: "belongsToMany",
                     mode: "implicit",
                     modelClass: `${keys.target}::class`,
@@ -261,7 +261,7 @@ export function buildRelationsForModel(
 
         if (thisOwnsFK) {
             defs.push({
-                name: f.name.replace(/Id$/, ""),
+                name: (f.dbName ?? f.name).replace(/Id$/, ""),
                 type: "belongsTo",
                 modelClass: `${f.type}::class`,
                 foreignKey: f.relationFromFields ?? [],
@@ -278,7 +278,7 @@ export function buildRelationsForModel(
 
         if (otherOwnsFK && counterpartIsSingle) {
             defs.push({
-                name: f.name.replace(/Id$/, ""),
+                name: (f.dbName ?? f.name).replace(/Id$/, ""),
                 type: "hasOne",
                 modelClass: `${f.type}::class`,
                 foreignKey: counterpart!.relationFromFields ?? [],
@@ -290,7 +290,7 @@ export function buildRelationsForModel(
 
         if (otherOwnsFK) {
             defs.push({
-                name: f.name.replace(/Id$/, ""),
+                name: (f.dbName ?? f.name).replace(/Id$/, ""),
                 type: "hasMany",
                 modelClass: `${f.type}::class`,
                 foreignKey: counterpart!.relationFromFields ?? [],
