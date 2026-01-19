@@ -66,9 +66,10 @@ export class PrismaToLaravelModelGenerator {
                 const guarded = flag("guarded") || guardedSet.has(field.name);
                 const ignore = flag("ignore");
 
-                // eager-load relation field
-                if (flag("with") && !withList.includes(field.name)) {
-                    withList.push(field.name);
+                if (flag('with')) {
+                    const list = listFrom(doc, 'with');
+                    if (list.length) withList.push(`${field.name}:${list.join(',').trim()}`);
+                    else withList.push(field.name);
                 }
 
                 // custom cast
