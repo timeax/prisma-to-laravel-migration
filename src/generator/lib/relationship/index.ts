@@ -13,13 +13,20 @@ import {
     isUniqueOn,
 } from "./types";
 import { detectMorphToRelations, parseMorphOwnerDirectives } from "./morph";
-import { decorate, getConfig, isForModel, listFrom, parseLocalDirective } from "@/utils/utils";
+import { isForModel, listFrom, parseLocalDirective } from "@/utils/utils";
 
 /* ------------------ pivot relevance (explicit M:N) ----------------------- */
 const pivotOtherEndpointFor = (
     thisModelName: string,
     candidate: DMMF.Model
 ): string | undefined => {
+
+    if ((candidate.documentation?.includes("@entity"))) {
+        const entities = listFrom(candidate.documentation ?? "", "@entity");
+        if (entities.length > 0) return undefined;
+        if (entities.includes(thisModelName)) return undefined;
+    }
+
     // Only relations that actually own FKs
     const rels = objRels(candidate).filter(
         (r) => (r.relationFromFields?.length ?? 0) > 0

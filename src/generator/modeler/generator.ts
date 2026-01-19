@@ -23,10 +23,12 @@ export class PrismaToLaravelModelGenerator {
         models: ModelDefinition[];
         enums: EnumDefinition[];
     } {
+        const { namespace: baseNamespace, modelNamespace, enumNamespace } = getConfig('model') ?? {};
+
         // 1) Extract all Prisma enums into EnumDefinition[]
         const enums: EnumDefinition[] = this.dmmf.datamodel.enums.map((e) => ({
             name: e.name,
-            namespace: getConfig('model')?.namespace ?? 'App', // filled in by printer
+            namespace: enumNamespace ?? baseNamespace ?? 'App', // filled in by printer
             values: e.values.map((v) => v.name),
         }));
 
@@ -187,7 +189,7 @@ export class PrismaToLaravelModelGenerator {
 
             //--- docprops
             const docblockProps: string[] = [];
-            const relationNames = new Set(relations.map(r =>  r.name));
+            const relationNames = new Set(relations.map(r => r.name));
 
             for (const p of properties) {
                 if (p.ignore || relationNames.has(p.name)) continue;
@@ -202,13 +204,15 @@ export class PrismaToLaravelModelGenerator {
                 docblockProps.push(`@property ${type} $${rel.name}`);
             }
 
+            const namespace = modelNamespace ?? baseNamespace ?? 'App';
+
             /* ── 2.6  Final ModelDefinition ────────────────────────────────── */
             return {
                 className: model.name,
                 tableName: model.dbName ?? model.name,
                 guarded,
                 properties,
-                namespace: getConfig('model')?.namespace ?? 'App', // filled in by printer
+                namespace,
                 relations,
                 enums,
                 interfaces,

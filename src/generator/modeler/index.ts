@@ -63,7 +63,9 @@ export async function generateLaravelModels(options: GeneratorOptions) {
       modelStubPath: pick('modelStubPath'),
       noEmit: pick('noEmit', false),
       allowedPivotExtraFields: pick('allowedPivotExtraFields', []),
-      namespace: pick("namespace", "App")
+      namespace: pick("namespace", "App"),
+      modelNamespace: pick("modelNamespace"),
+      enumNamespace: pick("enumNamespace"),
    };
 
    addToConfig('model', cfg);
