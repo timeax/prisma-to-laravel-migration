@@ -25,694 +25,742 @@ generator types {
   provider  = "prisma-laravel-types"
   outputDir = "./database/types/"
 }
-// ─── ENUMS ────────────────────────────────────────────────
 
-enum PluginStatus {
-  active
-  inactive
-  archived
+///@entity:Round
+model RoundResult {
+  id                String   @id @default(uuid()) /// @fillable
+  round_id          String /// @fillable
+  speaker_member_id String /// @fillable
+  total_score       Float /// @fillable
+  rank              Int /// @fillable
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  round   Round            @relation(fields: [round_id], references: [id], onDelete: Cascade)
+  speaker TournamentMember @relation(fields: [speaker_member_id], references: [id], onDelete: Cascade)
+
+  @@unique([round_id, speaker_member_id], map: "round_results_round_speaker_unique")
+  @@map("round_results")
 }
 
-enum ValidationStatus {
-  valid
-  unchecked
-  unverified
-  failed
-  pending
+model Round {
+  id            String        @id @default(uuid()) /// @fillable
+  tournament_id String /// @fillable
+  label         String /// @fillable
+  sequence      Int /// @fillable
+  is_silent     Boolean       @default(false) /// @fillable
+  created_at    DateTime      @default(now())
+  updated_at    DateTime      @updatedAt
+  results       RoundResult[]
+
+  @@map("rounds")
 }
 
-enum AuthorStatus {
-  pending
-  active
-  inactive
-  blocked
-}
-
-enum PluginSettingValueType {
-  string
-  number
-  boolean
-  json
-  file
-  blob
-}
-
-enum AuthorRole {
-  owner
-  maintainer
-  contributor
-}
-
-enum IssueStatus {
-  open
-  triage
-  in_progress
-  resolved
-  rejected
-  closed
-}
-
-// ─── MODELS ───────────────────────────────────────────────
-
-// AUTHORS (new)
-///@hidden:password
-///@guarded:id
-///@fillable:slug,name,handle,email,avatar_url,org,website,meta,verified,password,status
-model Author {
-  id         BigInt       @id @default(autoincrement()) @db.BigInt
-  slug       String       @unique
-  name       String
-  handle     String?      @unique
-  email      String?      @unique
-  password   String
-  avatar_url String?
-  org        String?
-  website    String?
-  meta       Json?
-  status     AuthorStatus @default(pending)
-  verified   Boolean      @default(false)
-  created_at DateTime     @default(now())
-  updated_at DateTime     @updatedAt
-
-  // relations
-  pluginLinks       PluginAuthor[]
-  reportedIssues    PluginIssue[]        @relation("IssueReporter")
-  issueMessages     PluginIssueMessage[]
-  uploadedZips      PluginZip[]
-  pluginTokens      PluginToken[]
-  tokens            AuthorToken[] /// author-level tokens (for login sessions etc.)
-  pluginAuditActors PluginAuditLog[]     @relation("PluginAuditActor")
-  auditActors       AuditLog[]           @relation("AuditActor")
-
-  @@map("authors")
-}
-
-///@guarded:id
-///@fillable:author_id,token_hash,expires_at,last_used,revoked,meta
-model AuthorToken {
-  id         BigInt    @id @default(autoincrement()) @db.BigInt
-  author_id  BigInt
-  token_hash String    @unique
-  expires_at DateTime
-  last_used  DateTime?
-  revoked    Boolean   @default(false)
-  meta       Json? /// e.g. { "scopes": ["forti-packager-fetch-policy"] }
-  created_at DateTime  @default(now())
-  updated_at DateTime  @updatedAt
-
-  author Author @relation(fields: [author_id], references: [id])
-
-  @@index([author_id])
-  @@map("author_tokens")
-}
-
-// PLUGIN↔AUTHOR (pivot)
-///@guarded:plugin_id,author_id
-///@fillable:plugin_id,author_id,role
-model PluginAuthor {
-  plugin_id  BigInt
-  author_id  BigInt
-  role       AuthorRole @default(contributor)
-  created_at DateTime   @default(now())
-
-  plugin Plugin @relation(fields: [plugin_id], references: [id])
-  author Author @relation(fields: [author_id], references: [id])
-
-  @@id([plugin_id, author_id])
-  @@index([author_id])
-  @@map("plugin_author")
-}
-
-// PLUGIN SETTINGS (unchanged)
-///@guarded:id
-///@fillable:plugin_id,key,value,type
-model PluginSetting {
-  id         BigInt                 @id @default(autoincrement()) @db.BigInt
-  plugin_id  BigInt                 @db.BigInt
-  key        String
-  value      String                 @db.LongText
-  type       PluginSettingValueType @default(string)
-  created_at DateTime               @default(now())
-  updated_at DateTime               @updatedAt
-
-  plugin Plugin @relation(fields: [plugin_id], references: [id], onDelete: Cascade)
-
-  @@unique([plugin_id, key])
-  @@index([plugin_id])
-  @@map("plugin_settings")
-}
-
-// PLUGIN VERSIONS (unchanged structure; authors are on Plugin/Zip)
-///@guarded:id
-///@fillable:plugin_id,version,archive_url,manifest,validation_report,status
-model PluginVersion {
-  id                BigInt           @id @default(autoincrement()) @db.BigInt
-  plugin_id         BigInt
-  version           String
-  archive_url       String
-  manifest          Json?
-  validation_report Json?
-  status            ValidationStatus @default(unchecked)
-  created_at        DateTime         @default(now())
-  updated_at        DateTime         @updatedAt
-
-  plugin Plugin @relation(fields: [plugin_id], references: [id])
-
-  @@index([plugin_id])
-  @@map("plugin_versions")
-}
-
-// PLUGIN ZIP FILES (now tied to Author instead of string)
-///@guarded:id
-///@fillable:placeholder_id,path,meta,status,validation_status,uploaded_by_author_id
-model PluginZip {
-  id                    BigInt           @id @default(autoincrement()) @db.BigInt
-  placeholder_id        BigInt
-  path                  String           @db.Text
-  meta                  Json             @default("{}")
-  status                PluginStatus     @default(active)
-  validation_status     ValidationStatus @default(unchecked)
-  uploaded_by_author_id BigInt?
-  created_at            DateTime         @default(now())
-  updated_at            DateTime         @updatedAt
-
-  placeholder PluginPlaceholder @relation(fields: [placeholder_id], references: [id])
-  uploadedBy  Author?           @relation(fields: [uploaded_by_author_id], references: [id])
-
-  @@index([placeholder_id])
-  @@index([uploaded_by_author_id])
-  @@map("plugin_zips")
-}
-
-// PLUGIN TOKENS (associate to Author optionally)
-///@guarded:id
-///@fillable:plugin_placeholder_id,token_hash,expires_at,last_used,revoked,author_id
-model PluginToken {
-  id                    BigInt    @id @default(autoincrement()) @db.BigInt
-  plugin_placeholder_id BigInt
-  token_hash            String    @unique
-  meta                  Json ///@fillable
-  expires_at            DateTime
-  last_used             DateTime?
-  revoked               Boolean   @default(false)
-  author_id             BigInt?
-  created_at            DateTime  @default(now())
-  updated_at            DateTime  @updatedAt
-
-  placeholder PluginPlaceholder? @relation(fields: [plugin_placeholder_id], references: [id])
-  author      Author?            @relation(fields: [author_id], references: [id])
-
-  @@index([plugin_placeholder_id])
-  @@index([author_id])
-  @@map("plugin_tokens")
-}
-
-// PLUGIN ISSUES (reintroduced; author-based)
-///@guarded:id
-///@fillable:plugin_id,reporter_id,type,description,status,severity,meta
-model PluginIssue {
-  id          BigInt      @id @default(autoincrement()) @db.BigInt
-  plugin_id   BigInt
-  reporter_id BigInt
-  type        String
-  description String      @db.Text
-  status      IssueStatus @default(open)
-  severity    String? /// optional (low|med|high|critical or free-form)
-  meta        Json?
-  created_at  DateTime    @default(now())
-  updated_at  DateTime    @updatedAt
-
-  plugin   Plugin               @relation(fields: [plugin_id], references: [id])
-  reporter Author               @relation("IssueReporter", fields: [reporter_id], references: [id])
-  messages PluginIssueMessage[]
-
-  @@index([plugin_id])
-  @@index([reporter_id])
-  @@map("plugin_issues")
-}
-
-// PLUGIN ISSUE MESSAGES (author-based)
-///@guarded:id
-///@fillable:issue_id,author_id,message
-model PluginIssueMessage {
-  id         BigInt   @id @default(autoincrement()) @db.BigInt
-  issue_id   BigInt
-  author_id  BigInt
-  message    String   @db.Text
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
-  issue  PluginIssue @relation(fields: [issue_id], references: [id])
-  author Author      @relation(fields: [author_id], references: [id])
-
-  @@index([issue_id])
-  @@index([author_id])
-  @@map("plugin_issue_messages")
-}
-
-// AUDIT LOGS (global; add optional author)
-///@guarded:id
-///@fillable:actor,actor_author_id,action,context
-model AuditLog {
-  id              BigInt   @id @default(autoincrement()) @db.BigInt
-  actor           String?
-  actor_author_id BigInt?
-  action          String
-  context         Json?
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
-
-  actorAuthor Author? @relation("AuditActor", fields: [actor_author_id], references: [id])
-
-  @@index([actor_author_id])
-  @@map("audit_logs")
-}
-
-// PLUGIN AUDIT LOGS (per-plugin; add optional author)
-///@guarded:id
-///@fillable:plugin_id,actor,actor_author_id,type,action,resource,context
-model PluginAuditLog {
-  id              BigInt   @id @default(autoincrement()) @db.BigInt
-  plugin_id       BigInt
-  actor           String?
-  actor_author_id BigInt?
-  type            String
-  action          String
-  resource        String
-  context         Json?
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
-
-  plugin      Plugin  @relation(fields: [plugin_id], references: [id])
-  actorAuthor Author? @relation("PluginAuditActor", fields: [actor_author_id], references: [id])
-
-  @@index([plugin_id])
-  @@index([actor_author_id])
-  @@map("plugin_audit_logs")
-}
-
-// PLACEHOLDERS (unchanged except optional link to authors kept via tokens/zips)
-///@guarded:id
-///@fillable:slug,name,unique_key,owner_ref,meta
-model PluginPlaceholder {
-  id         BigInt   @id @default(autoincrement()) @db.BigInt
-  slug       String   @unique
-  name       String   @unique
-  unique_key String   @unique
-  owner_ref  String?
-  meta       Json?
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
-  tokens     PluginToken[]
-  signatures PluginSignature[]
-  zips       PluginZip[]
-  plugin     Plugin?
-
-  @@map("placeholders")
-}
-
-// SIGNATURES (unchanged)
-///@guarded:id
-///@fillable:placeholder_id,host_domain,owner_host,plugin_key,signature
-model PluginSignature {
-  id             BigInt   @id @default(autoincrement()) @db.BigInt
-  placeholder_id BigInt
-  host_domain    String
-  owner_host     String
-  plugin_key     String
-  signature      String
-  created_at     DateTime @default(now())
-  updated_at     DateTime @updatedAt
-
-  placeholder PluginPlaceholder @relation(fields: [placeholder_id], references: [id])
-
-  @@index([placeholder_id])
-  @@map("plugin_signatures")
-}
-
-// Enums
-enum KeyPurpose {
-  packager_sign
-  installer_verify
-}
-
-// Model
-///@guarded:id
-///@fillable:purpose,public_pem,private_pem,fingerprint,created_at,rotated_at
-model HostKey {
-  id          BigInt     @id @default(autoincrement()) @db.BigInt
-  purpose     KeyPurpose
-  public_pem  String     @db.Text
-  private_pem String?    @db.Text
-  fingerprint String     @unique
-  created_at  DateTime   @default(now())
-  updated_at  DateTime?
-  rotated_at  DateTime?
-
-  @@map("host_keys")
-}
-
-/// ===========================
-/// Polymorphic enum
-/// ===========================
-enum PermissionType {
-  db
-  file
-  notification
-  module
-  network
-  codec // obfuscator
-}
-
-/// ===========================
-/// Route approval enum (as you defined)
-/// ===========================
-enum RoutePermissionStatus {
-  pending
-  approved
-  denied
-  revoked
-}
-
-/// ===========================
-/// Optional bundles (tags)
-/// ===========================
-
-///@guarded:id
-///@fillable:name,description,is_system,status
-model PermissionTag {
-  id          BigInt       @id @default(autoincrement()) @db.BigInt
-  name        String       @unique
-  description String?
-  is_system   Boolean      @default(false)
-  status      PluginStatus @default(active)
-  created_at  DateTime     @default(now())
-  updated_at  DateTime     @updatedAt
-
-  // assignments
-  plugins PluginPermissionTag[]
-  items   PermissionTagItem[]
-
-  @@map("permission_tags")
-}
-
-/// Assign a tag to a plugin (plugins inherit all tag items)
-/// Host can time-window the entire tag assignment.
-///@guarded:id
-///@fillable:plugin_id,tag_id,active,limited,limit_type,limit_value
-model PluginPermissionTag {
-  id        BigInt  @id @default(autoincrement()) @db.BigInt
-  plugin_id BigInt
-  tag_id    BigInt
-  active    Boolean @default(true)
-
-  // Host-only approval window (not from manifest)
-  limited     Boolean @default(false)
-  limit_type  String?
-  limit_value String?
+model TournamentMember {
+  id             String  @id @default(uuid()) /// @fillable
+  tournament_id  String /// @fillable
+  user_id        String? /// @fillable
+  email          String /// @fillable
+  display_name   String /// @fillable
+  institution_id String? /// @fillable
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  plugin Plugin        @relation(fields: [plugin_id], references: [id])
-  tag    PermissionTag @relation(fields: [tag_id], references: [id])
+  roundResults RoundResult[]
 
-  @@unique([plugin_id, tag_id])
-  @@index([plugin_id])
-  @@index([tag_id])
-  @@map("plugin_permission_tags")
+  @@unique([tournament_id, email], map: "tournament_members_tournament_id_email_unique")
+  @@map("tournament_members")
 }
 
-/// Tag → Concrete permission (polymorphic)
-/// Allows per-item constraints/audit at the tag layer.
-///@guarded:id
-///@fillable:tag_id,permission_type,permission_id,constraints,audit
-model PermissionTagItem {
-  id              BigInt         @id @default(autoincrement()) @db.BigInt
-  tag_id          BigInt
-  permission_type PermissionType
-  permission_id   BigInt         @db.BigInt
-
-  // Assignment-level metadata (host managed)
-  constraints Json?
-  audit       Json?
-
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
-  tag PermissionTag @relation(fields: [tag_id], references: [id])
-
-  @@unique([tag_id, permission_type, permission_id])
-  @@index([tag_id])
-  @@map("permission_tag_items")
-}
-
-/// ===========================
-/// Direct plugin assignments
-/// ===========================
-
-/// Plugin → Concrete permission (polymorphic)
-/// Includes constraints/audit at the direct assignment level.
-///@guarded:id
-///@fillable:plugin_id,permission_type,permission_id,active,limited,limit_type,limit_value,constraints,audit
-model PluginPermission {
-  id              BigInt         @id @default(autoincrement()) @db.BigInt
-  plugin_id       BigInt
-  permission_type PermissionType
-  permission_id   BigInt         @db.BigInt
-  active          Boolean        @default(false)
-
-  // Host-only approval window (not from manifest)
-  limited     Boolean @default(false)
-  limit_type  String?
-  limit_value String?
-
-  // Assignment-level metadata (host managed)
-  constraints Json?
-  audit       Json?
-
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
-  plugin Plugin @relation(fields: [plugin_id], references: [id])
-
-  @@unique([plugin_id, permission_type, permission_id])
-  @@index([plugin_id])
-  @@map("plugin_permissions")
-}
-
-/// ===========================
-/// Concrete permissions (strict action parity)
-/// ===========================
-
-/// DB — actions: select, insert, update, delete, truncate, grouped_queries
-///@guarded:id,permissions,natural_key
-///@fillable:natural_key,model,table,readable_columns,writable_columns,limited,limit_type,limit_value
-model DbPermission {
-  id BigInt @id @default(autoincrement()) @db.BigInt
-
-  /// Deterministic natural key (e.g., hash of model/table/columns/action-set)
-  natural_key String @unique
-
-  model String? // alias/FQCN (host-catalog validated if provided)
-  table String? // optional raw table name
-
-  // Boolean map: { select, insert, update, delete, truncate, grouped_queries }
-  permissions Json // SERVICE-MANAGED
-
-  readable_columns Json?
-  writable_columns Json?
-
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
-  @@map("db_permissions")
-}
-
-/// FILE — actions: read, write, append, delete, mkdir, rmdir, list
-///@guarded:id,permissions,natural_key
-///@fillable:natural_key,base_dir,paths,limited,limit_type,limit_value
-model FilePermission {
-  id BigInt @id @default(autoincrement()) @db.BigInt
-
-  /// Deterministic natural key (e.g., hash of base_dir/paths/action-set)
-  natural_key String @unique
-
-  base_dir String
-  paths    Json // ["**/*","logs/*",...]
-
-  // Boolean map: { read, write, append, delete, mkdir, rmdir, list }
-  permissions Json // SERVICE-MANAGED
-
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
-  @@map("file_permissions")
-}
-
-/// NOTIFY — actions: send, receive
-///@guarded:id,permissions,natural_key
-///@fillable:natural_key,channel,templates_allowed,recipients_allowed,limited,limit_type,limit_value
-model NotificationPermission {
-  id BigInt @id @default(autoincrement()) @db.BigInt
-
-  /// Deterministic natural key (e.g., hash of channel/templates/recipients/action-set)
-  natural_key String @unique
-
-  channel String // host-defined alias
-
-  // Boolean map: { send, receive }
-  permissions Json // SERVICE-MANAGED
-
-  templates_allowed  Json?
-  recipients_allowed Json?
-
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
-  @@map("notification_permissions")
-}
-
-/// MODULE — single action: call → access flag
-///@guarded:id,natural_key
-///@fillable:natural_key,module,apis,access,limited,limit_type,limit_value
-model ModulePermission {
-  id BigInt @id @default(autoincrement()) @db.BigInt
-
-  /// Deterministic natural key (e.g., hash of module/apis)
-  natural_key String @unique
-
-  module String // alias or FQCN (host-catalog validated)
-  apis   Json // ["createToken","revokeToken",...]
-  access Boolean @default(false) // action: call
-
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
-  @@map("module_permissions")
-}
-
-/// NETWORK — single action: request → access flag
-/// NOTE: natural key is `rule_key` (kept as-is).
-///@guarded:id,rule_key
-///@fillable:rule_key,label,hosts,methods,schemes,ports,paths,headers_allowed,ips_allowed,auth_via_host_secret,access,limited,limit_type,limit_value
-model NetworkPermission {
-  id BigInt @id @default(autoincrement()) @db.BigInt
-
-  /// Deterministic fingerprint for this rule (e.g., sha1 over hosts/methods/schemes/ports/paths).
-  natural_key String @unique
-
-  /// Optional human-readable label for admins/reviewers.
-  label String?
-
-  /// Gate for network egress via the host HTTP client.
-  access Boolean @default(false)
-
-  /// Allowlists (manifest `target` fields)
-  hosts           Json // ["api.stripe.com","*.example.com"]
-  methods         Json // ["GET","POST"]
-  schemes         Json?
-  ports           Json?
-  paths           Json?
-  headers_allowed Json?
-  ips_allowed     Json?
-
-  /// Secrets policy: if true, the host injects credentials; plugins don't supply secrets.
-  auth_via_host_secret Boolean @default(true)
-
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
-  @@map("network_permissions")
-}
-
-/// CODEC/OBFUSCATOR — single action: invoke → access flag
-///@guarded:id,natural_key
-///@fillable:natural_key,module,allowed,access,limited,limit_type,limit_value
-model CodecPermission {
-  id BigInt @id @default(autoincrement()) @db.BigInt
-
-  /// Deterministic natural key (e.g., hash of allowed+access)
-  natural_key String @unique
-
-  module  String  @default("codec")
-  allowed Json? // validated against Obfuscator catalog
-  access  Boolean @default(false) // action: invoke
-
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
-  @@map("codec_permissions")
-}
-
-/// ===========================
-/// Per-route approvals (as provided)
-/// ===========================
-
-/// @fillable(plugin_id, route_id, status, guard, meta, approved_at)
-model PluginRoutePermission {
-  id        BigInt @id @default(autoincrement())
-  plugin_id BigInt
-  plugin    Plugin @relation(fields: [plugin_id], references: [id])
-
-  /// The JSON-declared route `id` (unique per plugin).
-  route_id String
-
-  /// Current permission state.
-  status RoutePermissionStatus @default(pending)
-
-  /// Optional: lock the guard used when writing this route.
-  guard String?
-
-  /// Host-defined metadata (notes, expiresAt, reasons, etc.).
-  meta Json?
-
-  approved_at DateTime?
-  created_at  DateTime  @default(now())
-  updated_at  DateTime  @updatedAt
-
-  @@unique([plugin_id, route_id])
-  @@index([plugin_id, status])
-  @@map("plugin_route_permissions")
-}
-
-/// ===========================
-/// Plugin (links to pivots)
-/// ===========================
-/// NOTE: Assuming PluginStatus enum & other related models already exist.
-///@guarded
-model Plugin {
-  id                    BigInt       @id @default(autoincrement()) @db.BigInt
-  name                  String       @unique
-  image                 String?
-  status                PluginStatus @default(active)
-  config                Json?
-  meta                  Json?
-  plugin_placeholder_id BigInt       @unique @db.BigInt
-  active_version_id     BigInt
-  owner_ref             String?
-
-  // existing relations (assumed to exist)
-  placeholder     PluginPlaceholder @relation(fields: [plugin_placeholder_id], references: [id])
-  plugin_settings PluginSetting[]
-  plugin_versions PluginVersion[]
-  logs            PluginAuditLog[]
-  authors         PluginAuthor[]
-  issues          PluginIssue[]
-
-  // direct + tag bundles
-  plugin_permissions PluginPermission[]
-  permission_tags    PluginPermissionTag[]
-
-  // per-route approvals
-  routes PluginRoutePermission[]
-
-  activated_at DateTime?
-  activated_by BigInt?
-
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
-  @@map("plugins")
-}
+// // ─── ENUMS ────────────────────────────────────────────────
+
+// enum PluginStatus {
+//   active
+//   inactive
+//   archived
+// }
+
+// enum ValidationStatus {
+//   valid
+//   unchecked
+//   unverified
+//   failed
+//   pending
+// }
+
+// enum AuthorStatus {
+//   pending
+//   active
+//   inactive
+//   blocked
+// }
+
+// enum PluginSettingValueType {
+//   string
+//   number
+//   boolean
+//   json
+//   file
+//   blob
+// }
+
+// enum AuthorRole {
+//   owner
+//   maintainer
+//   contributor
+// }
+
+// enum IssueStatus {
+//   open
+//   triage
+//   in_progress
+//   resolved
+//   rejected
+//   closed
+// }
+
+// // ─── MODELS ───────────────────────────────────────────────
+
+// // AUTHORS (new)
+// ///@hidden:password
+// ///@guarded:id
+// ///@fillable:slug,name,handle,email,avatar_url,org,website,meta,verified,password,status
+// model Author {
+//   id         BigInt       @id @default(autoincrement()) @db.BigInt
+//   slug       String       @unique
+//   name       String
+//   handle     String?      @unique
+//   email      String?      @unique
+//   password   String
+//   avatar_url String?
+//   org        String?
+//   website    String?
+//   meta       Json?
+//   status     AuthorStatus @default(pending)
+//   verified   Boolean      @default(false)
+//   created_at DateTime     @default(now())
+//   updated_at DateTime     @updatedAt
+
+//   // relations
+//   pluginLinks       PluginAuthor[]
+//   reportedIssues    PluginIssue[]        @relation("IssueReporter")
+//   issueMessages     PluginIssueMessage[]
+//   uploadedZips      PluginZip[]
+//   pluginTokens      PluginToken[]
+//   tokens            AuthorToken[] /// author-level tokens (for login sessions etc.)
+//   pluginAuditActors PluginAuditLog[]     @relation("PluginAuditActor")
+//   auditActors       AuditLog[]           @relation("AuditActor")
+
+//   @@map("authors")
+// }
+
+// ///@guarded:id
+// ///@fillable:author_id,token_hash,expires_at,last_used,revoked,meta
+// model AuthorToken {
+//   id         BigInt    @id @default(autoincrement()) @db.BigInt
+//   author_id  BigInt
+//   token_hash String    @unique
+//   expires_at DateTime
+//   last_used  DateTime?
+//   revoked    Boolean   @default(false)
+//   meta       Json? /// e.g. { "scopes": ["forti-packager-fetch-policy"] }
+//   created_at DateTime  @default(now())
+//   updated_at DateTime  @updatedAt
+
+//   author Author @relation(fields: [author_id], references: [id])
+
+//   @@index([author_id])
+//   @@map("author_tokens")
+// }
+
+// // PLUGIN↔AUTHOR (pivot)
+// ///@guarded:plugin_id,author_id
+// ///@fillable:plugin_id,author_id,role
+// model PluginAuthor {
+//   plugin_id  BigInt
+//   author_id  BigInt
+//   role       AuthorRole @default(contributor)
+//   created_at DateTime   @default(now())
+
+//   plugin Plugin @relation(fields: [plugin_id], references: [id])
+//   author Author @relation(fields: [author_id], references: [id])
+
+//   @@id([plugin_id, author_id])
+//   @@index([author_id])
+//   @@map("plugin_author")
+// }
+
+// // PLUGIN SETTINGS (unchanged)
+// ///@guarded:id
+// ///@fillable:plugin_id,key,value,type
+// model PluginSetting {
+//   id         BigInt                 @id @default(autoincrement()) @db.BigInt
+//   plugin_id  BigInt                 @db.BigInt
+//   key        String
+//   value      String                 @db.LongText
+//   type       PluginSettingValueType @default(string)
+//   created_at DateTime               @default(now())
+//   updated_at DateTime               @updatedAt
+
+//   plugin Plugin @relation(fields: [plugin_id], references: [id], onDelete: Cascade)
+
+//   @@unique([plugin_id, key])
+//   @@index([plugin_id])
+//   @@map("plugin_settings")
+// }
+
+// // PLUGIN VERSIONS (unchanged structure; authors are on Plugin/Zip)
+// ///@guarded:id
+// ///@fillable:plugin_id,version,archive_url,manifest,validation_report,status
+// model PluginVersion {
+//   id                BigInt           @id @default(autoincrement()) @db.BigInt
+//   plugin_id         BigInt
+//   version           String
+//   archive_url       String
+//   manifest          Json?
+//   validation_report Json?
+//   status            ValidationStatus @default(unchecked)
+//   created_at        DateTime         @default(now())
+//   updated_at        DateTime         @updatedAt
+
+//   plugin Plugin @relation(fields: [plugin_id], references: [id])
+
+//   @@index([plugin_id])
+//   @@map("plugin_versions")
+// }
+
+// // PLUGIN ZIP FILES (now tied to Author instead of string)
+// ///@guarded:id
+// ///@fillable:placeholder_id,path,meta,status,validation_status,uploaded_by_author_id
+// model PluginZip {
+//   id                    BigInt           @id @default(autoincrement()) @db.BigInt
+//   placeholder_id        BigInt
+//   path                  String           @db.Text
+//   meta                  Json             @default("{}")
+//   status                PluginStatus     @default(active)
+//   validation_status     ValidationStatus @default(unchecked)
+//   uploaded_by_author_id BigInt?
+//   created_at            DateTime         @default(now())
+//   updated_at            DateTime         @updatedAt
+
+//   placeholder PluginPlaceholder @relation(fields: [placeholder_id], references: [id])
+//   uploadedBy  Author?           @relation(fields: [uploaded_by_author_id], references: [id])
+
+//   @@index([placeholder_id])
+//   @@index([uploaded_by_author_id])
+//   @@map("plugin_zips")
+// }
+
+// // PLUGIN TOKENS (associate to Author optionally)
+// ///@guarded:id
+// ///@fillable:plugin_placeholder_id,token_hash,expires_at,last_used,revoked,author_id
+// model PluginToken {
+//   id                    BigInt    @id @default(autoincrement()) @db.BigInt
+//   plugin_placeholder_id BigInt
+//   token_hash            String    @unique
+//   meta                  Json ///@fillable
+//   expires_at            DateTime
+//   last_used             DateTime?
+//   revoked               Boolean   @default(false)
+//   author_id             BigInt?
+//   created_at            DateTime  @default(now())
+//   updated_at            DateTime  @updatedAt
+
+//   placeholder PluginPlaceholder? @relation(fields: [plugin_placeholder_id], references: [id])
+//   author      Author?            @relation(fields: [author_id], references: [id])
+
+//   @@index([plugin_placeholder_id])
+//   @@index([author_id])
+//   @@map("plugin_tokens")
+// }
+
+// // PLUGIN ISSUES (reintroduced; author-based)
+// ///@guarded:id
+// ///@fillable:plugin_id,reporter_id,type,description,status,severity,meta
+// model PluginIssue {
+//   id          BigInt      @id @default(autoincrement()) @db.BigInt
+//   plugin_id   BigInt
+//   reporter_id BigInt
+//   type        String
+//   description String      @db.Text
+//   status      IssueStatus @default(open)
+//   severity    String? /// optional (low|med|high|critical or free-form)
+//   meta        Json?
+//   created_at  DateTime    @default(now())
+//   updated_at  DateTime    @updatedAt
+
+//   plugin   Plugin               @relation(fields: [plugin_id], references: [id])
+//   reporter Author               @relation("IssueReporter", fields: [reporter_id], references: [id])
+//   messages PluginIssueMessage[]
+
+//   @@index([plugin_id])
+//   @@index([reporter_id])
+//   @@map("plugin_issues")
+// }
+
+// // PLUGIN ISSUE MESSAGES (author-based)
+// ///@guarded:id
+// ///@fillable:issue_id,author_id,message
+// model PluginIssueMessage {
+//   id         BigInt   @id @default(autoincrement()) @db.BigInt
+//   issue_id   BigInt
+//   author_id  BigInt
+//   message    String   @db.Text
+//   created_at DateTime @default(now())
+//   updated_at DateTime @updatedAt
+
+//   issue  PluginIssue @relation(fields: [issue_id], references: [id])
+//   author Author      @relation(fields: [author_id], references: [id])
+
+//   @@index([issue_id])
+//   @@index([author_id])
+//   @@map("plugin_issue_messages")
+// }
+
+// // AUDIT LOGS (global; add optional author)
+// ///@guarded:id
+// ///@fillable:actor,actor_author_id,action,context
+// model AuditLog {
+//   id              BigInt   @id @default(autoincrement()) @db.BigInt
+//   actor           String?
+//   actor_author_id BigInt?
+//   action          String
+//   context         Json?
+//   created_at      DateTime @default(now())
+//   updated_at      DateTime @updatedAt
+
+//   actorAuthor Author? @relation("AuditActor", fields: [actor_author_id], references: [id])
+
+//   @@index([actor_author_id])
+//   @@map("audit_logs")
+// }
+
+// // PLUGIN AUDIT LOGS (per-plugin; add optional author)
+// ///@guarded:id
+// ///@fillable:plugin_id,actor,actor_author_id,type,action,resource,context
+// model PluginAuditLog {
+//   id              BigInt   @id @default(autoincrement()) @db.BigInt
+//   plugin_id       BigInt
+//   actor           String?
+//   actor_author_id BigInt?
+//   type            String
+//   action          String
+//   resource        String
+//   context         Json?
+//   created_at      DateTime @default(now())
+//   updated_at      DateTime @updatedAt
+
+//   plugin      Plugin  @relation(fields: [plugin_id], references: [id])
+//   actorAuthor Author? @relation("PluginAuditActor", fields: [actor_author_id], references: [id])
+
+//   @@index([plugin_id])
+//   @@index([actor_author_id])
+//   @@map("plugin_audit_logs")
+// }
+
+// // PLACEHOLDERS (unchanged except optional link to authors kept via tokens/zips)
+// ///@guarded:id
+// ///@fillable:slug,name,unique_key,owner_ref,meta
+// model PluginPlaceholder {
+//   id         BigInt   @id @default(autoincrement()) @db.BigInt
+//   slug       String   @unique
+//   name       String   @unique
+//   unique_key String   @unique
+//   owner_ref  String?
+//   meta       Json?
+//   created_at DateTime @default(now())
+//   updated_at DateTime @updatedAt
+
+//   tokens     PluginToken[]
+//   signatures PluginSignature[]
+//   zips       PluginZip[]
+//   plugin     Plugin?
+
+//   @@map("placeholders")
+// }
+
+// // SIGNATURES (unchanged)
+// ///@guarded:id
+// ///@fillable:placeholder_id,host_domain,owner_host,plugin_key,signature
+// model PluginSignature {
+//   id             BigInt   @id @default(autoincrement()) @db.BigInt
+//   placeholder_id BigInt
+//   host_domain    String
+//   owner_host     String
+//   plugin_key     String
+//   signature      String
+//   created_at     DateTime @default(now())
+//   updated_at     DateTime @updatedAt
+
+//   placeholder PluginPlaceholder @relation(fields: [placeholder_id], references: [id])
+
+//   @@index([placeholder_id])
+//   @@map("plugin_signatures")
+// }
+
+// // Enums
+// enum KeyPurpose {
+//   packager_sign
+//   installer_verify
+// }
+
+// // Model
+// ///@guarded:id
+// ///@fillable:purpose,public_pem,private_pem,fingerprint,created_at,rotated_at
+// model HostKey {
+//   id          BigInt     @id @default(autoincrement()) @db.BigInt
+//   purpose     KeyPurpose
+//   public_pem  String     @db.Text
+//   private_pem String?    @db.Text
+//   fingerprint String     @unique
+//   created_at  DateTime   @default(now())
+//   updated_at  DateTime?
+//   rotated_at  DateTime?
+
+//   @@map("host_keys")
+// }
+
+// /// ===========================
+// /// Polymorphic enum
+// /// ===========================
+// enum PermissionType {
+//   db
+//   file
+//   notification
+//   module
+//   network
+//   codec // obfuscator
+// }
+
+// /// ===========================
+// /// Route approval enum (as you defined)
+// /// ===========================
+// enum RoutePermissionStatus {
+//   pending
+//   approved
+//   denied
+//   revoked
+// }
+
+// /// ===========================
+// /// Optional bundles (tags)
+// /// ===========================
+
+// ///@guarded:id
+// ///@fillable:name,description,is_system,status
+// model PermissionTag {
+//   id          BigInt       @id @default(autoincrement()) @db.BigInt
+//   name        String       @unique
+//   description String?
+//   is_system   Boolean      @default(false)
+//   status      PluginStatus @default(active)
+//   created_at  DateTime     @default(now())
+//   updated_at  DateTime     @updatedAt
+
+//   // assignments
+//   plugins PluginPermissionTag[]
+//   items   PermissionTagItem[]
+
+//   @@map("permission_tags")
+// }
+
+// /// Assign a tag to a plugin (plugins inherit all tag items)
+// /// Host can time-window the entire tag assignment.
+// ///@guarded:id
+// ///@fillable:plugin_id,tag_id,active,limited,limit_type,limit_value
+// model PluginPermissionTag {
+//   id        BigInt  @id @default(autoincrement()) @db.BigInt
+//   plugin_id BigInt
+//   tag_id    BigInt
+//   active    Boolean @default(true)
+
+//   // Host-only approval window (not from manifest)
+//   limited     Boolean @default(false)
+//   limit_type  String?
+//   limit_value String?
+
+//   created_at DateTime @default(now())
+//   updated_at DateTime @updatedAt
+
+//   plugin Plugin        @relation(fields: [plugin_id], references: [id])
+//   tag    PermissionTag @relation(fields: [tag_id], references: [id])
+
+//   @@unique([plugin_id, tag_id])
+//   @@index([plugin_id])
+//   @@index([tag_id])
+//   @@map("plugin_permission_tags")
+// }
+
+// /// Tag → Concrete permission (polymorphic)
+// /// Allows per-item constraints/audit at the tag layer.
+// ///@guarded:id
+// ///@fillable:tag_id,permission_type,permission_id,constraints,audit
+// model PermissionTagItem {
+//   id              BigInt         @id @default(autoincrement()) @db.BigInt
+//   tag_id          BigInt
+//   permission_type PermissionType
+//   permission_id   BigInt         @db.BigInt
+
+//   // Assignment-level metadata (host managed)
+//   constraints Json?
+//   audit       Json?
+
+//   created_at DateTime @default(now())
+//   updated_at DateTime @updatedAt
+
+//   tag PermissionTag @relation(fields: [tag_id], references: [id])
+
+//   @@unique([tag_id, permission_type, permission_id])
+//   @@index([tag_id])
+//   @@map("permission_tag_items")
+// }
+
+// /// ===========================
+// /// Direct plugin assignments
+// /// ===========================
+
+// /// Plugin → Concrete permission (polymorphic)
+// /// Includes constraints/audit at the direct assignment level.
+// ///@guarded:id
+// ///@fillable:plugin_id,permission_type,permission_id,active,limited,limit_type,limit_value,constraints,audit
+// model PluginPermission {
+//   id              BigInt         @id @default(autoincrement()) @db.BigInt
+//   plugin_id       BigInt
+//   permission_type PermissionType
+//   permission_id   BigInt         @db.BigInt
+//   active          Boolean        @default(false)
+
+//   // Host-only approval window (not from manifest)
+//   limited     Boolean @default(false)
+//   limit_type  String?
+//   limit_value String?
+
+//   // Assignment-level metadata (host managed)
+//   constraints Json?
+//   audit       Json?
+
+//   created_at DateTime @default(now())
+//   updated_at DateTime @updatedAt
+
+//   plugin Plugin @relation(fields: [plugin_id], references: [id])
+
+//   @@unique([plugin_id, permission_type, permission_id])
+//   @@index([plugin_id])
+//   @@map("plugin_permissions")
+// }
+
+// /// ===========================
+// /// Concrete permissions (strict action parity)
+// /// ===========================
+
+// /// DB — actions: select, insert, update, delete, truncate, grouped_queries
+// ///@guarded:id,permissions,natural_key
+// ///@fillable:natural_key,model,table,readable_columns,writable_columns,limited,limit_type,limit_value
+// model DbPermission {
+//   id BigInt @id @default(autoincrement()) @db.BigInt
+
+//   /// Deterministic natural key (e.g., hash of model/table/columns/action-set)
+//   natural_key String @unique
+
+//   model String? // alias/FQCN (host-catalog validated if provided)
+//   table String? // optional raw table name
+
+//   // Boolean map: { select, insert, update, delete, truncate, grouped_queries }
+//   permissions Json // SERVICE-MANAGED
+
+//   readable_columns Json?
+//   writable_columns Json?
+
+//   created_at DateTime @default(now())
+//   updated_at DateTime @updatedAt
+
+//   @@map("db_permissions")
+// }
+
+// /// FILE — actions: read, write, append, delete, mkdir, rmdir, list
+// ///@guarded:id,permissions,natural_key
+// ///@fillable:natural_key,base_dir,paths,limited,limit_type,limit_value
+// model FilePermission {
+//   id BigInt @id @default(autoincrement()) @db.BigInt
+
+//   /// Deterministic natural key (e.g., hash of base_dir/paths/action-set)
+//   natural_key String @unique
+
+//   base_dir String
+//   paths    Json // ["**/*","logs/*",...]
+
+//   // Boolean map: { read, write, append, delete, mkdir, rmdir, list }
+//   permissions Json // SERVICE-MANAGED
+
+//   created_at DateTime @default(now())
+//   updated_at DateTime @updatedAt
+
+//   @@map("file_permissions")
+// }
+
+// /// NOTIFY — actions: send, receive
+// ///@guarded:id,permissions,natural_key
+// ///@fillable:natural_key,channel,templates_allowed,recipients_allowed,limited,limit_type,limit_value
+// model NotificationPermission {
+//   id BigInt @id @default(autoincrement()) @db.BigInt
+
+//   /// Deterministic natural key (e.g., hash of channel/templates/recipients/action-set)
+//   natural_key String @unique
+
+//   channel String // host-defined alias
+
+//   // Boolean map: { send, receive }
+//   permissions Json // SERVICE-MANAGED
+
+//   templates_allowed  Json?
+//   recipients_allowed Json?
+
+//   created_at DateTime @default(now())
+//   updated_at DateTime @updatedAt
+
+//   @@map("notification_permissions")
+// }
+
+// /// MODULE — single action: call → access flag
+// ///@guarded:id,natural_key
+// ///@fillable:natural_key,module,apis,access,limited,limit_type,limit_value
+// model ModulePermission {
+//   id BigInt @id @default(autoincrement()) @db.BigInt
+
+//   /// Deterministic natural key (e.g., hash of module/apis)
+//   natural_key String @unique
+
+//   module String // alias or FQCN (host-catalog validated)
+//   apis   Json // ["createToken","revokeToken",...]
+//   access Boolean @default(false) // action: call
+
+//   created_at DateTime @default(now())
+//   updated_at DateTime @updatedAt
+
+//   @@map("module_permissions")
+// }
+
+// /// NETWORK — single action: request → access flag
+// /// NOTE: natural key is `rule_key` (kept as-is).
+// ///@guarded:id,rule_key
+// ///@fillable:rule_key,label,hosts,methods,schemes,ports,paths,headers_allowed,ips_allowed,auth_via_host_secret,access,limited,limit_type,limit_value
+// model NetworkPermission {
+//   id BigInt @id @default(autoincrement()) @db.BigInt
+
+//   /// Deterministic fingerprint for this rule (e.g., sha1 over hosts/methods/schemes/ports/paths).
+//   natural_key String @unique
+
+//   /// Optional human-readable label for admins/reviewers.
+//   label String?
+
+//   /// Gate for network egress via the host HTTP client.
+//   access Boolean @default(false)
+
+//   /// Allowlists (manifest `target` fields)
+//   hosts           Json // ["api.stripe.com","*.example.com"]
+//   methods         Json // ["GET","POST"]
+//   schemes         Json?
+//   ports           Json?
+//   paths           Json?
+//   headers_allowed Json?
+//   ips_allowed     Json?
+
+//   /// Secrets policy: if true, the host injects credentials; plugins don't supply secrets.
+//   auth_via_host_secret Boolean @default(true)
+
+//   created_at DateTime @default(now())
+//   updated_at DateTime @updatedAt
+
+//   @@map("network_permissions")
+// }
+
+// /// CODEC/OBFUSCATOR — single action: invoke → access flag
+// ///@guarded:id,natural_key
+// ///@fillable:natural_key,module,allowed,access,limited,limit_type,limit_value
+// model CodecPermission {
+//   id BigInt @id @default(autoincrement()) @db.BigInt
+
+//   /// Deterministic natural key (e.g., hash of allowed+access)
+//   natural_key String @unique
+
+//   module  String  @default("codec")
+//   allowed Json? // validated against Obfuscator catalog
+//   access  Boolean @default(false) // action: invoke
+
+//   created_at DateTime @default(now())
+//   updated_at DateTime @updatedAt
+
+//   @@map("codec_permissions")
+// }
+
+// /// ===========================
+// /// Per-route approvals (as provided)
+// /// ===========================
+
+// /// @fillable(plugin_id, route_id, status, guard, meta, approved_at)
+// model PluginRoutePermission {
+//   id        BigInt @id @default(autoincrement())
+//   plugin_id BigInt
+//   plugin    Plugin @relation(fields: [plugin_id], references: [id])
+
+//   /// The JSON-declared route `id` (unique per plugin).
+//   route_id String
+
+//   /// Current permission state.
+//   status RoutePermissionStatus @default(pending)
+
+//   /// Optional: lock the guard used when writing this route.
+//   guard String?
+
+//   /// Host-defined metadata (notes, expiresAt, reasons, etc.).
+//   meta Json?
+
+//   approved_at DateTime?
+//   created_at  DateTime  @default(now())
+//   updated_at  DateTime  @updatedAt
+
+//   @@unique([plugin_id, route_id])
+//   @@index([plugin_id, status])
+//   @@map("plugin_route_permissions")
+// }
+
+// /// ===========================
+// /// Plugin (links to pivots)
+// /// ===========================
+// /// NOTE: Assuming PluginStatus enum & other related models already exist.
+// ///@guarded
+// model Plugin {
+//   id                    BigInt       @id @default(autoincrement()) @db.BigInt
+//   name                  String       @unique
+//   image                 String?
+//   status                PluginStatus @default(active)
+//   config                Json?
+//   meta                  Json?
+//   plugin_placeholder_id BigInt       @unique @db.BigInt
+//   active_version_id     BigInt
+//   owner_ref             String?
+
+//   // existing relations (assumed to exist)
+//   placeholder     PluginPlaceholder @relation(fields: [plugin_placeholder_id], references: [id])
+//   plugin_settings PluginSetting[]
+//   plugin_versions PluginVersion[]
+//   logs            PluginAuditLog[]
+//   authors         PluginAuthor[]
+//   issues          PluginIssue[]
+
+//   // direct + tag bundles
+//   plugin_permissions PluginPermission[]
+//   permission_tags    PluginPermissionTag[]
+
+//   // per-route approvals
+//   routes PluginRoutePermission[]
+
+//   activated_at DateTime?
+//   activated_by BigInt?
+
+//   created_at DateTime @default(now())
+//   updated_at DateTime @updatedAt
+
+//   @@map("plugins")
+// }
