@@ -22,7 +22,7 @@ const pivotOtherEndpointFor = (
 ): string | undefined => {
 
     if ((candidate.documentation?.includes("@entity"))) {
-        const entities = listFrom(candidate.documentation ?? "", "@entity");
+        const entities = listFrom(candidate.documentation ?? "", "entity");
         if (entities.length > 0) return undefined;
         if (entities.includes(thisModelName)) return undefined;
     }
