@@ -106,6 +106,7 @@ export class PrismaToLaravelModelGenerator {
                     enumRef: enumMeta?.name,
                     typeAnnotation,
                     type: field.type,
+                    raw: field
                 };
             });
 
