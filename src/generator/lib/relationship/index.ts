@@ -132,7 +132,7 @@ export function extractListRelationKeys(
         // 3) Only allow names that are real scalar fields and not FK columns
         const scalarFieldNames = new Set(
             pivot.fields
-                .filter((f) => f.kind === "scalar" || field.kind == 'enum')
+                .filter((f) => f.kind !== "object")
                 .map((f) => f.name)
         );
 
