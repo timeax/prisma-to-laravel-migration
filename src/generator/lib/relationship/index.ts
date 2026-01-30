@@ -1,19 +1,19 @@
 // noinspection JSUnusedLocalSymbols
 
-import { DMMF } from "@prisma/generator-helper";
+import {DMMF} from "@prisma/generator-helper";
 import {
-    RelationDefinition,
-    ListRelationKeys,
-    objRels,
-    getModel,
-    dbNameOf,
     conventionalPivotName,
+    dbNameOf,
+    getModel,
     getPrimaryKeyFields,
     hasIntersection,
     isUniqueOn,
+    ListRelationKeys,
+    objRels,
+    RelationDefinition,
 } from "./types";
-import { detectMorphToRelations, parseMorphOwnerDirectives } from "./morph";
-import { isForModel, listFrom, parseLocalDirective } from "@/utils/utils";
+import {detectMorphToRelations, parseMorphOwnerDirectives} from "./morph";
+import {isForModel, listFrom, parseLocalDirective} from "@/utils/utils";
 
 /* ------------------ pivot relevance (explicit M:N) ----------------------- */
 const pivotOtherEndpointFor = (
@@ -124,7 +124,6 @@ export function extractListRelationKeys(
         const fieldPivotNames = pivot.fields
             .filter(
                 (f) =>
-                    f.kind === "scalar" &&
                     !!f.documentation &&
                     /@pivot\b/i.test(f.documentation)
             )
@@ -133,7 +132,7 @@ export function extractListRelationKeys(
         // 3) Only allow names that are real scalar fields and not FK columns
         const scalarFieldNames = new Set(
             pivot.fields
-                .filter((f) => f.kind === "scalar")
+                .filter((f) => f.kind === "scalar" || field.kind == 'enum')
                 .map((f) => f.name)
         );
 
