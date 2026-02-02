@@ -114,11 +114,11 @@ export async function generateLaravelModels(options: GeneratorOptions) {
       const enumPhp = printer.printEnum(enumDef);
       const enumFile = path.join(enumsDir, `${enumDef.name}.php`);
       !cfg.noEmit &&
-         writeWithMerge(
-            enumFile,
-            enumPhp,
-            'model',
-            cfg.overwriteExisting ?? true
+         await writeWithMerge(
+             enumFile,
+             enumPhp,
+             'model',
+             cfg.overwriteExisting ?? true
          );
    }
 
@@ -137,11 +137,11 @@ export async function generateLaravelModels(options: GeneratorOptions) {
       const modelFile = path.join(modelsDir, `${model.className}.php`);
 
       !cfg.noEmit &&
-         writeWithMerge(
-            modelFile,
-            modelPhp,
-            'model',
-            cfg.overwriteExisting ?? true
+         await writeWithMerge(
+             modelFile,
+             modelPhp,
+             'model',
+             cfg.overwriteExisting ?? true
          );
    }
 

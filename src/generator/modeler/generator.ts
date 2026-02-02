@@ -1,14 +1,10 @@
-import { DMMF } from "@prisma/generator-helper";
-import {
-    ModelDefinition,
-    EnumDefinition,
-    PropertyDefinition,
-} from "./types";
-import { PrismaTypes } from "../migrator/column-maps.js";
-import { RelationDefinition } from "@/generator/lib/relationship/types";
-import { buildRelationsForModel } from "@/generator/lib/relationship/index.js";
-import { getConfig, isForModel, listFrom, parseSilentDirective } from "@/utils/utils";
-import { parseAppendsDirective } from "generator/ts/directives";
+import {DMMF} from "@prisma/generator-helper";
+import {EnumDefinition, ModelDefinition, PropertyDefinition,} from "./types";
+import {PrismaTypes} from "../migrator/column-maps.js";
+import {RelationDefinition} from "@/generator/lib/relationship/types";
+import {buildRelationsForModel} from "@/generator/lib/relationship/index.js";
+import {getConfig, isForModel, listFrom, parseSilentDirective} from "@/utils/utils";
+import {parseAppendsDirective} from "generator/ts/directives";
 
 /**
  * Build ModelDefinition[] + EnumDefinition[] from your DMMF.
@@ -17,13 +13,13 @@ export class PrismaToLaravelModelGenerator {
     constructor(private dmmf: DMMF.Document) {
     }
 
-    public primitiveTypes: string[] = [PrismaTypes.BigInt, PrismaTypes.Int, PrismaTypes.String, PrismaTypes.Boolean, PrismaTypes.Bool];
+    public primitiveTypes: string[] = [PrismaTypes.BigInt, PrismaTypes.Int, PrismaTypes.String];
 
     public generateAll(): {
         models: ModelDefinition[];
         enums: EnumDefinition[];
     } {
-        const { namespace: baseNamespace, modelNamespace, enumNamespace } = getConfig('model') ?? {};
+        const {namespace: baseNamespace, modelNamespace, enumNamespace} = getConfig('model') ?? {};
 
         // 1) Extract all Prisma enums into EnumDefinition[]
         const enums: EnumDefinition[] = this.dmmf.datamodel.enums.map((e) => ({
@@ -79,7 +75,7 @@ export class PrismaToLaravelModelGenerator {
                 // @type{ import:'x', type:'Y' }
                 const typeMatch = doc.match(/@type\{\s*(?:import\s*:\s*'([^']+)')?\s*,?\s*type\s*:\s*'([^']+)'\s*}/);
                 const typeAnnotation = typeMatch
-                    ? { import: typeMatch[1], type: typeMatch[2] }
+                    ? {import: typeMatch[1], type: typeMatch[2]}
                     : undefined;
 
                 const enumMeta = enums.find(e => e.name === field.type);
@@ -123,14 +119,14 @@ export class PrismaToLaravelModelGenerator {
             const interfaces: Record<string, { import?: string; type: string }> = {};
             for (const prop of properties) {
                 if (prop.typeAnnotation) {
-                    interfaces[prop.name] = { ...prop.typeAnnotation };
+                    interfaces[prop.name] = {...prop.typeAnnotation};
                 }
             }
 
             /* -------- NEW: parse @trait / @implements / @observer / @factory -------- */
             type UseImport = { fqcn: string; alias?: string };
             const addUse = (arr: UseImport[], fqcn: string, alias?: string) =>
-                arr.push({ fqcn, alias });
+                arr.push({fqcn, alias});
 
             const shortName = (fqcn: string, alias?: string) => alias ?? fqcn.split('\\').pop()!;
 
@@ -157,7 +153,7 @@ export class PrismaToLaravelModelGenerator {
             const extMatch = extendRE.exec(modelDoc);
             if (extMatch) {
                 parentClass = shortName(extMatch[1], extMatch[2]);
-                parentUse = { fqcn: extMatch[1], alias: extMatch[2] };
+                parentUse = {fqcn: extMatch[1], alias: extMatch[2]};
             }
 
             const implUses: UseImport[] = [];
@@ -169,11 +165,11 @@ export class PrismaToLaravelModelGenerator {
 
             const obsMatch = observerRE.exec(modelDoc);
             const observer = obsMatch ? shortName(obsMatch[1], obsMatch[2]) : undefined;
-            const observerUse = obsMatch ? { fqcn: obsMatch[1], alias: obsMatch[2] } : undefined;
+            const observerUse = obsMatch ? {fqcn: obsMatch[1], alias: obsMatch[2]} : undefined;
 
             const facMatch = factoryRE.exec(modelDoc);
             const factory = facMatch ? shortName(facMatch[1], facMatch[2]) : undefined;
-            const factoryUse = facMatch ? { fqcn: facMatch[1], alias: facMatch[2] } : undefined;
+            const factoryUse = facMatch ? {fqcn: facMatch[1], alias: facMatch[2]} : undefined;
 
             // eager-load arrays (now via listFrom)
             const touches = listFrom(modelDoc, "touch");
@@ -232,7 +228,7 @@ export class PrismaToLaravelModelGenerator {
             };
         });
 
-        return { models, enums };
+        return {models, enums};
     }
 
     private mapPrismaToPhpType(prismaType: string, isList?: boolean, ignore?: string[]): string {
