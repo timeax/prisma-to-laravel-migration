@@ -256,12 +256,12 @@ export class PrismaToLaravelModelGenerator {
 
         switch (prismaType) {
             case "String":
-                return "string";
+                return "'string'";
             case "Boolean":
-                return "bool";
+                return "'bool'";
             case "Int":
             case "BigInt":
-                return "int";
+                return "'int'";
             case "Float":
                 return "'float'";
             case "DateTime":
