@@ -1,5 +1,5 @@
 import { DMMF } from "@prisma/generator-helper";
-import { ColumnDefinition } from "../../types/column-definition-types";
+import { ColumnDefinition } from "@/types/column-definition-types";
 import { rules as ruleList, Rule, defaultBuild, DefaultMaps } from "./rules.js";
 
 /**

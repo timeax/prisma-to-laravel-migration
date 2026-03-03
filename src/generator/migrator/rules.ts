@@ -361,7 +361,7 @@ const indexRule: Rule = {
 
         return {
             column: def.name,
-            snippet: [`$table->index('${def.name}');`],
+            snippet: [`$table->index('${def.name}', '${def.dbName}');`],
         };
     },
 };
