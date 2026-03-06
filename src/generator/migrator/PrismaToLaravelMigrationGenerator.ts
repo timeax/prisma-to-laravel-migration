@@ -118,7 +118,7 @@ export class PrismaToLaravelMigrationGenerator {
                 ? `[${idx.fields.map(f => `'${f.name}'`).join(", ")}]`
                 : `'${idx.fields[0].name}'`;
 
-            const name = idx.name ? `, '${idx.dbName ?? idx.name}'` : '';
+            const name = idx.dbName ? `, '${idx.dbName ?? idx.name}'` : '';
             const algorithm = idx.algorithm ? `, '${idx.algorithm}'` : '';
 
             return `$table->${method}(${columns}${name}${algorithm});`;

@@ -69,7 +69,8 @@ model TournamentMember {
 
   roundResults RoundResult[]
 
-  @@unique([tournament_id, email], map: "tournament_members_tournament_id_email_unique")
+  @@index([tournament_id, email], map: "tournament_members_index")
+  @@unique([tournament_id, email])
   @@map("tournament_members")
 }
 
